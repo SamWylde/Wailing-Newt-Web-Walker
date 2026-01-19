@@ -513,22 +513,21 @@ function updateCrawlData(data) {
     updateProgressText(data);
 
     // Update Content Analysis and Link Health tables (handled via VirtualScrollers in addUrlToTable)
-}
 
-// Update PageSpeed results if available
-if (data.stats && data.stats.pagespeed_results) {
-    displayPageSpeedResults(data.stats.pagespeed_results);
-}
+    // Update PageSpeed results if available
+    if (data.stats && data.stats.pagespeed_results) {
+        displayPageSpeedResults(data.stats.pagespeed_results);
+    }
 
-// Notify plugins of data update
-if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
-    window.WailingNewtPlugin.loader.notifyDataUpdate({
-        urls: crawlState.urls,
-        links: crawlState.links,
-        issues: crawlState.issues,
-        stats: crawlState.stats
-    });
-}
+    // Notify plugins of data update
+    if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
+        window.WailingNewtPlugin.loader.notifyDataUpdate({
+            urls: crawlState.urls,
+            links: crawlState.links,
+            issues: crawlState.issues,
+            stats: crawlState.stats
+        });
+    }
 }
 
 function updateProgressText(data) {
