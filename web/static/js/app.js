@@ -39,15 +39,15 @@ let virtualScrollers = {
 };
 
 // Initialize application
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     await initializeApp();
 });
 
 async function initializeApp() {
     // Load plugins first (before tabs are initialized)
-    if (window.LibreCrawlPlugin && window.LibreCrawlPlugin.loader) {
-        await window.LibreCrawlPlugin.loader.loadAllPlugins();
-        window.LibreCrawlPlugin.loader.initializePlugins();
+    if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
+        await window.WailingNewtPlugin.loader.loadAllPlugins();
+        window.WailingNewtPlugin.loader.initializePlugins();
     }
 
     // Setup event listeners
@@ -58,6 +58,12 @@ async function initializeApp() {
 
     // Load user info
     loadUserInfo();
+
+    // Initialize theme
+    initializeTheme();
+
+    // Initialize keyboard shortcuts
+    initializeShortcuts();
 
     // DEBUG: Check sessionStorage
     console.log('DEBUG: Checking sessionStorage force_ui_refresh:', sessionStorage.getItem('force_ui_refresh'));
@@ -169,7 +175,7 @@ async function initializeApp() {
     // Set initial focus
     document.getElementById('urlInput').focus();
 
-    console.log('LibreCrawl initialized');
+    console.log('Wailing Newt Web Walker initialized');
 }
 
 function setupEventListeners() {
@@ -317,8 +323,8 @@ function clearCrawlData() {
     }
 
     // Notify plugins of data clear (send empty data)
-    if (window.LibreCrawlPlugin && window.LibreCrawlPlugin.loader) {
-        window.LibreCrawlPlugin.loader.notifyDataUpdate({
+    if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
+        window.WailingNewtPlugin.loader.notifyDataUpdate({
             urls: [],
             links: [],
             issues: [],
@@ -353,37 +359,37 @@ function startPythonCrawl(url) {
         },
         body: JSON.stringify({ url: url })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateStatus('Crawling in progress...');
-            // Refresh user info to update crawl count
-            loadUserInfo();
-            // Start polling for updates
-            pollCrawlProgress();
-        } else {
-            updateStatus('Error: ' + data.error);
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatus('Crawling in progress...');
+                // Refresh user info to update crawl count
+                loadUserInfo();
+                // Start polling for updates
+                pollCrawlProgress();
+            } else {
+                updateStatus('Error: ' + data.error);
+                stopCrawl();
+            }
+        })
+        .catch(error => {
+            console.error('Error starting crawl:', error);
+            updateStatus('Error starting crawl');
             stopCrawl();
-        }
-    })
-    .catch(error => {
-        console.error('Error starting crawl:', error);
-        updateStatus('Error starting crawl');
-        stopCrawl();
-    });
+        });
 }
 
 function stopPythonCrawl() {
     fetch('/api/stop_crawl', {
         method: 'POST'
     })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Crawl stopped:', data);
-    })
-    .catch(error => {
-        console.error('Error stopping crawl:', error);
-    });
+        .then(response => response.json())
+        .then(data => {
+            console.log('Crawl stopped:', data);
+        })
+        .catch(error => {
+            console.error('Error stopping crawl:', error);
+        });
 }
 
 function pollCrawlProgress() {
@@ -421,8 +427,8 @@ function pollCrawlProgress() {
                     loadVisualizationData();
                 }
                 // Notify plugins that crawl is complete
-                if (window.LibreCrawlPlugin && window.LibreCrawlPlugin.loader) {
-                    window.LibreCrawlPlugin.loader.notifyCrawlComplete({
+                if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
+                    window.WailingNewtPlugin.loader.notifyCrawlComplete({
                         urls: crawlState.urls,
                         links: crawlState.links,
                         issues: crawlState.issues,
@@ -487,24 +493,42 @@ function updateCrawlData(data) {
     // Update status codes table (respecting active filter)
     updateStatusCodesTable(crawlState.filters.active);
 
+    // Update Content Analysis and Link Health tables if active
+    if (data.urls) {
+        if (isContentAnalysisTabActive()) {
+            // clear table first if doing a full refresh, but normally we append?
+            // for now, let's just append new ones or clear/redraw if simple
+            // data.urls contains ALL urls usually in incremental unless strictly diff?
+            // incrementalPoller usually returns diff.
+            // If full refresh, clearing happens elsewhere.
+            data.urls.forEach(url => addUrlToContentAnalysisTable(url));
+        }
+        if (isLinkHealthTabActive()) {
+            data.urls.forEach(url => addUrlToLinkHealthTable(url));
+        }
+    }
+
     // Update progress and status text
     updateProgress(data.progress || 0);
     updateProgressText(data);
 
-    // Update PageSpeed results if available
-    if (data.stats && data.stats.pagespeed_results) {
-        displayPageSpeedResults(data.stats.pagespeed_results);
-    }
+    // Update Content Analysis and Link Health tables (handled via VirtualScrollers in addUrlToTable)
+}
 
-    // Notify plugins of data update
-    if (window.LibreCrawlPlugin && window.LibreCrawlPlugin.loader) {
-        window.LibreCrawlPlugin.loader.notifyDataUpdate({
-            urls: crawlState.urls,
-            links: crawlState.links,
-            issues: crawlState.issues,
-            stats: crawlState.stats
-        });
-    }
+// Update PageSpeed results if available
+if (data.stats && data.stats.pagespeed_results) {
+    displayPageSpeedResults(data.stats.pagespeed_results);
+}
+
+// Notify plugins of data update
+if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
+    window.WailingNewtPlugin.loader.notifyDataUpdate({
+        urls: crawlState.urls,
+        links: crawlState.links,
+        issues: crawlState.issues,
+        stats: crawlState.stats
+    });
+}
 }
 
 function updateProgressText(data) {
@@ -714,6 +738,28 @@ function initializeVirtualScrollers() {
                 renderRow: renderIssueRow
             });
             console.log('Issues virtual scroller initialized');
+        }
+
+        // Content Analysis table
+        const contentAnalysisContainer = document.querySelector('#content-analysis-tab .table-container');
+        if (contentAnalysisContainer && contentAnalysisContainer.querySelector('tbody')) {
+            virtualScrollers.contentAnalysis = new VirtualScroller(contentAnalysisContainer, {
+                rowHeight: 80,
+                buffer: 25,
+                renderRow: renderContentAnalysisRow
+            });
+            console.log('Content Analysis virtual scroller initialized');
+        }
+
+        // Link Health table
+        const linkHealthContainer = document.querySelector('#link-health-tab .table-container');
+        if (linkHealthContainer && linkHealthContainer.querySelector('tbody')) {
+            virtualScrollers.linkHealth = new VirtualScroller(linkHealthContainer, {
+                rowHeight: 80,
+                buffer: 25,
+                renderRow: renderLinkHealthRow
+            });
+            console.log('Link Health virtual scroller initialized');
         }
     } catch (error) {
         console.error('Error initializing virtual scrollers:', error);
@@ -975,6 +1021,14 @@ function addUrlToTable(urlData) {
         virtualScrollers.external.appendData([urlData]);
     }
 
+    if (virtualScrollers.contentAnalysis) {
+        virtualScrollers.contentAnalysis.appendData([urlData]);
+    }
+
+    if (virtualScrollers.linkHealth) {
+        virtualScrollers.linkHealth.appendData([urlData]);
+    }
+
     // Reapply current filter if one is active
     if (crawlState.filters.active) {
         applyFilter(crawlState.filters.active);
@@ -1035,11 +1089,11 @@ function switchTab(tabName) {
 
 // Handle plugin tab activation
 function handlePluginTabSwitch(tabName) {
-    if (!window.LibreCrawlPlugin || !window.LibreCrawlPlugin.loader) {
+    if (!window.WailingNewtPlugin || !window.WailingNewtPlugin.loader) {
         return;
     }
 
-    const loader = window.LibreCrawlPlugin.loader;
+    const loader = window.WailingNewtPlugin.loader;
 
     // Deactivate previously active plugin
     if (loader.activePluginId && loader.activePluginId !== tabName) {
@@ -1154,6 +1208,12 @@ function clearActiveFilters() {
     if (virtualScrollers.external) {
         const externalUrls = crawlState.urls.filter(url => !url.is_internal);
         virtualScrollers.external.setData(externalUrls);
+    }
+    if (virtualScrollers.contentAnalysis) {
+        virtualScrollers.contentAnalysis.setData(crawlState.urls);
+    }
+    if (virtualScrollers.linkHealth) {
+        virtualScrollers.linkHealth.setData(crawlState.urls);
     }
 
     // Reset Status Codes table to show all data
@@ -1655,16 +1715,16 @@ function showUrlDetails(url) {
                                 <div class="details-subsection">
                                     <h5>OpenGraph Tags:</h5>
                                     ${Object.entries(urlData.og_tags || {}).map(([key, value]) =>
-                                        `<div><strong>og:${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`
-                                    ).join('')}
+        `<div><strong>og:${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`
+    ).join('')}
                                 </div>
                             ` : ''}
                             ${Object.keys(urlData.twitter_tags || {}).length > 0 ? `
                                 <div class="details-subsection">
                                     <h5>Twitter Cards:</h5>
                                     ${Object.entries(urlData.twitter_tags || {}).map(([key, value]) =>
-                                        `<div><strong>twitter:${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`
-                                    ).join('')}
+        `<div><strong>twitter:${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`
+    ).join('')}
                                 </div>
                             ` : ''}
                         </div>
@@ -1699,9 +1759,9 @@ function showUrlDetails(url) {
                             <div class="details-subsection">
                                 <ul style="list-style: none; padding: 0; margin: 10px 0;">
                                     ${urlData.linked_from.slice(0, 20).map(sourceUrl => {
-                                        const escapedUrl = escapeHtml(sourceUrl);
-                                        return `<li style="padding: 5px 0; word-break: break-all;"><a href="${escapedUrl}" target="_blank" style="color: #8b5cf6; text-decoration: none;">${escapedUrl}</a></li>`;
-                                    }).join('')}
+        const escapedUrl = escapeHtml(sourceUrl);
+        return `<li style="padding: 5px 0; word-break: break-all;"><a href="${escapedUrl}" target="_blank" style="color: #8b5cf6; text-decoration: none;">${escapedUrl}</a></li>`;
+    }).join('')}
                                     ${urlData.linked_from.length > 20 ? `<li style="padding: 5px 0; font-style: italic; color: #9ca3af;">... and ${urlData.linked_from.length - 20} more</li>` : ''}
                                 </ul>
                             </div>
@@ -1895,7 +1955,7 @@ async function saveCrawl() {
         // Generate filename with domain and timestamp
         const domain = crawlState.baseUrl ? new URL(crawlState.baseUrl).hostname : 'crawl';
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        a.download = `librecrawl_${domain}_${timestamp}.json`;
+        a.download = `wailing_newt_${domain}_${timestamp}.json`;
 
         document.body.appendChild(a);
         a.click();
@@ -1917,7 +1977,7 @@ function loadCrawl() {
     fileInput.accept = '.json';
     fileInput.style.display = 'none';
 
-    fileInput.addEventListener('change', async function(event) {
+    fileInput.addEventListener('change', async function (event) {
         const file = event.target.files[0];
         if (!file) return;
 
@@ -2057,8 +2117,8 @@ function loadCrawl() {
             }
 
             // Notify plugins of loaded data
-            if (window.LibreCrawlPlugin && window.LibreCrawlPlugin.loader) {
-                window.LibreCrawlPlugin.loader.notifyDataUpdate({
+            if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
+                window.WailingNewtPlugin.loader.notifyDataUpdate({
                     urls: crawlState.urls,
                     links: crawlState.links,
                     issues: crawlState.issues,
@@ -2212,3 +2272,189 @@ function renderIssueRow(row, issue, index) {
         <td style="word-break: break-word;" title="${issue.details}">${issue.details}</td>
     `;
 }
+
+function renderContentAnalysisRow(row, urlData, index) {
+    const metrics = urlData.content_metrics || {};
+
+    const wordCount = urlData.word_count || 0;
+    const readability = metrics.flesch_kincaid_grade || '-';
+    const readingTime = metrics.reading_time_minutes || (wordCount > 0 ? Math.ceil(wordCount / 200) + ' min' : '-');
+
+    // Status text
+    let status = '<span class="status-badge status-good">Good</span>';
+    if (metrics.is_thin_content) status = '<span class="status-badge status-error">Thin Content</span>';
+    else if (readability > 12) status = '<span class="status-badge status-warning">Complex</span>';
+
+    // Keywords
+    let keywordsHtml = '';
+    if (metrics.keywords && metrics.keywords.length > 0) {
+        keywordsHtml = metrics.keywords.slice(0, 5).map(k =>
+            `<span class="keyword-tag" title="${k.count} occurrences">${k.word}</span>`
+        ).join(' ');
+    }
+
+    row.innerHTML = `
+        <td class="url-cell" title="${urlData.url}">${urlData.url}</td>
+        <td>${wordCount}</td>
+        <td>${readability}</td>
+        <td>${metrics.readability_score || '-'}</td>
+        <td>${readingTime}</td>
+        <td>${keywordsHtml}</td>
+        <td>${status}</td>
+    `;
+}
+
+function renderLinkHealthRow(row, urlData, index) {
+    // Determine orphan status
+    const isOrphan = (urlData.linked_from && urlData.linked_from.length === 0 && !urlData.is_start_url && urlData.depth > 0);
+    const orphanStatus = isOrphan ? '<span class="status-badge status-error">Orphan</span>' : '<span class="status-badge status-good">Linked</span>';
+
+    const equity = urlData.link_equity !== undefined ? parseFloat(urlData.link_equity).toFixed(2) : '-';
+
+    const inboundCount = urlData.linked_from ? urlData.linked_from.length : 0;
+    const outboundCount = (urlData.internal_links || 0) + (urlData.external_links || 0);
+
+    const redirectChain = (urlData.redirects && urlData.redirects.length > 0)
+        ? `<span class="status-badge status-info">${urlData.redirects.length} hops</span>`
+        : '-';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${urlData.url}">${urlData.url}</td>
+        <td>${orphanStatus}</td>
+        <td>${equity}</td>
+        <td>${inboundCount}</td>
+        <td>${outboundCount}</td>
+        <td>${redirectChain}</td>
+    `;
+}
+
+// New Tab Helpers
+function isContentAnalysisTabActive() {
+    const tab = document.getElementById('content-analysis-tab');
+    return tab && tab.classList.contains('active');
+}
+
+function isLinkHealthTabActive() {
+    const tab = document.getElementById('link-health-tab');
+    return tab && tab.classList.contains('active');
+}
+
+// Theme Management
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('themeIcon');
+    if (icon) {
+        icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+    }
+}
+
+// Keyboard Shortcuts
+function initializeShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+Enter to Start/Resume
+        if (e.ctrlKey && e.key === 'Enter') {
+            toggleCrawl();
+        }
+        // Esc to Stop
+        if (e.key === 'Escape' && crawlState.isRunning) {
+            stopCrawl();
+        }
+    });
+}
+
+// Bulk Input Modal
+function openBulkInputModal() {
+    document.getElementById('bulkInputModal').style.display = 'flex';
+    document.getElementById('bulkUrlsInput').focus();
+}
+
+function closeBulkInputModal() {
+    document.getElementById('bulkInputModal').style.display = 'none';
+}
+
+function processBulkUrls() {
+    const input = document.getElementById('bulkUrlsInput').value;
+    const urls = input.split('\n').map(u => u.trim()).filter(u => u);
+
+    if (urls.length === 0) {
+        alert('Please enter at least one URL');
+        return;
+    }
+
+    // Use first URL as base
+    const firstUrl = urls[0];
+    document.getElementById('urlInput').value = firstUrl;
+
+    startCrawlWithExtraUrls(firstUrl, urls.slice(1));
+    closeBulkInputModal();
+}
+
+function startCrawlWithExtraUrls(baseUrl, extraUrls) {
+    // Similar to startCrawl but passes extra_urls
+    const urlInput = document.getElementById('urlInput');
+    urlInput.value = baseUrl; // update UI
+
+    // Ensure normalization
+    baseUrl = normalizeUrl(baseUrl);
+
+    crawlState.isRunning = true;
+    crawlState.isPaused = false;
+    crawlState.startTime = new Date();
+    crawlState.baseUrl = baseUrl;
+    crawlState.urls = [];
+    crawlState.links = [];
+    crawlState.issues = [];
+
+    // Initialize incremental poller for new crawl
+    // Assuming IncrementalPoller is available globally or imported
+    if (typeof IncrementalPoller !== 'undefined') {
+        if (!incrementalPoller) incrementalPoller = new IncrementalPoller();
+        incrementalPoller.reset();
+    }
+
+    updateCrawlButtons();
+    showProgress();
+    updateStatus('Starting bulk crawl...');
+    clearAllTables();
+    resetStats();
+
+    // Call Python backend
+    fetch('/api/start_crawl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            url: baseUrl,
+            extra_urls: extraUrls
+        })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatus('Crawling in progress...');
+                loadUserInfo();
+                pollCrawlProgress();
+            } else {
+                updateStatus('Error: ' + data.error);
+                stopCrawl();
+            }
+        })
+        .catch(error => {
+            console.error('Error starting crawl:', error);
+            stopCrawl();
+        });
+}
+

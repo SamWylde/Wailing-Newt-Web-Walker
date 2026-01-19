@@ -40,22 +40,22 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install-deps
 
 # Create a non-root user to run the application
-RUN groupadd -r librecrawl && useradd -r -g librecrawl -u 1000 librecrawl \
-    && mkdir -p /home/librecrawl && chown -R librecrawl:librecrawl /home/librecrawl
+RUN groupadd -r wailingnewt && useradd -r -g wailingnewt -u 1000 wailingnewt \
+    && mkdir -p /home/wailingnewt && chown -R wailingnewt:wailingnewt /home/wailingnewt
 
 # Copy application code
-COPY --chown=librecrawl:librecrawl . .
+COPY --chown=wailingnewt:wailingnewt . .
 
 # Create directory for user database if it doesn't exist
-RUN mkdir -p /app/data && chown -R librecrawl:librecrawl /app/data
+RUN mkdir -p /app/data && chown -R wailingnewt:wailingnewt /app/data
 
 # Change ownership of the entire app directory
-RUN chown -R librecrawl:librecrawl /app
+RUN chown -R wailingnewt:wailingnewt /app
 
 # Switch to non-root user
-USER librecrawl
+USER wailingnewt
 
-# Install all Playwright browsers as non-root user (installs to /home/librecrawl/.cache/ms-playwright)
+# Install all Playwright browsers as non-root user (installs to /home/wailingnewt/.cache/ms-playwright)
 RUN playwright install
 
 # Expose Flask port

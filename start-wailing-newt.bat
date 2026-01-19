@@ -4,17 +4,17 @@ echo Checking for Docker...
 docker --version 2>nul
 if errorlevel 1 goto nodocker
 
-echo Docker found! Starting LibreCrawl...
+echo Docker found! Starting Wailing Newt Web Walker...
 docker-compose up -d
 timeout /t 3 /nobreak >nul
 
 echo.
 echo ================================================================================
-echo LibreCrawl is running!
+echo Wailing Newt Web Walker is running!
 echo Opening browser to http://localhost:5000
 echo.
-echo Press Ctrl+C to stop LibreCrawl
-echo DO NOT close this window or LibreCrawl will keep running!
+echo Press Ctrl+C to stop Wailing Newt Web Walker
+echo DO NOT close this window or it will keep running!
 echo ================================================================================
 echo.
 
@@ -29,12 +29,16 @@ python --version 2>nul
 if errorlevel 1 goto trypy
 
 :foundpython
-echo Python found! Checking dependencies...
-pip show flask 2>nul
-if errorlevel 1 goto installdeps
+echo Python found! Installing/updating dependencies...
+python -m pip install -r requirements.txt --quiet
+if errorlevel 1 (
+    echo Failed to install dependencies. Please check your Python installation.
+    pause
+    exit /b 1
+)
 
 :rundirect
-echo Starting LibreCrawl...
+echo Starting Wailing Newt Web Walker...
 start /b cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:5000"
 python main.py -l
 exit /b
@@ -44,12 +48,6 @@ py --version 2>nul
 if errorlevel 1 goto nopython
 set PYTHON=py
 goto foundpython
-
-:installdeps
-echo Installing dependencies...
-pip install -r requirements.txt
-playwright install chromium
-goto rundirect
 
 :nopython
 echo.

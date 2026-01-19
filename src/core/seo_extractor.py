@@ -2,6 +2,7 @@
 import re
 import json
 from urllib.parse import urljoin, urlparse
+from src.core.content_analyzer import ContentAnalyzer
 
 
 class SEOExtractor:
@@ -28,10 +29,15 @@ class SEOExtractor:
         h3_tags = soup.find_all('h3')
         result['h3'] = [h3.get_text().strip() for h3 in h3_tags[:10]]
 
-        # Count words
-        text_content = soup.get_text()
-        words = re.findall(r'\b\w+\b', text_content)
-        result['word_count'] = len(words)
+        # Count words and analyze content
+        text_content = soup.get_text(" ", strip=True)
+        
+        # Use ContentAnalyzer for advanced metrics
+        analyzer = ContentAnalyzer()
+        content_metrics = analyzer.analyze_content(text_content)
+        
+        result['word_count'] = content_metrics['word_count']
+        result['content_metrics'] = content_metrics
 
         # Extract language
         html_tag = soup.find('html')
@@ -300,5 +306,6 @@ class SEOExtractor:
             'hreflang': [],
             'schema_org': [],
             'linked_from': [],
+            'content_metrics': {},
             'error': error
         }

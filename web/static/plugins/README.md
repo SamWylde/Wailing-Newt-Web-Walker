@@ -1,17 +1,17 @@
-# LibreCrawl Plugins
+# Wailing Newt Plugins
 
-Drop your custom plugin files here! Each `.js` file will automatically create a new tab in LibreCrawl.
+Drop your custom plugin files here! Each `.js` file will automatically create a new tab in Wailing Newt Web Walker.
 
 ## 🔌 Quick Start
 
 1. Create a new `.js` file in this folder (e.g., `my-plugin.js`)
-2. Register your plugin using the LibreCrawl Plugin API
+2. Register your plugin using the Wailing Newt Plugin API
 3. Refresh the app - your new tab appears automatically!
 
 ## 📝 Example Plugin Structure
 
 ```javascript
-LibreCrawlPlugin.register({
+WailingNewtPlugin.register({
   // Required: Unique ID (used for tab identification)
   id: 'my-plugin',
 
@@ -93,7 +93,7 @@ this.utils.escapeHtml(text)
 
 ## 🎨 Styling
 
-Use these CSS classes to match LibreCrawl's design:
+Use these CSS classes to match Wailing Newt's design:
 
 - `.plugin-content` - Main container
 - `.plugin-header` - Header section
@@ -119,6 +119,5 @@ Check out these example plugins to get started:
 
 - `_example-plugin.js` - Basic template (ignored by loader)
 - `e-e-a-t.js` - E-E-A-T analyzer example
-- `content-quality.js` - Content quality scorer example
 
 Happy plugin development! 🚀

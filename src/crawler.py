@@ -32,7 +32,7 @@ class WebCrawler:
         # HTTP session
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'LibreCrawl/1.0 (Web Crawler)'
+            'User-Agent': 'WailingNewt/1.0 (Web Crawler)'
         })
 
         # Base URL tracking
@@ -98,7 +98,7 @@ class WebCrawler:
             'delay': 1.0,
             'follow_redirects': True,
             'crawl_external': False,
-            'user_agent': 'LibreCrawl/1.0 (Web Crawler)',
+            'user_agent': 'WailingNewt/1.0 (Web Crawler)',
             'timeout': 10,
             'retries': 3,
             'accept_language': 'en-US,en;q=0.9',
@@ -122,7 +122,7 @@ class WebCrawler:
             'js_timeout': 30,
             'js_browser': 'chromium',
             'js_headless': True,
-            'js_user_agent': 'LibreCrawl/1.0 (Web Crawler with JavaScript)',
+            'js_user_agent': 'WailingNewt/1.0 (Web Crawler with JavaScript)',
             'js_viewport_width': 1920,
             'js_viewport_height': 1080,
             'js_max_concurrent_pages': 3,
@@ -201,7 +201,7 @@ class WebCrawler:
             ]
         }
 
-    def start_crawl(self, url, user_id=None, session_id=None):
+    def start_crawl(self, url, user_id=None, session_id=None, extra_urls=None):
         """Start crawling from the given URL"""
         if self.is_running:
             return False, "Crawl already in progress"
@@ -242,8 +242,18 @@ class WebCrawler:
             self._reset_state()
 
             # Add initial URL
+            # Add initial URL
             self.link_manager.add_url(url, 0)
-            self.stats['discovered'] = 1
+            
+            # Add extra URLs from bulk input
+            if extra_urls:
+                for extra in extra_urls:
+                    # Normalize extra URLs if needed
+                    if not extra.startswith(('http://', 'https://')):
+                        extra = 'https://' + extra
+                    self.link_manager.add_url(extra, 0)
+                    
+            self.stats['discovered'] = self.link_manager.get_stats()['discovered']
 
             # Discover sitemaps if enabled
             if self.config.get('discover_sitemaps', True):
@@ -750,15 +760,43 @@ class WebCrawler:
             self._run_pagespeed_analysis()
             self.is_running_pagespeed = False
 
+            self.is_running_pagespeed = False
+
+        # Link Analysis Enhancements
+        if self.link_manager:
+            print("Running advanced link analysis...")
+            # Detect orphan pages
+            orphans = self.link_manager.find_orphan_pages(self.start_url)
+            if orphans and self.issue_detector:
+                self.issue_detector.detect_orphan_issues(orphans)
+                print(f"Found {len(orphans)} orphan pages")
+            
+            # Calculate link equity
+            link_equity = self.link_manager.calculate_link_equity()
+            # Attach equity scores to results
+            if link_equity:
+                for result in self.crawl_results:
+                    if result['url'] in link_equity:
+                        result['link_equity'] = round(link_equity[result['url']], 2)
+                print("Link equity calculation complete")
+
         # Update all linked_from fields before completing
         self._update_all_linked_from()
 
-        # Run duplication detection on all crawled content
-        if self.issue_detector and self.config.get('enable_duplication_check', True):
-            print("Running duplication detection...")
-            duplication_threshold = self.config.get('duplication_threshold', 0.85)
-            self.issue_detector.detect_duplication_issues(self.crawl_results, duplication_threshold)
-            print(f"Duplication detection complete. Total issues: {len(self.issue_detector.get_issues())}")
+        # Run batch detection (duplication, hreflang, cannibalization)
+        if self.issue_detector:
+            print("Running batch issue detection (duplication, hreflang, cannibalization)...")
+            issues_before = len(self.issue_detector.detected_issues)
+            
+            self.issue_detector.detect_batch_issues(self.crawl_results)
+            
+            issues_after = len(self.issue_detector.detected_issues)
+            print(f"Batch detection complete. Found {issues_after - issues_before} new issues.")
+            
+            # Add newly detected issues to unsaved batch
+            if self.db_save_enabled and issues_after > issues_before:
+                new_issues = self.issue_detector.detected_issues[issues_before:issues_after]
+                self.unsaved_issues.extend(new_issues)
 
         # Save final data and mark as complete
         if self.db_save_enabled and self.crawl_id:

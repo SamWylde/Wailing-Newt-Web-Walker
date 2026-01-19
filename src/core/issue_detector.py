@@ -39,6 +39,12 @@ class IssueDetector:
         with self.issues_lock:
             self.detected_issues.extend(issues)
 
+    def detect_batch_issues(self, all_results):
+        """Detect issues requiring analysis of all pages (duplicates, hreflang, cannibalization)"""
+        self.detect_duplication_issues(all_results)
+        self.detect_hreflang_issues(all_results)
+        self.detect_cannibalization_issues(all_results)
+
     def _check_title_issues(self, result, issues):
         """Check for title-related issues"""
         url = result.get('url', '')
@@ -117,7 +123,18 @@ class IssueDetector:
         url = result.get('url', '')
         word_count = result.get('word_count', 0)
 
-        if word_count < 300:
+        # Use advanced content metrics if available
+        content_metrics = result.get('content_metrics', {})
+        
+        if content_metrics and content_metrics.get('is_thin_content'):
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'Content',
+                'issue': 'Thin Content',
+                'details': f'Page has only {word_count} words (limit: 300)'
+            })
+        elif word_count < 300:
             issues.append({
                 'url': url,
                 'type': 'warning',
@@ -125,6 +142,18 @@ class IssueDetector:
                 'issue': 'Thin Content',
                 'details': f'Page has only {word_count} words (recommended: ≥300)'
             })
+
+        # Readability check
+        if content_metrics:
+            readability_grade = content_metrics.get('flesch_kincaid_grade', 0)
+            if readability_grade > 12:
+                issues.append({
+                    'url': url,
+                    'type': 'info',
+                    'category': 'Content',
+                    'issue': 'Difficult Readability',
+                    'details': f'Content readability is Grade {readability_grade} (complex)'
+                })
 
     def _check_technical_issues(self, result, issues):
         """Check for technical SEO issues"""
@@ -154,6 +183,17 @@ class IssueDetector:
                 'category': 'Technical',
                 'issue': f'{status_code} Redirect',
                 'details': 'URL redirects to another location'
+            })
+
+        # Redirect chain check
+        redirects = result.get('redirects', [])
+        if len(redirects) > 3:
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'Technical',
+                'issue': 'Long Redirect Chain',
+                'details': f'Redirect chain has {len(redirects)} hops (recommended: <3)'
             })
 
         # Canonical URL checks
@@ -370,6 +410,59 @@ class IssueDetector:
                     })
 
         # Add all detected duplication issues
+        with self.issues_lock:
+            self.detected_issues.extend(issues)
+
+    def detect_orphan_issues(self, orphan_urls):
+        """Report orphan pages as issues"""
+        issues = []
+        for url in orphan_urls:
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'Indexability',
+                'issue': 'Orphan Page',
+                'details': 'Page is not linked from any other internal page'
+            })
+            
+        with self.issues_lock:
+            self.detected_issues.extend(issues)
+
+    def detect_hreflang_issues(self, all_results):
+        """Detect hreflang implementation issues (missing return links)"""
+        issues = []
+        # Optimization: Build a map of url -> set(hreflang_urls)
+        # TODO: Implement full validation in next iteration
+        pass
+
+    def detect_cannibalization_issues(self, all_results):
+        """Detect keyword cannibalization (multiple pages targeting same concept)"""
+        issues = []
+        # Group pages by similar titles
+        title_map = {}
+        for result in all_results:
+            title = result.get('title', '').strip()
+            if not title or len(title) < 10: 
+                continue
+                
+            # Simplified cannibalization check based on exact title match or very high similarity
+            # In production this would use more advanced NLP
+            if title in title_map:
+                title_map[title].append(result.get('url'))
+            else:
+                title_map[title] = [result.get('url')]
+        
+        for title, urls in title_map.items():
+            if len(urls) > 1:
+                for url in urls:
+                    issues.append({
+                        'url': url,
+                        'type': 'warning',
+                        'category': 'SEO',
+                        'issue': 'Potential keyword cannibalization',
+                        'details': f'Shares exact title with {len(urls)-1} other pages'
+                    })
+                    
         with self.issues_lock:
             self.detected_issues.extend(issues)
 

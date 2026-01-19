@@ -1,7 +1,7 @@
 services:
-  librecrawl:
+  wailingnewt:
     build: .
-    container_name: librecrawl
+    container_name: wailingnewt
     ports:
       # In local mode: only localhost (127.0.0.1:5000)
       # In production mode: all interfaces (0.0.0.0:5000) for LAN/WAN access
@@ -18,15 +18,11 @@ services:
       - REGISTRATION_DISABLED=${REGISTRATION_DISABLED:-false}
     restart: unless-stopped
     command: >
-      sh -c "
-      FLAGS='';
-      if [ \"$$LOCAL_MODE\" = \"true\" ]; then
+      sh -c " FLAGS=''; if [ \"$$LOCAL_MODE\" = \"true\" ]; then
         FLAGS=\"$$FLAGS --local\";
-      fi;
-      if [ \"$$REGISTRATION_DISABLED\" = \"true\" ]; then
+      fi; if [ \"$$REGISTRATION_DISABLED\" = \"true\" ]; then
         FLAGS=\"$$FLAGS --disable-register\";
-      fi;
-      python main.py $$FLAGS"
+      fi; python main.py $$FLAGS"
 
     # Increase shared memory size for Chrome to prevent crashes
     shm_size: '2gb'

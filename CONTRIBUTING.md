@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for considering contributing to LibreCrawl. Here's how you can help.
+Thanks for considering contributing to Wailing Newt Web Walker. Here's how you can help.
 
 ## Ways to contribute
 

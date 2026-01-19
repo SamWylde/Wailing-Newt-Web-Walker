@@ -1,3 +1,20 @@
 
+# Python
+__pycache__/
 *.pyc
+
+# Database
+*.db
+users.db
+
+# Environment
+.env
+.venv
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Local Settings
 .claude/settings.local.json

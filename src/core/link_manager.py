@@ -217,3 +217,113 @@ class LinkManager:
         with self.links_lock:
             self.all_links.clear()
             self.links_set.clear()
+
+    def find_orphan_pages(self, start_url):
+        """
+        Find internal pages that have no incoming internal links.
+        
+        Args:
+            start_url: The starting URL of the crawl (excluded from orphans)
+            
+        Returns:
+            list: List of orphan page URLs
+        """
+        orphans = []
+        with self.urls_lock:
+            for url in self.all_discovered_urls:
+                # Skip external URLs
+                if not self.is_internal(url):
+                    continue
+                    
+                # Skip start URL
+                if url == start_url or url.rstrip('/') == start_url.rstrip('/'):
+                    continue
+                
+                # Check for incoming links
+                has_internal_link = False
+                sources = self.source_pages.get(url, [])
+                for source in sources:
+                    if self.is_internal(source):
+                        has_internal_link = True
+                        break
+                
+                if not has_internal_link:
+                    orphans.append(url)
+                    
+        return orphans
+
+    def calculate_link_equity(self, iterations=10, damping_factor=0.85):
+        """
+        Calculate Link Equity (PageRank-style) for all internal pages.
+        
+        Returns:
+            dict: Mapping of URL -> Equity Score (0-10)
+        """
+        # Build graph
+        pages = set()
+        outgoing_links = {}  # url -> list of target urls
+        incoming_links = {}  # url -> list of source urls
+        
+        with self.links_lock:
+            # Initialize nodes based on visited internal URLs
+            with self.urls_lock:
+                for url in self.visited_urls:
+                    if self.is_internal(url):
+                        pages.add(url)
+                        outgoing_links[url] = []
+                        incoming_links[url] = []
+
+            # Build edges
+            for link in self.all_links:
+                source = link['source_url']
+                target = link['target_url']
+                
+                if source in pages and target in pages:
+                    outgoing_links[source].append(target)
+                    if target not in incoming_links:
+                        incoming_links[target] = []
+                    incoming_links[target].append(source)
+        
+        num_pages = len(pages)
+        if num_pages == 0:
+            return {}
+            
+        # Initialize scores (1.0 for everyone)
+        scores = {page: 1.0 for page in pages}
+        
+        # Iterate
+        for _ in range(iterations):
+            new_scores = {}
+            sink_score = 0
+            
+            # Handle sink nodes (pages with no outgoing links)
+            for page in pages:
+                if not outgoing_links[page]:
+                    sink_score += scores[page]
+            
+            sink_score_share = (damping_factor * sink_score) / num_pages
+            base_score = (1 - damping_factor) / num_pages
+            
+            for page in pages:
+                incoming_score = 0
+                for source in incoming_links.get(page, []):
+                    # Share = score / number of outgoing links
+                    out_count = len(outgoing_links[source])
+                    if out_count > 0:
+                        incoming_score += scores[source] / out_count
+                
+                new_scores[page] = base_score + sink_score_share + (damping_factor * incoming_score)
+            
+            scores = new_scores
+            
+        # Normalize to 0-10 scale
+        if not scores:
+            return {}
+            
+        max_score = max(scores.values())
+        if max_score > 0:
+            normalized_scores = {k: (v / max_score) * 10 for k, v in scores.items()}
+        else:
+            normalized_scores = scores
+            
+        return normalized_scores

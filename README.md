@@ -1,20 +1,18 @@
-# LibreCrawl
+# Wailing Newt Web Walker
 
 A web-based multi-tenant crawler for SEO analysis and website auditing.
 
-🌐 **Website**: [librecrawl.com](https://librecrawl.com)
+**Try the Live Demo:** [Coming Soon]
 
-**Try the Live Demo:** [https://librecrawl.com/app/](https://librecrawl.com/app/)
+**API Documentation:** [Coming Soon]
 
-**API Documentation:** [https://librecrawl.com/api/docs/](https://librecrawl.com/api/docs/)
+**Plugin Workshop:** [Coming Soon]
 
-**Plugin Workshop** [https://librecrawl.com/workshop/](https://librecrawl.com/workshop/)
-
-LibreCrawl will ***always*** be free and open source. If it's replacing your $259/year Screaming Frog license, deepcrawl license or sitebulb license, [buy me a coffee](https://www.paypal.com/donate/?business=7H9HFA3385JS8&no_recurring=0&item_name=Continue+the+development+of+LibreCrawl&currency_code=AUD).
+Wailing Newt Web Walker will ***always*** be free and open source. If it's replacing your $259/year Screaming Frog license, deepcrawl license or sitebulb license, consider supporting the development.
 
 ## What it does
 
-LibreCrawl crawls websites and gives you detailed information about pages, links, SEO elements, and performance. It's built as a web application using Python Flask with a modern web interface supporting multiple concurrent users.
+Wailing Newt Web Walker crawls websites and gives you detailed information about pages, links, SEO elements, and performance. It's built as a web application using Python Flask with a modern web interface supporting multiple concurrent users.
 
 ## Features
 
@@ -32,25 +30,25 @@ LibreCrawl crawls websites and gives you detailed information about pages, links
 ## Getting started
 ### Quick Start (Automatic Installation)
 
-**The easiest way to run LibreCrawl** - just run the startup script and it handles everything:
+**The easiest way to run Wailing Newt Web Walker** - just run the startup script and it handles everything:
 
 **Windows:**
 ```batch
-start-librecrawl.bat
+start-wailing-newt.bat
 ```
 
 **Linux/Mac:**
 ```bash
-chmod +x start-librecrawl.sh
-./start-librecrawl.sh
+chmod +x start-wailing-newt.sh
+./start-wailing-newt.sh
 ```
 
 **What it does automatically:**
-1. Checks for Docker - if found, runs LibreCrawl in a container (recommended)
-2. If no Docker, checks for Python - if not found, downloads and installs it (Windows only *temporairly disabled since it causes some bat issues*)
+1. Checks for Docker - if found, runs Wailing Newt Web Walker in a container (recommended)
+2. If no Docker, checks for Python - if not found, downloads and installs it (Windows only *temporarily disabled since it causes some bat issues*)
 3. Installs all dependencies automatically (`pip install -r requirements.txt`)
 4. Installs Playwright browsers for JavaScript rendering
-5. Starts LibreCrawl in local mode (no authentication)
+5. Starts Wailing Newt Web Walker in local mode (no authentication)
 6. Opens your browser to `http://localhost:5000`
 
 ### Manual Installation
@@ -65,18 +63,18 @@ If you prefer to install manually or want more control:
 **Steps:**
 ```bash
 # Clone the repository
-git clone https://github.com/PhialsBasement/LibreCrawl.git
-cd LibreCrawl
+git clone https://github.com/SamWylde/Wailing-Newt-Web-Walker.git
+cd Wailing-Newt-Web-Walker
 
 # Copy environment file
 cp .env.example .env
 
-# Start LibreCrawl
+# Start Wailing Newt Web Walker
 docker-compose up -d
 
 # Open browser to http://localhost:5000
 ```
-By default, LibreCrawl runs in local mode for easy personal use. The `.env` file controls this:
+By default, Wailing Newt Web Walker runs in local mode for easy personal use. The `.env` file controls this:
 
 ```bash
 # .env file
@@ -130,20 +128,20 @@ python main.py -l
    - Network: `http://<your-ip>:5000`
 
 
-## LibreCrawl Plugins
+## Wailing Newt Plugins
 
-Drop your custom plugin files in `/web/static/plugins/`! Each `.js` file will automatically create a new tab in LibreCrawl.
+Drop your custom plugin files in `/web/static/plugins/`! Each `.js` file will automatically create a new tab in Wailing Newt Web Walker.
 
 ### 🔌 Quick Start
 
 1. Create a new `.js` file in this folder (e.g., `my-plugin.js`)
-2. Register your plugin using the LibreCrawl Plugin API
+2. Register your plugin using the Wailing Newt Plugin API
 3. Refresh the app - your new tab appears automatically!
 
 ### 📝 Example Plugin Structure
 
 ```javascript
-LibreCrawlPlugin.register({
+WailingNewtPlugin.register({
   // Required: Unique ID (used for tab identification)
   id: 'my-plugin',
 
@@ -225,7 +223,7 @@ this.utils.escapeHtml(text)
 
 #### 🎨 Styling
 
-Use these CSS classes to match LibreCrawl's design:
+Use these CSS classes to match Wailing Newt's design:
 
 - `.plugin-content` - Main container
 - `.plugin-header` - Header section
@@ -289,7 +287,7 @@ For PageSpeed analysis, add a Google API key in Settings > Requests for higher r
 
 ## Multi-tenancy
 
-LibreCrawl supports multiple concurrent users with isolated sessions:
+Wailing Newt Web Walker supports multiple concurrent users with isolated sessions:
 
 - Each browser session gets its own crawler instance and data
 - Settings are stored in browser localStorage (persistent across restarts)

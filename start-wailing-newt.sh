@@ -1,25 +1,25 @@
 #!/bin/bash
 
-# Start LibreCrawl - tries Docker first, falls back to Python
+# Start Wailing Newt Web Walker - tries Docker first, falls back to Python
 
 echo "Checking for Docker..."
 if command -v docker &> /dev/null && command -v docker-compose &> /dev/null; then
-    echo "Docker found! Starting LibreCrawl with Docker..."
+    echo "Docker found! Starting Wailing Newt Web Walker with Docker..."
     docker-compose up -d
 
     # Wait for the service to be ready
-    echo "Waiting for LibreCrawl to start..."
+    echo "Waiting for Wailing Newt Web Walker to start..."
     sleep 3
 
     # Check if container is running
-    if docker ps | grep -q librecrawl; then
+    if docker ps | grep -q wailing-newt; then
         echo ""
         echo "================================================================================"
-        echo "LibreCrawl is running!"
+        echo "Wailing Newt Web Walker is running!"
         echo "Opening browser to http://localhost:5000"
         echo ""
-        echo "Press Ctrl+C to stop LibreCrawl and exit"
-        echo "DO NOT close this terminal or LibreCrawl will keep running in the background!"
+        echo "Press Ctrl+C to stop Wailing Newt Web Walker and exit"
+        echo "DO NOT close this terminal or it will keep running in the background!"
         echo "================================================================================"
         echo ""
 
@@ -33,14 +33,14 @@ if command -v docker &> /dev/null && command -v docker-compose &> /dev/null; the
         fi
 
         # Trap Ctrl+C to gracefully shutdown
-        trap 'echo ""; echo "Stopping LibreCrawl..."; docker-compose down; exit 0' INT
+        trap 'echo ""; echo "Stopping Wailing Newt Web Walker..."; docker-compose down; exit 0' INT
 
         # Keep terminal open and show logs
         echo "Showing live logs (press Ctrl+C to stop):"
         echo ""
         docker-compose logs -f
     else
-        echo "Error: LibreCrawl container failed to start"
+        echo "Error: Wailing Newt Web Walker container failed to start"
         docker-compose logs
         exit 1
     fi
@@ -80,8 +80,8 @@ else
         playwright install chromium
     fi
 
-    # Run LibreCrawl with Python in local mode
-    echo "Starting LibreCrawl in local mode..."
+    # Run Wailing Newt Web Walker with Python in local mode
+    echo "Starting Wailing Newt Web Walker in local mode..."
     echo "Opening browser to http://localhost:5000"
 
     # Open browser after 2 seconds (give Flask time to start)

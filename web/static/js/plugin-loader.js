@@ -1,5 +1,5 @@
 /**
- * LibreCrawl Plugin Loader
+ * Wailing Newt Web Walker Plugin Loader
  * Automatically discovers and loads plugins from /static/plugins/
  */
 
@@ -77,7 +77,7 @@ class PluginLoader {
     }
 
     /**
-     * Register a plugin (called by plugin files via LibreCrawlPlugin.register())
+     * Register a plugin (called by plugin files via WailingNewtPlugin.register())
      */
     registerPlugin(pluginConfig) {
         // Validate required fields
@@ -368,7 +368,7 @@ class PluginLoader {
 }
 
 // Global plugin API
-window.LibreCrawlPlugin = {
+window.WailingNewtPlugin = {
     loader: new PluginLoader(),
 
     /**
@@ -387,4 +387,7 @@ window.LibreCrawlPlugin = {
     }
 };
 
-console.log('🔌 LibreCrawl Plugin System loaded');
+// Backwards compatibility alias
+window.LibreCrawlPlugin = window.WailingNewtPlugin;
+
+console.log('🔌 Wailing Newt Plugin System loaded');
