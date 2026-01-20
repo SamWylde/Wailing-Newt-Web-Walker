@@ -11,81 +11,94 @@
 
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1 class="app-title">Wailing Newt 🦎</h1>
-                <div class="header-actions">
-                    <button class="btn btn-secondary icon-btn" onclick="toggleTheme()" title="Toggle Theme"
-                        style="margin-right: 5px;">
-                        <span id="themeIcon">🌙</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="openCrawlConfig()">Crawl Config</button>
-                    <button class="btn btn-secondary" onclick="openSettings()">Settings</button>
-                    <button class="btn btn-secondary" onclick="exportData()">Export</button>
-                    <button class="btn btn-secondary" onclick="openDashboard()">Crawl History</button>
-                    <button class="btn btn-success" id="saveCrawlBtn" onclick="saveCrawl()" disabled>Save
-                        Crawl</button>
-                    <button class="btn btn-primary" id="loadCrawlBtn" onclick="loadCrawl()">Load Crawl</button>
-                </div>
-        </header>
-
-        <!-- URL Input Section -->
-        <section class="url-section">
-            <div class="url-container">
-                <div class="input-group">
-                    <label for="urlInput" class="input-label">URL to Crawl</label>
-                    <input type="url" id="urlInput" class="url-input" placeholder="https://example.com"
-                        onkeypress="handleUrlKeypress(event)">
-                </div>
-                <!-- Upload Dropdown -->
-                <div class="upload-dropdown" style="margin-left: 10px; position: relative;">
-                    <button class="btn btn-secondary upload-dropdown-btn" onclick="toggleUploadDropdown()" style="height: 42px; display: flex; align-items: center; gap: 6px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-                        </svg>
-                        Upload
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
-                    </button>
-                    <div id="uploadDropdownMenu" class="upload-dropdown-menu" style="display: none;">
-                        <button onclick="openFileUpload()">From a File...</button>
-                        <button onclick="openBulkInputModal()">Enter Manually...</button>
-                        <button onclick="pasteFromClipboard()">Paste</button>
-                        <button onclick="downloadXMLSitemaps()">Download XML Sitemaps...</button>
-                        <button onclick="openGoogleSheetsImport()">From Google Sheets...</button>
+        <!-- Toolbar -->
+        <header class="toolbar">
+            <div class="toolbar-row toolbar-row--primary">
+                <div class="toolbar-brand">
+                    <h1 class="app-title">Wailing Newt 🦎</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary icon-btn" onclick="toggleTheme()" title="Toggle Theme"
+                            style="margin-right: 5px;">
+                            <span id="themeIcon">🌙</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="openCrawlConfig()">Crawl Config</button>
+                        <button class="btn btn-secondary" onclick="openSettings()">Settings</button>
+                        <button class="btn btn-secondary" onclick="exportData()">Export</button>
+                        <button class="btn btn-secondary" onclick="openDashboard()">Crawl History</button>
+                        <button class="btn btn-success" id="saveCrawlBtn" onclick="saveCrawl()" disabled>Save
+                            Crawl</button>
+                        <button class="btn btn-primary" id="loadCrawlBtn" onclick="loadCrawl()">Load Crawl</button>
                     </div>
                 </div>
-                <div class="control-buttons">
-                    <button id="startBtn" class="btn btn-primary" onclick="toggleCrawl()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                        </svg>
-                        Start
-                    </button>
-                    <button id="stopBtn" class="btn btn-danger" onclick="stopCrawl()" disabled>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <rect x="6" y="6" width="12" height="12" />
-                        </svg>
-                        Stop
-                    </button>
-                    <button id="clearBtn" class="btn btn-secondary" onclick="clearCrawlData()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Clear
-                    </button>
+                <div class="toolbar-controls">
+                    <div class="input-group toolbar-input-group">
+                        <label for="urlInput" class="input-label">URL to Crawl</label>
+                        <input type="url" id="urlInput" class="url-input" placeholder="https://example.com"
+                            onkeypress="handleUrlKeypress(event)">
+                    </div>
+                    <div class="upload-dropdown">
+                        <button class="btn btn-secondary upload-dropdown-btn" onclick="toggleUploadDropdown()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                            </svg>
+                            Upload
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                        </button>
+                        <div id="uploadDropdownMenu" class="upload-dropdown-menu" style="display: none;">
+                            <button onclick="openFileUpload()">From a File...</button>
+                            <button onclick="openBulkInputModal()">Enter Manually...</button>
+                            <button onclick="pasteFromClipboard()">Paste</button>
+                            <button onclick="downloadXMLSitemaps()">Download XML Sitemaps...</button>
+                            <button onclick="openGoogleSheetsImport()">From Google Sheets...</button>
+                        </div>
+                    </div>
+                    <div class="control-buttons">
+                        <button id="startBtn" class="btn btn-primary" onclick="toggleCrawl()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            Start
+                        </button>
+                        <button id="stopBtn" class="btn btn-danger" onclick="stopCrawl()" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="6" width="12" height="12" />
+                            </svg>
+                            Stop
+                        </button>
+                        <button id="clearBtn" class="btn btn-secondary" onclick="clearCrawlData()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="progress-container toolbar-progress" id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">Initializing...</span>
                 </div>
             </div>
-            <div class="progress-container" id="progressContainer" style="display: none;">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
+            <div class="toolbar-row toolbar-row--tabs">
+                <div class="tab-header">
+                    <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+                    <button class="tab-btn" onclick="switchTab('internal')">Internal</button>
+                    <button class="tab-btn" onclick="switchTab('external')">External</button>
+                    <button class="tab-btn" onclick="switchTab('status-codes')">Status Codes</button>
+                    <button class="tab-btn" onclick="switchTab('links')">Links</button>
+                    <button class="tab-btn" onclick="switchTab('issues')">Issues</button>
+                    <button class="tab-btn" onclick="switchTab('content-analysis')">Content Analysis</button>
+                    <button class="tab-btn" onclick="switchTab('link-health')">Link Health</button>
+                    <button class="tab-btn" onclick="switchTab('core-web-vitals')">Core Web Vitals</button>
+                    <button class="tab-btn" onclick="switchTab('pagespeed')">PageSpeed</button>
+                    <button class="tab-btn" onclick="switchTab('visualization')">Visualization</button>
                 </div>
-                <span class="progress-text" id="progressText">Initializing...</span>
             </div>
-        </section>
+        </header>
 
         <!-- Main Content -->
         <main class="main-content">
@@ -199,22 +212,9 @@
 
             <!-- Content Area -->
             <div class="content-area">
-                <div class="tab-container">
-                    <div class="tab-header">
-                        <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
-                        <button class="tab-btn" onclick="switchTab('internal')">Internal</button>
-                        <button class="tab-btn" onclick="switchTab('external')">External</button>
-                        <button class="tab-btn" onclick="switchTab('status-codes')">Status Codes</button>
-                        <button class="tab-btn" onclick="switchTab('links')">Links</button>
-                        <button class="tab-btn" onclick="switchTab('issues')">Issues</button>
-                        <button class="tab-btn" onclick="switchTab('content-analysis')">Content Analysis</button>
-                        <button class="tab-btn" onclick="switchTab('link-health')">Link Health</button>
-                        <button class="tab-btn" onclick="switchTab('core-web-vitals')">Core Web Vitals</button>
-                        <button class="tab-btn" onclick="switchTab('pagespeed')">PageSpeed</button>
-                        <button class="tab-btn" onclick="switchTab('visualization')">Visualization</button>
-                    </div>
-
-                    <div class="tab-content">
+                <div class="split-pane" id="mainSplitPane">
+                    <section class="pane pane--primary">
+                        <div class="tab-content">
                         <div id="overview-tab" class="tab-pane active">
                             <div class="table-container">
                                 <table class="data-table" id="overviewTable">
@@ -566,7 +566,57 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        </div>
+                    </section>
+                    <div class="pane-resize-handle pane-resize-handle--vertical" role="separator"
+                        aria-orientation="vertical" aria-label="Resize detail panel"></div>
+                    <aside class="pane pane--secondary" id="detailPanel">
+                        <div class="panel-header">
+                            <h3>Detail Summary</h3>
+                            <span class="panel-meta">Contextual insights</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="panel-card">
+                                <h4>Issues Snapshot</h4>
+                                <p>Track top issues and severity once crawl data is available.</p>
+                                <ul class="panel-list">
+                                    <li><span>Errors</span><strong id="issues-error-count-summary">0</strong></li>
+                                    <li><span>Warnings</span><strong id="issues-warning-count-summary">0</strong></li>
+                                    <li><span>Info</span><strong id="issues-info-count-summary">0</strong></li>
+                                </ul>
+                            </div>
+                            <div class="panel-card">
+                                <h4>Visualization Focus</h4>
+                                <p>Open the Visualization tab to explore crawl structure and clusters.</p>
+                            </div>
+                        </div>
+                    </aside>
+                    <div class="pane-resize-handle pane-resize-handle--horizontal" role="separator"
+                        aria-orientation="horizontal" aria-label="Resize URL details panel"></div>
+                    <section class="pane pane--bottom" id="urlDetailsPanel">
+                        <div class="panel-header">
+                            <h3>URL Details</h3>
+                            <span class="panel-meta">Selected URL metadata &amp; link info</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-container">
+                                <table class="data-table" id="urlDetailsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Property</th>
+                                            <th>Value</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="urlDetailsTableBody">
+                                        <tr>
+                                            <td colspan="3">Select a URL row to populate details.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </main>
@@ -1795,6 +1845,7 @@ we couldn't find</textarea>
     <script src="/static/js/virtual-scroller.js?v=4"></script>
     <script src="/static/js/column-resize.js?v=4"></script>
     <script src="/static/js/sidebar-resize.js?v=4"></script>
+    <script src="/static/js/pane-resize.js?v=4"></script>
     <script src="/static/js/visualization.js?v=4"></script>
     <script src="/static/js/plugin-loader.js?v=4"></script>
     <script src="/static/js/app.js?v=4"></script>
