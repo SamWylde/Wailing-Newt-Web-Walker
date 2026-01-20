@@ -1,5 +1,5 @@
 // Debug: confirm script is loading
-console.log('app.js v3 loaded successfully');
+console.log('app.js v4 loaded successfully');
 
 // Application State
 let crawlState = {
@@ -2349,6 +2349,7 @@ function initializeTheme() {
 }
 
 function toggleTheme() {
+    alert('toggleTheme called!'); // DEBUG
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
