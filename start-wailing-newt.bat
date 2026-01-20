@@ -11,7 +11,7 @@ echo ===========================================================================
 echo.
 
 echo Checking for Docker...
-docker --version 2>nul
+docker info >nul 2>&1
 if errorlevel 1 goto nodocker
 
 echo Docker found! Starting Wailing Newt Web Walker...
