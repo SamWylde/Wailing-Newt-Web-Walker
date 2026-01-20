@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, Tray, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -21,6 +21,7 @@ let mainWindow = null;
 let tray = null;
 let pythonProcess = null;
 let isQuitting = false;
+let loadingWindow = null;
 
 // Configuration
 const SERVER_PORT = 5000;
@@ -31,6 +32,16 @@ const isDev = !app.isPackaged;
 const appPath = isDev
     ? path.join(__dirname, '..')
     : path.join(process.resourcesPath, 'app');
+
+/**
+ * Update loading window status
+ */
+function updateLoadingStatus(message) {
+    if (loadingWindow && !loadingWindow.isDestroyed()) {
+        loadingWindow.webContents.send('loading-status', message);
+    }
+    console.log(`[Startup] ${message}`);
+}
 
 /**
  * Find Python executable
@@ -58,7 +69,7 @@ function findPython() {
  */
 function installPythonDependencies(pythonCmd) {
     return new Promise((resolve, reject) => {
-        console.log('Installing Python dependencies...');
+        updateLoadingStatus('Installing Python dependencies...');
 
         const requirementsPath = path.join(appPath, 'requirements.txt');
         const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], {
@@ -72,26 +83,34 @@ function installPythonDependencies(pythonCmd) {
 
         installProcess.stdout.on('data', (data) => {
             output += data.toString();
-            console.log(`[pip] ${data.toString().trim()}`);
+            const message = data.toString().trim();
+            console.log(`[pip] ${message}`);
+            // Send simplified message to loading window
+            if (message.includes('Installing')) {
+                updateLoadingStatus('Installing dependencies...');
+            }
         });
 
         installProcess.stderr.on('data', (data) => {
             errorOutput += data.toString();
-            console.error(`[pip] ${data.toString().trim()}`);
+            const message = data.toString().trim();
+            console.error(`[pip] ${message}`);
         });
 
         installProcess.on('error', (err) => {
             console.error('Failed to install dependencies:', err);
+            updateLoadingStatus('Error installing dependencies');
             reject(err);
         });
 
         installProcess.on('exit', (code) => {
             if (code === 0) {
-                console.log('Python dependencies installed successfully');
+                updateLoadingStatus('Dependencies installed successfully');
                 resolve();
             } else {
                 console.error(`Dependency installation failed with code ${code}`);
                 console.error('Error output:', errorOutput);
+                updateLoadingStatus('Dependency installation failed');
                 reject(new Error(`Failed to install Python dependencies (exit code ${code})`));
             }
         });
@@ -108,6 +127,7 @@ async function startPythonBackend() {
         throw new Error('Python not found. Please install Python 3.11 or later.');
     }
 
+    updateLoadingStatus(`Found Python: ${pythonCmd}`);
     console.log(`Starting Python backend with: ${pythonCmd}`);
     console.log(`App path: ${appPath}`);
 
@@ -120,6 +140,8 @@ async function startPythonBackend() {
     }
 
     return new Promise((resolve, reject) => {
+        updateLoadingStatus('Starting Python server...');
+
         // Start Python server (with --no-browser to prevent opening system browser)
         pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
             cwd: appPath,
@@ -128,7 +150,17 @@ async function startPythonBackend() {
         });
 
         pythonProcess.stdout.on('data', (data) => {
-            console.log(`[Python] ${data.toString().trim()}`);
+            const message = data.toString().trim();
+            console.log(`[Python] ${message}`);
+
+            // Update loading status based on key messages
+            if (message.includes('Database initialized')) {
+                updateLoadingStatus('Initializing database...');
+            } else if (message.includes('LOCAL MODE')) {
+                updateLoadingStatus('Starting in local mode...');
+            } else if (message.includes('Starting Wailing Newt')) {
+                updateLoadingStatus('Server starting...');
+            }
         });
 
         pythonProcess.stderr.on('data', (data) => {
@@ -161,8 +193,14 @@ function waitForServer(resolve, reject, attempts = 0) {
     const maxAttempts = 30; // 30 seconds timeout
 
     if (attempts >= maxAttempts) {
+        updateLoadingStatus('Server failed to start');
         reject(new Error('Server failed to start within 30 seconds'));
         return;
+    }
+
+    // Update status every 5 attempts
+    if (attempts % 5 === 0) {
+        updateLoadingStatus(`Waiting for server... (${attempts}/${maxAttempts})`);
     }
 
     console.log(`[Electron] Checking server (attempt ${attempts + 1}/${maxAttempts})...`);
@@ -172,6 +210,7 @@ function waitForServer(resolve, reject, attempts = 0) {
         // Accept any response - server is running
         if (res.statusCode >= 200 && res.statusCode < 500) {
             console.log('[Electron] Server is ready!');
+            updateLoadingStatus('Server is ready!');
             resolve();
         } else {
             setTimeout(() => waitForServer(resolve, reject, attempts + 1), 1000);
@@ -430,55 +469,156 @@ function stopPythonBackend() {
 // App event handlers
 app.whenReady().then(async () => {
     // Show loading dialog
-    const loadingWindow = new BrowserWindow({
-        width: 400,
-        height: 200,
+    loadingWindow = new BrowserWindow({
+        width: 500,
+        height: 350,
         frame: false,
         transparent: true,
         alwaysOnTop: true,
+        resizable: false,
         webPreferences: {
-            nodeIntegration: true
+            nodeIntegration: true,
+            contextIsolation: false
         }
     });
 
     loadingWindow.loadURL(`data:text/html;charset=utf-8,
+        <!DOCTYPE html>
         <html>
-        <body style="
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: rgba(26, 29, 41, 0.95);
-            color: #e2e8f0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            border-radius: 10px;
-        ">
-            <div style="text-align: center;">
-                <h2 style="margin: 0 0 20px 0;">Wailing Newt</h2>
-                <p>Starting server...</p>
-                <div style="
-                    width: 200px;
-                    height: 4px;
-                    background: #475569;
-                    border-radius: 2px;
-                    overflow: hidden;
-                    margin-top: 20px;
-                ">
-                    <div style="
-                        width: 30%;
-                        height: 100%;
-                        background: #8b5cf6;
-                        animation: loading 1.5s ease-in-out infinite;
-                    "></div>
-                </div>
-            </div>
+        <head>
+            <meta charset="UTF-8">
             <style>
-                @keyframes loading {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(400%); }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    width: 500px;
+                    height: 350px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    background: linear-gradient(135deg, #7cb342 0%, #8bc34a 100%);
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    color: #ffffff;
+                    border-radius: 12px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+                }
+                .logo {
+                    font-size: 80px;
+                    margin-bottom: 20px;
+                    animation: float 3s ease-in-out infinite;
+                }
+                @keyframes float {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-10px); }
+                }
+                .title {
+                    font-size: 32px;
+                    font-weight: 700;
+                    margin-bottom: 10px;
+                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                }
+                .subtitle {
+                    font-size: 14px;
+                    opacity: 0.95;
+                    margin-bottom: 30px;
+                }
+                .progress-container {
+                    width: 350px;
+                    height: 6px;
+                    background: rgba(255, 255, 255, 0.3);
+                    border-radius: 3px;
+                    overflow: hidden;
+                    margin-bottom: 20px;
+                }
+                .progress-bar {
+                    height: 100%;
+                    background: #ffffff;
+                    border-radius: 3px;
+                    animation: progress 2s ease-in-out infinite;
+                    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+                }
+                @keyframes progress {
+                    0% { width: 20%; margin-left: 0%; }
+                    50% { width: 40%; margin-left: 30%; }
+                    100% { width: 20%; margin-left: 80%; }
+                }
+                .status {
+                    font-size: 13px;
+                    opacity: 0.9;
+                    min-height: 20px;
+                    text-align: center;
+                    padding: 0 20px;
+                    max-width: 450px;
+                }
+                .console {
+                    width: 450px;
+                    height: 80px;
+                    background: rgba(0, 0, 0, 0.2);
+                    border-radius: 6px;
+                    margin-top: 20px;
+                    padding: 10px;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    font-size: 11px;
+                    overflow-y: auto;
+                    text-align: left;
+                    line-height: 1.4;
+                }
+                .console::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .console::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 3px;
+                }
+                .console::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.3);
+                    border-radius: 3px;
+                }
+                .console-line {
+                    opacity: 0.85;
+                    margin-bottom: 4px;
                 }
             </style>
+        </head>
+        <body>
+            <div class="logo">🐸</div>
+            <div class="title">Wailing Newt</div>
+            <div class="subtitle">SEO Spider Tool</div>
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
+            <div class="status" id="status">Initializing...</div>
+            <div class="console" id="console"></div>
+
+            <script>
+                const { ipcRenderer } = require('electron');
+                const consoleEl = document.getElementById('console');
+                const statusEl = document.getElementById('status');
+                const maxConsoleLines = 6;
+                const consoleLines = [];
+
+                ipcRenderer.on('loading-status', (event, message) => {
+                    // Update main status
+                    statusEl.textContent = message;
+
+                    // Add to console
+                    consoleLines.push(message);
+                    if (consoleLines.length > maxConsoleLines) {
+                        consoleLines.shift();
+                    }
+
+                    consoleEl.innerHTML = consoleLines
+                        .map(line => '<div class="console-line">' + line + '</div>')
+                        .join('');
+
+                    // Auto-scroll to bottom
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
+                });
+            </script>
         </body>
         </html>
     `);
@@ -489,10 +629,8 @@ app.whenReady().then(async () => {
         createTray();
         createWindow();
 
-        // Initialize auto-updater (only in production builds)
-        if (app.isPackaged) {
-            initAutoUpdater(mainWindow, tray);
-        }
+        // Initialize auto-updater (always initialize to register IPC handlers)
+        initAutoUpdater(mainWindow, tray);
     } catch (error) {
         loadingWindow.close();
         dialog.showErrorBox('Startup Error', error.message);

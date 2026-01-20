@@ -2465,7 +2465,16 @@ function installUpdate() {
 
 function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    // Cycle through: dark -> light -> newt -> dark
+    let newTheme;
+    if (currentTheme === 'dark') {
+        newTheme = 'light';
+    } else if (currentTheme === 'light') {
+        newTheme = 'newt';
+    } else {
+        newTheme = 'dark';
+    }
 
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
@@ -2475,7 +2484,13 @@ function toggleTheme() {
 function updateThemeIcon(theme) {
     const icon = document.getElementById('themeIcon');
     if (icon) {
-        icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+        if (theme === 'dark') {
+            icon.textContent = '🌙';
+        } else if (theme === 'light') {
+            icon.textContent = '☀️';
+        } else if (theme === 'newt') {
+            icon.textContent = '🐸';
+        }
     }
 }
 

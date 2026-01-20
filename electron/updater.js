@@ -13,9 +13,34 @@ try {
     autoUpdater = require('electron-updater').autoUpdater;
 } catch (e) {
     console.error('[AutoUpdater] electron-updater not installed. Run: npm install electron-updater');
+
     // Export stub functions if electron-updater is not available
+    const { ipcMain, app } = require('electron');
+
+    // Register stub IPC handlers to prevent errors
+    const registerStubHandlers = () => {
+        ipcMain.handle('check-for-updates', async () => {
+            return { updateAvailable: false };
+        });
+
+        ipcMain.handle('get-update-status', () => {
+            return {
+                updateDownloaded: false,
+                downloadProgress: 0,
+                version: app.getVersion()
+            };
+        });
+
+        ipcMain.handle('install-update', () => {
+            console.log('[AutoUpdater] Not available - electron-updater not installed');
+        });
+    };
+
     module.exports = {
-        initAutoUpdater: () => console.log('[AutoUpdater] Not available - electron-updater not installed'),
+        initAutoUpdater: () => {
+            console.log('[AutoUpdater] Not available - electron-updater not installed');
+            registerStubHandlers();
+        },
         checkForUpdates: () => Promise.resolve(null),
         quitAndInstall: () => {},
         getUpdateState: () => ({ updateDownloaded: false, downloadProgress: 0 })
@@ -40,6 +65,15 @@ let trayRef = null;
 function initAutoUpdater(mainWindow, tray) {
     mainWindowRef = mainWindow;
     trayRef = tray;
+
+    // Always register IPC handlers (even in development)
+    setupIpcHandlers();
+
+    // Only configure and start auto-updater in packaged builds
+    if (!app.isPackaged) {
+        console.log('[AutoUpdater] Skipping update checks in development mode');
+        return;
+    }
 
     // Configure updater settings for optimal Windows performance
     autoUpdater.autoDownload = true;           // Auto-download updates in background
@@ -106,9 +140,6 @@ function initAutoUpdater(mainWindow, tray) {
         // Don't bother user with update errors - just log them
         // Updates will be retried on next app launch
     });
-
-    // IPC handlers for renderer process communication
-    setupIpcHandlers();
 
     // Initial check after short delay (don't block startup)
     // Skip check on first run after install (Squirrel.Windows)
