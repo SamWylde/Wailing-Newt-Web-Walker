@@ -1438,10 +1438,6 @@
                     </div>
 
                     <div id="config-panel-limits" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an SEO Spider Licence.</p>
-                        </div>
                         <p class="config-description">Limit the size and scope of the crawl. This may help focus on key areas and reduce the time it takes to complete a crawl.</p>
 
                         <div class="config-group-row">
@@ -1506,11 +1502,6 @@
 
                     <!-- Placeholder panels for other sections -->
                     <div id="config-panel-extraction" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an SEO Spider Licence.</p>
-                        </div>
-
                         <div class="config-group-row">
                             <div class="config-group-box">
                                 <h4>Page Details</h4>
@@ -1566,28 +1557,76 @@
                         </div>
                     </div>
                     <div id="config-panel-rendering" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an SEO Spider Licence.</p>
-                        </div>
+                        <h4>JavaScript Rendering Configuration</h4>
 
                         <div class="setting-group">
-                            <label for="renderingMode">Rendering</label>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <select id="renderingMode" style="flex: 1;">
-                                    <option value="text-only" selected>Text Only</option>
-                                    <option value="javascript" disabled>JavaScript Rendering (Premium)</option>
-                                </select>
-                                <span>&#x1F512;</span>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="enableJavaScript">
+                                Enable JavaScript Rendering
+                            </label>
+                            <span class="setting-help">Render pages with JavaScript for dynamic content (slower but more accurate)</span>
+                        </div>
+
+                        <div class="setting-group" id="jsSettings" style="display: none;">
+                            <label for="jsWaitTime">JavaScript Wait Time (seconds)</label>
+                            <input type="number" id="jsWaitTime" value="3" min="0" max="30" step="0.5">
+                            <span class="setting-help">Time to wait for JavaScript to render after page load</span>
+                        </div>
+
+                        <div class="setting-group" id="jsTimeoutGroup" style="display: none;">
+                            <label for="jsTimeout">Page Load Timeout (seconds)</label>
+                            <input type="number" id="jsTimeout" value="30" min="5" max="120">
+                            <span class="setting-help">Maximum time to wait for page to load</span>
+                        </div>
+
+                        <div class="setting-group" id="jsBrowserGroup" style="display: none;">
+                            <label for="jsBrowser">Browser Engine</label>
+                            <select id="jsBrowser">
+                                <option value="chromium">Chromium (Recommended)</option>
+                                <option value="firefox">Firefox</option>
+                                <option value="webkit">WebKit (Safari)</option>
+                            </select>
+                            <span class="setting-help">Browser engine for JavaScript rendering</span>
+                        </div>
+
+                        <div class="setting-group" id="jsHeadlessGroup" style="display: none;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="jsHeadless" checked>
+                                Headless Mode
+                            </label>
+                            <span class="setting-help">Run browser without visible window (recommended for performance)</span>
+                        </div>
+
+                        <div class="setting-group" id="jsUserAgentGroup" style="display: none;">
+                            <label for="jsUserAgent">JavaScript User Agent</label>
+                            <input type="text" id="jsUserAgent" value="WailingNewt/1.0 (Web Crawler with JavaScript)">
+                            <span class="setting-help">User agent string for JavaScript-rendered pages</span>
+                        </div>
+
+                        <div class="setting-group" id="jsViewportGroup" style="display: none;">
+                            <label>Browser Viewport Size</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="number" id="jsViewportWidth" value="1920" min="800" max="4000" placeholder="Width">
+                                <span>×</span>
+                                <input type="number" id="jsViewportHeight" value="1080" min="600" max="3000" placeholder="Height">
                             </div>
-                            <span class="setting-help">Choose rendering mode for crawling pages</span>
+                            <span class="setting-help">Browser window size for rendering (affects responsive layouts)</span>
+                        </div>
+
+                        <div class="setting-group" id="jsConcurrencyGroup" style="display: none;">
+                            <label for="jsMaxConcurrentPages">Max Concurrent Browser Pages</label>
+                            <input type="number" id="jsMaxConcurrentPages" value="3" min="1" max="10">
+                            <span class="setting-help">Number of browser pages for parallel JavaScript rendering (higher = faster but more memory)</span>
+                        </div>
+
+                        <div class="setting-group" id="jsWarning" style="display: none;">
+                            <div class="settings-box settings-box-warning">
+                                <strong>⚠️ Performance Impact</strong>
+                                JavaScript rendering is significantly slower than HTTP-only crawling. Use for sites with dynamic content or when static crawling produces incomplete results.
+                            </div>
                         </div>
                     </div>
                     <div id="config-panel-advanced" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an SEO Spider Licence.</p>
-                        </div>
                         <p class="config-description">Adjust a variety of advanced crawler settings for the SEO Spider. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.</p>
 
                         <div class="config-group-row">
@@ -1642,10 +1681,6 @@
                         </div>
                     </div>
                     <div id="config-panel-preferences" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an SEO Spider Licence.</p>
-                        </div>
                         <p class="config-description">Modify parameters used by the SEO Spider to flag potential issues and populate filters. For example, page title length for the 'Over X Characters' filter in the Page Titles tab.</p>
 
                         <div class="config-group-row">
