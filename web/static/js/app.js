@@ -1,3 +1,6 @@
+// Debug: confirm script is loading
+console.log('app.js v3 loaded successfully');
+
 // Application State
 let crawlState = {
     isRunning: false,
