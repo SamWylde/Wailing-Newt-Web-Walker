@@ -39,15 +39,14 @@ if errorlevel 1 (
 
 :rundirect
 echo Starting Wailing Newt Web Walker...
+echo.
 start /b cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:5000"
 python main.py -l
-if errorlevel 1 (
-    echo.
-    echo ================================================================================
-    echo ERROR: Server failed to start! See error message above.
-    echo ================================================================================
-    pause
-)
+echo.
+echo ================================================================================
+echo Server has stopped. Press any key to close this window.
+echo ================================================================================
+pause
 exit /b
 
 :trypy
