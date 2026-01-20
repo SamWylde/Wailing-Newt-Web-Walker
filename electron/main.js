@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, Tray, dialog, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
+const { initAutoUpdater, checkForUpdates, getUpdateState } = require('./updater');
 
 // Keep references to prevent garbage collection
 let mainWindow = null;
@@ -261,6 +262,22 @@ function createMenu() {
                 },
                 { type: 'separator' },
                 {
+                    label: 'Check for Updates...',
+                    click: () => {
+                        if (app.isPackaged) {
+                            checkForUpdates(true);
+                        } else {
+                            dialog.showMessageBox(mainWindow, {
+                                type: 'info',
+                                title: 'Updates',
+                                message: 'Auto-updates are only available in packaged builds.',
+                                detail: 'Run "npm run build:win" to create an installer with auto-update support.'
+                            });
+                        }
+                    }
+                },
+                { type: 'separator' },
+                {
                     label: 'Toggle Developer Tools',
                     accelerator: 'F12',
                     click: () => {
@@ -273,11 +290,16 @@ function createMenu() {
                 {
                     label: 'About',
                     click: () => {
+                        const updateState = getUpdateState();
+                        const versionInfo = `Version ${app.getVersion()}`;
+                        const updateInfo = updateState.updateDownloaded
+                            ? '\n\nUpdate downloaded and ready to install!'
+                            : '';
                         dialog.showMessageBox(mainWindow, {
                             type: 'info',
                             title: 'About Wailing Newt',
                             message: 'Wailing Newt Web Walker',
-                            detail: 'Version 1.0.0\n\nAn SEO Spider Tool for crawling and analyzing websites.'
+                            detail: `${versionInfo}${updateInfo}\n\nAn SEO Spider Tool for crawling and analyzing websites.`
                         });
                     }
                 }
@@ -368,6 +390,11 @@ app.whenReady().then(async () => {
         loadingWindow.close();
         createTray();
         createWindow();
+
+        // Initialize auto-updater (only in production builds)
+        if (app.isPackaged) {
+            initAutoUpdater(mainWindow, tray);
+        }
     } catch (error) {
         loadingWindow.close();
         dialog.showErrorBox('Startup Error', error.message);

@@ -1,19 +1,26 @@
 {
   "name": "wailing-newt-web-walker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Wailing Newt Web Walker - SEO Spider Tool",
   "main": "main.js",
   "author": "Wailing Newt",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SamWylde/Wailing-Newt-Web-Walker.git"
+  },
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux",
+    "build:publish": "electron-builder --win --publish always",
+    "build:publish:all": "electron-builder --win --mac --linux --publish always"
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
     "electron": "^28.0.0",
@@ -28,6 +35,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
       "icon.png"
     ],
     "extraResources": [
@@ -44,6 +52,12 @@
         ]
       }
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "SamWylde",
+      "repo": "Wailing-Newt-Web-Walker",
+      "releaseType": "release"
+    },
     "win": {
       "target": "nsis",
       "icon": "icon.ico"
@@ -52,7 +66,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "differentialPackage": true
     },
     "mac": {
       "target": "dmg",
