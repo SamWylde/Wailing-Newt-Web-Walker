@@ -61,7 +61,6 @@ echo.
 echo Starting Wailing Newt Web Walker...
 echo Press Ctrl+C to stop, then type 'exit' to close this window.
 echo.
-start /b cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:5000"
 %PYTHON% main.py -l
 echo.
 echo Server has stopped.
