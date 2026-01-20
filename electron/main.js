@@ -85,14 +85,23 @@ function installPythonDependencies(pythonCmd) {
         const spawnOptions = {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
-            stdio: ['ignore', 'pipe', 'pipe'],
             windowsHide: true,
             detached: false
         };
 
-        // On Windows, set shell to false to prevent cmd.exe window
+        // On Windows, redirect to log files to prevent console window
         if (process.platform === 'win32') {
             spawnOptions.shell = false;
+            const fs = require('fs');
+            const logPath = path.join(appPath, 'logs');
+            if (!fs.existsSync(logPath)) {
+                fs.mkdirSync(logPath, { recursive: true });
+            }
+            const pipLog = fs.openSync(path.join(logPath, 'pip-install.log'), 'a');
+            spawnOptions.stdio = ['ignore', pipLog, pipLog];
+        } else {
+            // On Unix, pipe normally
+            spawnOptions.stdio = ['ignore', 'pipe', 'pipe'];
         }
 
         const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], spawnOptions);
@@ -100,21 +109,24 @@ function installPythonDependencies(pythonCmd) {
         let output = '';
         let errorOutput = '';
 
-        installProcess.stdout.on('data', (data) => {
-            output += data.toString();
-            const message = data.toString().trim();
-            console.log(`[pip] ${message}`);
-            // Send simplified message to loading window
-            if (message.includes('Installing')) {
-                updateLoadingStatus('Installing dependencies...');
-            }
-        });
+        // Only set up handlers on non-Windows platforms
+        if (process.platform !== 'win32' && installProcess.stdout && installProcess.stderr) {
+            installProcess.stdout.on('data', (data) => {
+                output += data.toString();
+                const message = data.toString().trim();
+                console.log(`[pip] ${message}`);
+                // Send simplified message to loading window
+                if (message.includes('Installing')) {
+                    updateLoadingStatus('Installing dependencies...');
+                }
+            });
 
-        installProcess.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-            const message = data.toString().trim();
-            console.error(`[pip] ${message}`);
-        });
+            installProcess.stderr.on('data', (data) => {
+                errorOutput += data.toString();
+                const message = data.toString().trim();
+                console.error(`[pip] ${message}`);
+            });
+        }
 
         installProcess.on('error', (err) => {
             console.error('Failed to install dependencies:', err);
@@ -165,36 +177,55 @@ async function startPythonBackend() {
         // Use comprehensive options to hide console window on Windows
         const spawnOptions = {
             cwd: appPath,
-            env: { ...process.env, PYTHONUNBUFFERED: '1' },
-            stdio: ['ignore', 'pipe', 'pipe'],
+            env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
             windowsHide: true,
             detached: false
         };
 
-        // On Windows, also set shell to false to prevent cmd.exe window
+        // On Windows, use special configuration to prevent console window
         if (process.platform === 'win32') {
             spawnOptions.shell = false;
+            // Don't pipe stdio on Windows - this can cause console window to appear
+            // Instead, write to log files
+            const fs = require('fs');
+            const logPath = path.join(appPath, 'logs');
+            if (!fs.existsSync(logPath)) {
+                fs.mkdirSync(logPath, { recursive: true });
+            }
+            const stdoutLog = fs.openSync(path.join(logPath, 'stdout.log'), 'a');
+            const stderrLog = fs.openSync(path.join(logPath, 'stderr.log'), 'a');
+            spawnOptions.stdio = ['ignore', stdoutLog, stderrLog];
+        } else {
+            // On Unix, pipe normally
+            spawnOptions.stdio = ['ignore', 'pipe', 'pipe'];
         }
 
         pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], spawnOptions);
 
-        pythonProcess.stdout.on('data', (data) => {
-            const message = data.toString().trim();
-            console.log(`[Python] ${message}`);
+        // Only set up stdout/stderr handlers on non-Windows platforms
+        // On Windows, output is redirected to log files to prevent console window
+        if (process.platform !== 'win32' && pythonProcess.stdout && pythonProcess.stderr) {
+            pythonProcess.stdout.on('data', (data) => {
+                const message = data.toString().trim();
+                console.log(`[Python] ${message}`);
 
-            // Update loading status based on key messages
-            if (message.includes('Database initialized')) {
-                updateLoadingStatus('Initializing database...');
-            } else if (message.includes('LOCAL MODE')) {
-                updateLoadingStatus('Starting in local mode...');
-            } else if (message.includes('Starting Wailing Newt')) {
-                updateLoadingStatus('Server starting...');
-            }
-        });
+                // Update loading status based on key messages
+                if (message.includes('Database initialized')) {
+                    updateLoadingStatus('Initializing database...');
+                } else if (message.includes('LOCAL MODE')) {
+                    updateLoadingStatus('Starting in local mode...');
+                } else if (message.includes('Starting Wailing Newt')) {
+                    updateLoadingStatus('Server starting...');
+                }
+            });
 
-        pythonProcess.stderr.on('data', (data) => {
-            console.error(`[Python Error] ${data.toString().trim()}`);
-        });
+            pythonProcess.stderr.on('data', (data) => {
+                console.error(`[Python Error] ${data.toString().trim()}`);
+            });
+        } else if (process.platform === 'win32') {
+            // On Windows, log that output is being written to files
+            console.log('[Python] Output is being written to logs/stdout.log and logs/stderr.log');
+        }
 
         pythonProcess.on('error', (err) => {
             console.error('Failed to start Python process:', err);
