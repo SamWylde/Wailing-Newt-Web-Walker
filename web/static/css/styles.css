@@ -79,7 +79,7 @@
     --table-row-even: rgba(255, 255, 255, 0.02);
     --table-border: rgba(255, 255, 255, 0.08);
 
-    --modal-bg: #0a0f1a;
+    --modal-bg: rgba(10, 15, 26, 0.85);
     --modal-content-bg: #1e293b;
 
     --scrollbar-track: rgba(255, 255, 255, 0.05);
@@ -177,7 +177,7 @@
     --table-row-even: #fafbfc;
     --table-border: #e2e8f0;
 
-    --modal-bg: #0f172a;
+    --modal-bg: rgba(15, 23, 42, 0.85);
     --modal-content-bg: #ffffff;
 
     --scrollbar-track: #f1f5f9;
@@ -275,7 +275,7 @@
     --table-row-even: #fafafa;
     --table-border: #d0d0d0;
 
-    --modal-bg: #2c2c2c;
+    --modal-bg: rgba(44, 44, 44, 0.85);
     --modal-content-bg: #ffffff;
 
     --scrollbar-track: #e8e8e8;
@@ -883,6 +883,8 @@ body {
     max-height: 90vh;
     overflow: hidden;
     box-shadow: var(--shadow-xl);
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -892,6 +894,7 @@ body {
     padding: 20px 24px;
     border-bottom: 1px solid var(--border-primary);
     background: var(--accent-light);
+    flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -920,7 +923,8 @@ body {
 .modal-body {
     padding: 0;
     overflow-y: auto;
-    max-height: calc(90vh - 140px);
+    flex: 1;
+    min-height: 0;
 }
 
 .modal-footer {
@@ -930,6 +934,7 @@ body {
     padding: 20px 24px;
     border-top: 1px solid var(--border-primary);
     background: var(--bg-secondary);
+    flex-shrink: 0;
 }
 
 /* Settings Tabs */
