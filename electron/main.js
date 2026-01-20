@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, Tray, dialog, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
+const fs = require('fs');
 
 // Auto-updater (optional - gracefully handle if electron-updater not installed)
 let updater = null;
@@ -187,13 +188,12 @@ function waitForServer(resolve, reject, attempts = 0) {
 function createWindow() {
     console.log('[Electron] Creating main window...');
 
-    mainWindow = new BrowserWindow({
+    const windowOptions = {
         width: 1400,
         height: 900,
         minWidth: 1024,
         minHeight: 768,
         title: 'Wailing Newt Web Walker',
-        icon: path.join(__dirname, 'icon.png'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -201,7 +201,17 @@ function createWindow() {
         },
         show: false, // Don't show until ready
         backgroundColor: '#1a1d29'
-    });
+    };
+
+    // Add icon if it exists
+    const iconPath = path.join(__dirname, 'icon.png');
+    if (fs.existsSync(iconPath)) {
+        windowOptions.icon = iconPath;
+    } else {
+        console.log('[Electron] Icon file not found, using default icon');
+    }
+
+    mainWindow = new BrowserWindow(windowOptions);
 
     // Load the web UI
     console.log(`[Electron] Loading URL: ${SERVER_URL}`);
@@ -258,6 +268,13 @@ function createWindow() {
  */
 function createTray() {
     const iconPath = path.join(__dirname, 'icon.png');
+
+    // Only create tray if icon exists
+    if (!fs.existsSync(iconPath)) {
+        console.log('[Electron] Icon file not found, skipping tray creation');
+        return;
+    }
+
     tray = new Tray(iconPath);
 
     const contextMenu = Menu.buildFromTemplate([
