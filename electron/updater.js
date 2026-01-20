@@ -8,7 +8,21 @@
  * - Windows-optimized with differential updates for speed
  */
 
-const { autoUpdater } = require('electron-updater');
+let autoUpdater;
+try {
+    autoUpdater = require('electron-updater').autoUpdater;
+} catch (e) {
+    console.error('[AutoUpdater] electron-updater not installed. Run: npm install electron-updater');
+    // Export stub functions if electron-updater is not available
+    module.exports = {
+        initAutoUpdater: () => console.log('[AutoUpdater] Not available - electron-updater not installed'),
+        checkForUpdates: () => Promise.resolve(null),
+        quitAndInstall: () => {},
+        getUpdateState: () => ({ updateDownloaded: false, downloadProgress: 0 })
+    };
+    return;
+}
+
 const { app, dialog, Notification, ipcMain } = require('electron');
 const path = require('path');
 
