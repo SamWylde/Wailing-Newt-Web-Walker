@@ -677,7 +677,16 @@ app.whenReady().then(async () => {
         if (loadingWindow && !loadingWindow.isDestroyed()) {
             loadingWindow.close();
         }
-        dialog.showErrorBox('Startup Error', error.message);
+
+        // Show helpful error message
+        let errorDetail = error.message;
+        if (error.message.includes('Python not found')) {
+            errorDetail += '\n\nPlease install Python 3.11 or later from https://www.python.org/';
+        } else if (error.message.includes('dependencies')) {
+            errorDetail += '\n\nTry running setup.bat to install all dependencies.';
+        }
+
+        dialog.showErrorBox('Startup Error', errorDetail);
         app.quit();
     }
 });
