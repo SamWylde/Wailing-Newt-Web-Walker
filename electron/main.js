@@ -479,16 +479,38 @@ app.whenReady().then(async () => {
         resizable: false,
         center: true,
         show: false,
+        skipTaskbar: true,
+        focusable: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
         }
     });
 
-    // Show window once content is loaded
+    // Don't start backend until loading window is shown
+    let windowShown = false;
+    let windowShowResolver;
+    const windowShownPromise = new Promise(resolve => {
+        windowShowResolver = resolve;
+    });
+
+    // Show window once content is loaded AND force it to front
     loadingWindow.once('ready-to-show', () => {
         loadingWindow.show();
-        console.log('[Electron] Loading window displayed');
+        loadingWindow.focus();
+        loadingWindow.setAlwaysOnTop(true, 'screen-saver');
+        loadingWindow.moveTop();
+
+        // Extra insurance: bring to front after a short delay
+        setTimeout(() => {
+            if (loadingWindow && !loadingWindow.isDestroyed()) {
+                loadingWindow.focus();
+                loadingWindow.moveTop();
+                windowShown = true;
+                windowShowResolver();
+                console.log('[Electron] Loading window displayed and ready');
+            }
+        }, 100);
     });
 
     loadingWindow.loadURL(`data:text/html;charset=utf-8,
@@ -631,17 +653,40 @@ app.whenReady().then(async () => {
         </html>
     `);
 
+    // WAIT for loading window to show before starting backend
+    await windowShownPromise;
+    console.log('[Electron] Waiting 200ms for window to settle...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     try {
         await startPythonBackend();
-        loadingWindow.close();
+
+        // Keep loading window visible for a moment before switching
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (loadingWindow && !loadingWindow.isDestroyed()) {
+            loadingWindow.close();
+        }
+
         createTray();
         createWindow();
 
         // Initialize auto-updater (always initialize to register IPC handlers)
         initAutoUpdater(mainWindow, tray);
     } catch (error) {
-        loadingWindow.close();
-        dialog.showErrorBox('Startup Error', error.message);
+        if (loadingWindow && !loadingWindow.isDestroyed()) {
+            loadingWindow.close();
+        }
+
+        // Show helpful error message
+        let errorDetail = error.message;
+        if (error.message.includes('Python not found')) {
+            errorDetail += '\n\nPlease install Python 3.11 or later from https://www.python.org/';
+        } else if (error.message.includes('dependencies')) {
+            errorDetail += '\n\nTry running setup.bat to install all dependencies.';
+        }
+
+        dialog.showErrorBox('Startup Error', errorDetail);
         app.quit();
     }
 });
