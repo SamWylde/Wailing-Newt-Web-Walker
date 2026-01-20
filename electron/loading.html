@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Loading - Wailing Newt</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #7cb342 0%, #8bc34a 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.95;
+            margin-bottom: 30px;
+        }
+        .progress-container {
+            width: 350px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #ffffff;
+            border-radius: 3px;
+            animation: progress 2s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        @keyframes progress {
+            0% { width: 20%; margin-left: 0%; }
+            50% { width: 40%; margin-left: 30%; }
+            100% { width: 20%; margin-left: 80%; }
+        }
+        .status {
+            font-size: 13px;
+            opacity: 0.9;
+            min-height: 20px;
+            text-align: center;
+            padding: 0 20px;
+            max-width: 450px;
+        }
+        .console {
+            width: 450px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            margin-top: 20px;
+            padding: 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            overflow-y: auto;
+            text-align: left;
+            line-height: 1.4;
+        }
+        .console::-webkit-scrollbar {
+            width: 6px;
+        }
+        .console::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .console::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+        .console-line {
+            opacity: 0.85;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">&#x1F438;</div>
+    <div class="title">Wailing Newt</div>
+    <div class="subtitle">SEO Spider Tool</div>
+    <div class="progress-container">
+        <div class="progress-bar"></div>
+    </div>
+    <div class="status" id="status">Initializing...</div>
+    <div class="console" id="console"></div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const consoleEl = document.getElementById('console');
+        const statusEl = document.getElementById('status');
+        const maxConsoleLines = 6;
+        const consoleLines = [];
+
+        ipcRenderer.on('loading-status', (event, message) => {
+            // Update main status
+            statusEl.textContent = message;
+
+            // Add to console
+            consoleLines.push(message);
+            if (consoleLines.length > maxConsoleLines) {
+                consoleLines.shift();
+            }
+
+            consoleEl.innerHTML = consoleLines
+                .map(line => '<div class="console-line">' + line + '</div>')
+                .join('');
+
+            // Auto-scroll to bottom
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        });
+    </script>
+</body>
+</html>

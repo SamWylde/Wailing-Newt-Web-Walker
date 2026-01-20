@@ -16,20 +16,17 @@
             <div class="header-content">
                 <h1 class="app-title">Wailing Newt 🦎</h1>
                 <div class="header-actions">
-                    <div class="header-actions">
-                        <span id="userInfo" style="margin-right: 15px; color: #6b7280; font-size: 14px;"></span>
-                        <button class="btn btn-secondary icon-btn" onclick="toggleTheme()" title="Toggle Theme"
-                            style="margin-right: 5px;">
-                            <span id="themeIcon">🌙</span>
-                        </button>
-                        <button class="btn btn-secondary" onclick="openDashboard()">Dashboard</button>
-                        <button class="btn btn-secondary" onclick="openSettings()">Settings</button>
-                        <button class="btn btn-secondary" onclick="exportData()">Export</button>
-                        <button class="btn btn-success" id="saveCrawlBtn" onclick="saveCrawl()" disabled>Save
-                            Crawl</button>
-                        <button class="btn btn-primary" id="loadCrawlBtn" onclick="loadCrawl()">Load Crawl</button>
-                        <button class="btn btn-danger" onclick="logout()" style="margin-left: 10px;">Logout</button>
-                    </div>
+                    <button class="btn btn-secondary icon-btn" onclick="toggleTheme()" title="Toggle Theme"
+                        style="margin-right: 5px;">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="openDashboard()">Dashboard</button>
+                    <button class="btn btn-secondary" onclick="openCrawlConfig()">Crawl Config</button>
+                    <button class="btn btn-secondary" onclick="openSettings()">Settings</button>
+                    <button class="btn btn-secondary" onclick="exportData()">Export</button>
+                    <button class="btn btn-success" id="saveCrawlBtn" onclick="saveCrawl()" disabled>Save
+                        Crawl</button>
+                    <button class="btn btn-primary" id="loadCrawlBtn" onclick="loadCrawl()">Load Crawl</button>
                 </div>
         </header>
 
@@ -1180,6 +1177,357 @@
                 <button class="btn btn-secondary" onclick="resetSettings()">Reset to Defaults</button>
                 <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
                 <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crawl Config Modal -->
+    <div id="crawlConfigModal" class="modal" style="display: none;">
+        <div class="modal-content crawl-config-modal">
+            <div class="modal-header">
+                <h2>Crawl Config</h2>
+                <button class="modal-close" onclick="closeCrawlConfig()">&times;</button>
+            </div>
+            <div class="modal-body crawl-config-body">
+                <!-- Sidebar Navigation -->
+                <div class="config-sidebar">
+                    <div class="config-search">
+                        <input type="text" placeholder="Search..." id="configSearch" oninput="filterConfigItems()">
+                    </div>
+                    <div class="config-nav">
+                        <!-- Spider Section -->
+                        <div class="config-section">
+                            <div class="config-section-header" onclick="toggleConfigSection('spider')">
+                                <span class="config-icon">&#x1F577;</span>
+                                <span>Spider</span>
+                                <span class="config-arrow" id="spider-arrow">&#x25BC;</span>
+                            </div>
+                            <div class="config-section-items" id="spider-items">
+                                <div class="config-item active" onclick="showConfigPanel('crawl')">Crawl</div>
+                                <div class="config-item" onclick="showConfigPanel('extraction')">Extraction</div>
+                                <div class="config-item" onclick="showConfigPanel('limits')">Limits</div>
+                                <div class="config-item" onclick="showConfigPanel('rendering')">Rendering</div>
+                                <div class="config-item" onclick="showConfigPanel('advanced')">Advanced</div>
+                                <div class="config-item" onclick="showConfigPanel('preferences')">Preferences</div>
+                            </div>
+                        </div>
+                        <!-- Content Section -->
+                        <div class="config-section">
+                            <div class="config-section-header" onclick="toggleConfigSection('content')">
+                                <span class="config-icon">&#x1F4C4;</span>
+                                <span>Content</span>
+                                <span class="config-arrow" id="content-arrow">&#x25B6;</span>
+                            </div>
+                            <div class="config-section-items collapsed" id="content-items">
+                                <div class="config-item" onclick="showConfigPanel('content-area')">Content Area</div>
+                                <div class="config-item" onclick="showConfigPanel('duplicates')">Duplicates</div>
+                                <div class="config-item" onclick="showConfigPanel('spelling')">Spelling & Grammar</div>
+                                <div class="config-item" onclick="showConfigPanel('embeddings')">Embeddings</div>
+                            </div>
+                        </div>
+                        <!-- Single Items -->
+                        <div class="config-item-single" onclick="showConfigPanel('robots')">
+                            <span class="config-icon">&#x1F916;</span>
+                            <span>robots.txt</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('url-rewriting')">
+                            <span class="config-icon">&#x1F517;</span>
+                            <span>URL Rewriting</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('cdns')">
+                            <span class="config-icon">&#x2601;</span>
+                            <span>CDNs</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('include')">
+                            <span class="config-icon">&#x2714;</span>
+                            <span>Include</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('exclude')">
+                            <span class="config-icon">&#x2716;</span>
+                            <span>Exclude</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('speed')">
+                            <span class="config-icon">&#x26A1;</span>
+                            <span>Speed</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('user-agent')">
+                            <span class="config-icon">&#x1F464;</span>
+                            <span>User-Agent</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('http-header')">
+                            <span class="config-icon">H</span>
+                            <span>HTTP Header</span>
+                        </div>
+                        <!-- Custom Section -->
+                        <div class="config-section">
+                            <div class="config-section-header" onclick="toggleConfigSection('custom')">
+                                <span class="config-icon">&#x2699;</span>
+                                <span>Custom</span>
+                                <span class="config-arrow" id="custom-arrow">&#x25B6;</span>
+                            </div>
+                            <div class="config-section-items collapsed" id="custom-items">
+                                <div class="config-item" onclick="showConfigPanel('custom-search')">Search</div>
+                                <div class="config-item" onclick="showConfigPanel('custom-extraction')">Extraction</div>
+                            </div>
+                        </div>
+                        <!-- API Access Section -->
+                        <div class="config-section">
+                            <div class="config-section-header" onclick="toggleConfigSection('api')">
+                                <span class="config-icon">&#x1F310;</span>
+                                <span>API Access</span>
+                                <span class="config-arrow" id="api-arrow">&#x25B6;</span>
+                            </div>
+                            <div class="config-section-items collapsed" id="api-items">
+                                <div class="config-item" onclick="showConfigPanel('google-analytics')">Google Analytics</div>
+                                <div class="config-item" onclick="showConfigPanel('search-console')">Search Console</div>
+                                <div class="config-item" onclick="showConfigPanel('pagespeed')">PageSpeed Insights</div>
+                            </div>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('authentication')">
+                            <span class="config-icon">&#x1F512;</span>
+                            <span>Authentication</span>
+                        </div>
+                        <div class="config-item-single" onclick="showConfigPanel('crawl-analysis')">
+                            <span class="config-icon">Q</span>
+                            <span>Crawl Analysis</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Content Panel -->
+                <div class="config-content">
+                    <div class="config-breadcrumb">
+                        <span>Crawl Config</span> &rsaquo; <span>Spider</span> &rsaquo; <span id="configBreadcrumb">Crawl</span>
+                    </div>
+                    <p class="config-description" id="configDescription">Select link types to crawl and store, and adjust crawling behaviour.</p>
+
+                    <!-- Config Panels -->
+                    <div id="config-panel-crawl" class="config-panel active">
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options control how the spider discovers and follows links.</p>
+                        </div>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <h4>Resource Links</h4>
+                                <div class="config-checkbox-row">
+                                    <span>Images</span>
+                                    <label><input type="checkbox" id="crawlImages" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeImages" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>Media</span>
+                                    <label><input type="checkbox" id="crawlMedia"> Crawl</label>
+                                    <label><input type="checkbox" id="storeMedia"> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>CSS</span>
+                                    <label><input type="checkbox" id="crawlCSS" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeCSS" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>JavaScript</span>
+                                    <label><input type="checkbox" id="crawlJS" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeJS" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>SWF</span>
+                                    <label><input type="checkbox" id="crawlSWF" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeSWF" checked> Store</label>
+                                </div>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>Crawl Behaviour</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="checkLinksOutside" checked> Check Links Outside of Start Folder</label>
+                                <label class="config-checkbox"><input type="checkbox" id="crawlOutside" checked> Crawl Outside of Start Folder</label>
+                                <label class="config-checkbox"><input type="checkbox" id="crawlSubdomains" checked> Crawl All Subdomains</label>
+                                <label class="config-checkbox"><input type="checkbox" id="followInternalNofollow"> Follow Internal "nofollow"</label>
+                                <label class="config-checkbox"><input type="checkbox" id="followExternalNofollow"> Follow External "nofollow"</label>
+                            </div>
+                        </div>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <h4>Page Links</h4>
+                                <div class="config-checkbox-row">
+                                    <span>Internal Hyperlinks</span>
+                                    <label><input type="checkbox" id="crawlInternal" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeInternal" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>External Links</span>
+                                    <label><input type="checkbox" id="crawlExternal" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeExternal" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>Canonicals</span>
+                                    <label><input type="checkbox" id="crawlCanonicals" checked> Crawl</label>
+                                    <label><input type="checkbox" id="storeCanonicals" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>Pagination (Rel Next/Prev)</span>
+                                    <label><input type="checkbox" id="crawlPagination"> Crawl</label>
+                                    <label><input type="checkbox" id="storePagination" checked> Store</label>
+                                </div>
+                                <div class="config-checkbox-row">
+                                    <span>Hreflang</span>
+                                    <label><input type="checkbox" id="crawlHreflang"> Crawl</label>
+                                    <label><input type="checkbox" id="storeHreflang" checked> Store</label>
+                                </div>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>XML Sitemaps</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="crawlSitemaps" checked> Crawl Linked XML Sitemaps</label>
+                                <p class="config-help">Additionally:</p>
+                                <label class="config-checkbox"><input type="checkbox" id="autoDiscoverSitemaps"> Auto Discover XML Sitemaps via robots.txt</label>
+                                <label class="config-checkbox"><input type="checkbox" id="crawlTheseSitemaps"> Crawl These Sitemaps:</label>
+                                <textarea id="sitemapUrls" rows="4" placeholder="Enter sitemap URLs, one per line"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="config-panel-speed" class="config-panel">
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>Control the speed of requests made by the SEO Spider.</p>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configMaxThreads">Max Threads</label>
+                            <input type="number" id="configMaxThreads" value="5" min="1" max="20">
+                            <span class="setting-help">Number of concurrent threads for crawling</span>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="configLimitUrls">
+                                Limit URL/s
+                            </label>
+                            <span class="setting-help">Enable rate limiting by URLs per second</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configMaxUrlsPerSec">Max URL/s</label>
+                            <input type="number" id="configMaxUrlsPerSec" value="2" min="1" max="100">
+                            <span class="setting-help">Maximum URLs to request per second</span>
+                        </div>
+                    </div>
+
+                    <div id="config-panel-user-agent" class="config-panel">
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>Adjust the user-agent used by the SEO Spider in crawling.</p>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configPresetUA">Preset User-Agents</label>
+                            <select id="configPresetUA" onchange="applyConfigPresetUA()">
+                                <option value="wailingnewt">Wailing Newt Web Walker</option>
+                                <option value="googlebot">Googlebot</option>
+                                <option value="bingbot">Bingbot</option>
+                                <option value="chrome">Chrome (Latest)</option>
+                                <option value="firefox">Firefox (Latest)</option>
+                                <option value="safari">Safari (Latest)</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configHttpUA">HTTP Request User-Agent</label>
+                            <input type="text" id="configHttpUA" value="WailingNewt/1.0 (Web Crawler)">
+                        </div>
+                        <div class="setting-group">
+                            <label for="configRobotsUA">Robots User-Agent</label>
+                            <input type="text" id="configRobotsUA" value="WailingNewt">
+                        </div>
+                    </div>
+
+                    <div id="config-panel-limits" class="config-panel">
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>Set limits on the crawl to control scope and resource usage.</p>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configMaxDepth">Maximum Crawl Depth</label>
+                            <input type="number" id="configMaxDepth" value="3" min="1" max="100">
+                            <span class="setting-help">How deep to crawl from the starting URL</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configMaxUrls">Maximum URLs to Crawl</label>
+                            <input type="number" id="configMaxUrls" value="5000000" min="1" max="10000000">
+                            <span class="setting-help">Stop crawling after this many URLs</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="configMaxFileSize">Maximum File Size (MB)</label>
+                            <input type="number" id="configMaxFileSize" value="50" min="1" max="1000">
+                            <span class="setting-help">Skip files larger than this size</span>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder panels for other sections -->
+                    <div id="config-panel-extraction" class="config-panel">
+                        <p class="config-placeholder">Extraction settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-rendering" class="config-panel">
+                        <p class="config-placeholder">Rendering settings (JavaScript execution) coming soon...</p>
+                    </div>
+                    <div id="config-panel-advanced" class="config-panel">
+                        <p class="config-placeholder">Advanced settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-preferences" class="config-panel">
+                        <p class="config-placeholder">Preferences coming soon...</p>
+                    </div>
+                    <div id="config-panel-content-area" class="config-panel">
+                        <p class="config-placeholder">Content Area settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-duplicates" class="config-panel">
+                        <p class="config-placeholder">Duplicate detection settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-spelling" class="config-panel">
+                        <p class="config-placeholder">Spelling & Grammar settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-embeddings" class="config-panel">
+                        <p class="config-placeholder">Embeddings settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-robots" class="config-panel">
+                        <p class="config-placeholder">robots.txt settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-url-rewriting" class="config-panel">
+                        <p class="config-placeholder">URL Rewriting settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-cdns" class="config-panel">
+                        <p class="config-placeholder">CDN settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-include" class="config-panel">
+                        <p class="config-placeholder">Include patterns coming soon...</p>
+                    </div>
+                    <div id="config-panel-exclude" class="config-panel">
+                        <p class="config-placeholder">Exclude patterns coming soon...</p>
+                    </div>
+                    <div id="config-panel-http-header" class="config-panel">
+                        <p class="config-placeholder">HTTP Header settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-custom-search" class="config-panel">
+                        <p class="config-placeholder">Custom Search settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-custom-extraction" class="config-panel">
+                        <p class="config-placeholder">Custom Extraction settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-google-analytics" class="config-panel">
+                        <p class="config-placeholder">Google Analytics integration coming soon...</p>
+                    </div>
+                    <div id="config-panel-search-console" class="config-panel">
+                        <p class="config-placeholder">Search Console integration coming soon...</p>
+                    </div>
+                    <div id="config-panel-pagespeed" class="config-panel">
+                        <p class="config-placeholder">PageSpeed Insights integration coming soon...</p>
+                    </div>
+                    <div id="config-panel-authentication" class="config-panel">
+                        <p class="config-placeholder">Authentication settings coming soon...</p>
+                    </div>
+                    <div id="config-panel-crawl-analysis" class="config-panel">
+                        <p class="config-placeholder">Crawl Analysis settings coming soon...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCrawlConfig()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCrawlConfig()">OK</button>
             </div>
         </div>
     </div>
