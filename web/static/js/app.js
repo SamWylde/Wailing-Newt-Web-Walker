@@ -2779,10 +2779,11 @@ function filterConfigItems() {
 function loadCrawlConfigValues() {
     // Load values from current settings if available
     if (typeof currentSettings !== 'undefined') {
-        // Speed settings
+        // Speed settings - load from concurrency or maxThreads (concurrency takes precedence)
         const maxThreads = document.getElementById('configMaxThreads');
-        if (maxThreads && currentSettings.maxThreads) {
-            maxThreads.value = currentSettings.maxThreads;
+        if (maxThreads) {
+            const threadValue = currentSettings.concurrency || currentSettings.maxThreads || 5;
+            maxThreads.value = threadValue;
         }
 
         const limitUrls = document.getElementById('configLimitUrls');
@@ -2821,20 +2822,43 @@ function loadCrawlConfigValues() {
 
 function saveCrawlConfig() {
     // Collect values from config modal
+    const maxThreads = parseInt(document.getElementById('configMaxThreads')?.value) || 5;
+    const limitUrlsPerSecond = document.getElementById('configLimitUrls')?.checked || false;
+    const maxUrlsPerSec = parseInt(document.getElementById('configMaxUrlsPerSec')?.value) || 2;
+    const maxDepth = parseInt(document.getElementById('configMaxDepth')?.value) || 3;
+    const maxUrls = parseInt(document.getElementById('configMaxUrls')?.value) || 5000000;
+    const maxFileSize = parseInt(document.getElementById('configMaxFileSize')?.value) || 50;
+    const userAgent = document.getElementById('configHttpUA')?.value || 'WailingNewt/1.0 (Web Crawler)';
+    const robotsUserAgent = document.getElementById('configRobotsUA')?.value || 'WailingNewt';
+
+    // Map Crawl Config fields to backend settings fields
+    const backendSettings = {
+        // Speed settings - map maxThreads to concurrency
+        concurrency: maxThreads,
+        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1,
+
+        // Limits settings
+        maxDepth: maxDepth,
+        maxUrls: maxUrls,
+        maxFileSize: maxFileSize,
+
+        // User-Agent settings
+        userAgent: userAgent
+    };
+
+    // Also keep in currentSettings for UI consistency
     const configValues = {
-        // Speed
-        maxThreads: parseInt(document.getElementById('configMaxThreads')?.value) || 5,
-        limitUrlsPerSecond: document.getElementById('configLimitUrls')?.checked || false,
-        maxUrlsPerSecond: parseInt(document.getElementById('configMaxUrlsPerSec')?.value) || 2,
-
-        // Limits
-        maxDepth: parseInt(document.getElementById('configMaxDepth')?.value) || 3,
-        maxUrls: parseInt(document.getElementById('configMaxUrls')?.value) || 5000000,
-        maxFileSize: parseInt(document.getElementById('configMaxFileSize')?.value) || 50,
-
-        // User-Agent
-        userAgent: document.getElementById('configHttpUA')?.value || 'WailingNewt/1.0 (Web Crawler)',
-        robotsUserAgent: document.getElementById('configRobotsUA')?.value || 'WailingNewt'
+        maxThreads: maxThreads,
+        limitUrlsPerSecond: limitUrlsPerSecond,
+        maxUrlsPerSecond: maxUrlsPerSec,
+        maxDepth: maxDepth,
+        maxUrls: maxUrls,
+        maxFileSize: maxFileSize,
+        userAgent: userAgent,
+        robotsUserAgent: robotsUserAgent,
+        // Also update the backend field names in currentSettings
+        concurrency: maxThreads,
+        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1
     };
 
     // Update currentSettings if it exists
@@ -2849,15 +2873,17 @@ function saveCrawlConfig() {
         }
     }
 
-    // Sync to backend
+    // Sync to backend with properly mapped field names
     fetch('/api/save_settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configValues)
+        body: JSON.stringify(backendSettings)
     }).then(response => response.json())
     .then(data => {
         if (data.success) {
             showNotification('Crawl config saved', 'success');
+        } else {
+            console.error('Failed to save config:', data.message || data.error);
         }
     }).catch(err => {
         console.error('Failed to save config:', err);

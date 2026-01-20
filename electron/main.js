@@ -47,13 +47,17 @@ function updateLoadingStatus(message) {
  * Find Python executable
  */
 function findPython() {
+    // On Windows, prefer pythonw.exe to avoid console window
+    // pythonw is a GUI version that doesn't create a console
     const pythonCommands = process.platform === 'win32'
-        ? ['python', 'py', 'python3']
+        ? ['pythonw', 'python', 'py', 'python3']
         : ['python3', 'python'];
 
     for (const cmd of pythonCommands) {
         try {
-            const result = require('child_process').spawnSync(cmd, ['--version']);
+            // Use python (not pythonw) just for version check
+            const checkCmd = cmd === 'pythonw' ? 'python' : cmd;
+            const result = require('child_process').spawnSync(checkCmd, ['--version'], { windowsHide: true });
             if (result.status === 0) {
                 return cmd;
             }
@@ -462,9 +466,16 @@ function stopPythonBackend() {
             if (process.platform === 'win32') {
                 // On Windows, use taskkill to ensure child processes are killed
                 // Use /T to kill child processes and /F to force kill
-                const { execSync } = require('child_process');
+                // Use spawn instead of execSync to properly hide the window
+                const { spawn } = require('child_process');
                 try {
-                    execSync(`taskkill /pid ${pythonProcess.pid} /f /t`, { windowsHide: true });
+                    const killProcess = spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], {
+                        windowsHide: true,
+                        stdio: 'ignore'
+                    });
+                    killProcess.on('error', (e) => {
+                        console.log('taskkill error:', e.message);
+                    });
                 } catch (e) {
                     // taskkill might fail if process already exited, that's ok
                     console.log('taskkill result:', e.message);
@@ -489,6 +500,25 @@ function stopPythonBackend() {
 
         pythonProcess = null;
     }
+}
+
+// Ensure single instance
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+    // Another instance is already running, quit this one
+    console.log('[Electron] Another instance is already running. Quitting...');
+    app.quit();
+} else {
+    // Handle second instance attempt - focus the existing window
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        console.log('[Electron] Second instance attempted. Focusing existing window...');
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+            mainWindow.show();
+        }
+    });
 }
 
 // App event handlers
