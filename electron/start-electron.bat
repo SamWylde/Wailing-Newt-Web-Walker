@@ -6,6 +6,13 @@ echo              Wailing Newt Web Walker - Electron Desktop App
 echo ================================================================================
 echo.
 
+:: Kill any existing Python processes on port 5000 to avoid conflicts
+echo Checking for existing processes on port 5000...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000 ^| findstr LISTENING') do (
+    echo Killing process %%a on port 5000...
+    taskkill /f /pid %%a >nul 2>&1
+)
+
 :: Check if Node.js is installed
 node --version >nul 2>&1
 if errorlevel 1 (
@@ -16,15 +23,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Check if npm packages are installed
-if not exist "node_modules" (
-    echo Installing npm packages...
-    call npm install
-    if errorlevel 1 (
-        echo ERROR: Failed to install npm packages
-        pause
-        exit /b 1
-    )
+:: Always check npm packages (ensures electron-updater is installed)
+echo Checking npm packages...
+call npm install --silent
+if errorlevel 1 (
+    echo ERROR: Failed to install npm packages
+    pause
+    exit /b 1
 )
 
 :: Check if Python dependencies are installed
