@@ -112,14 +112,19 @@ function waitForServer(resolve, reject, attempts = 0) {
         return;
     }
 
+    console.log(`[Electron] Checking server (attempt ${attempts + 1}/${maxAttempts})...`);
+
     http.get(SERVER_URL, (res) => {
-        if (res.statusCode === 200 || res.statusCode === 302) {
-            console.log('Server is ready!');
+        console.log(`[Electron] Server responded with status: ${res.statusCode}`);
+        // Accept any response - server is running
+        if (res.statusCode >= 200 && res.statusCode < 500) {
+            console.log('[Electron] Server is ready!');
             resolve();
         } else {
             setTimeout(() => waitForServer(resolve, reject, attempts + 1), 1000);
         }
-    }).on('error', () => {
+    }).on('error', (err) => {
+        console.log(`[Electron] Server not ready yet: ${err.message}`);
         setTimeout(() => waitForServer(resolve, reject, attempts + 1), 1000);
     });
 }
@@ -128,6 +133,8 @@ function waitForServer(resolve, reject, attempts = 0) {
  * Create the main application window
  */
 function createWindow() {
+    console.log('[Electron] Creating main window...');
+
     mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -145,13 +152,24 @@ function createWindow() {
     });
 
     // Load the web UI
+    console.log(`[Electron] Loading URL: ${SERVER_URL}`);
     mainWindow.loadURL(SERVER_URL);
 
     // Show window when ready
     mainWindow.once('ready-to-show', () => {
+        console.log('[Electron] Window ready to show');
         mainWindow.show();
         mainWindow.focus();
     });
+
+    // Fallback: show window after 5 seconds even if ready-to-show doesn't fire
+    setTimeout(() => {
+        if (mainWindow && !mainWindow.isVisible()) {
+            console.log('[Electron] Fallback: forcing window to show');
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    }, 5000);
 
     // Handle window close
     mainWindow.on('close', (event) => {
