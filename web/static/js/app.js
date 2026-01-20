@@ -2578,17 +2578,59 @@ function downloadXMLSitemaps() {
         alert('Please enter a URL first to download its XML sitemaps.');
         return;
     }
-    // This would trigger a sitemap discovery and download
-    alert('XML Sitemap download feature will discover and import URLs from sitemap.xml files.');
-    // TODO: Implement sitemap discovery API call
+    updateStatus('Discovering XML sitemaps...');
+    fetch('/api/sitemaps/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.error || 'Unable to discover XML sitemaps.');
+                updateStatus('Ready');
+                return;
+            }
+            if (!data.urls || data.urls.length === 0) {
+                alert('No sitemap URLs were discovered for this site.');
+                updateStatus('Ready');
+                return;
+            }
+            openBulkModalWithUrls(data.urls);
+            updateStatus(`Discovered ${data.urls.length} URLs from XML sitemaps.`);
+        })
+        .catch(error => {
+            console.error('Error discovering sitemaps:', error);
+            alert('Failed to discover XML sitemaps. Please try again.');
+            updateStatus('Ready');
+        });
 }
 
 function openGoogleSheetsImport() {
     closeUploadDropdown();
     const sheetUrl = prompt('Enter Google Sheets URL (must be publicly accessible or shared):');
     if (sheetUrl) {
-        alert('Google Sheets import feature coming soon. For now, please export your sheet as CSV and use "From a File..."');
-        // TODO: Implement Google Sheets API integration
+        updateStatus('Importing URLs from Google Sheets...');
+        fetch('/api/import/google-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sheet_url: sheetUrl })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.error || 'Unable to import Google Sheet.');
+                    updateStatus('Ready');
+                    return;
+                }
+                openBulkModalWithUrls(data.urls);
+                updateStatus(`Imported ${data.urls.length} URLs from Google Sheets.`);
+            })
+            .catch(error => {
+                console.error('Error importing Google Sheet:', error);
+                alert('Failed to import Google Sheet. Ensure it is shared publicly.');
+                updateStatus('Ready');
+            });
     }
 }
 
@@ -2601,6 +2643,13 @@ function openBulkInputModal() {
 
 function closeBulkInputModal() {
     document.getElementById('bulkInputModal').style.display = 'none';
+}
+
+function openBulkModalWithUrls(urls) {
+    const uniqueUrls = Array.from(new Set(urls));
+    document.getElementById('bulkUrlsInput').value = uniqueUrls.join('\n');
+    document.getElementById('bulkInputModal').style.display = 'flex';
+    document.getElementById('bulkUrlsInput').focus();
 }
 
 function processBulkUrls() {
@@ -2909,10 +2958,17 @@ function saveCrawlConfig() {
     const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
 
     // Map Crawl Config fields to backend settings fields
+    const existingDelay = (typeof currentSettings !== 'undefined' && currentSettings.crawlDelay !== undefined)
+        ? currentSettings.crawlDelay
+        : 1;
+    const computedDelay = limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : existingDelay;
+
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
         concurrency: maxThreads,
-        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1,
+        crawlDelay: computedDelay,
+        limitUrlsPerSecond: limitUrlsPerSecond,
+        maxUrlsPerSecond: maxUrlsPerSec,
 
         // Limits settings
         maxDepth: maxDepth,
@@ -2946,7 +3002,7 @@ function saveCrawlConfig() {
         robotsUserAgent: robotsUserAgent,
         // Also update the backend field names in currentSettings
         concurrency: maxThreads,
-        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1,
+        crawlDelay: computedDelay,
         // JavaScript settings
         enableJavaScript: enableJavaScript,
         jsWaitTime: jsWaitTime,
@@ -3008,4 +3064,3 @@ function applyConfigPresetUA() {
         document.getElementById('configRobotsUA').value = preset.robots;
     }
 }
-

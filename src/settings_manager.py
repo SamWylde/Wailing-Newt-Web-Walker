@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+from src.core.crawler_defaults import get_default_settings
+
 class SettingsManager:
     def __init__(self, session_id=None, user_id=None, tier='guest'):
         """
@@ -27,6 +29,7 @@ class SettingsManager:
         user_settings = [
             # Crawler tab
             'maxDepth', 'maxUrls', 'crawlDelay', 'followRedirects', 'crawlExternalLinks',
+            'maxThreads', 'limitUrlsPerSecond', 'maxUrlsPerSecond',
             # Export tab
             'exportFormat', 'exportFields',
             # Issues tab
@@ -71,270 +74,7 @@ class SettingsManager:
 
     def _get_default_settings(self):
         """Get fresh default settings"""
-        return {
-            # Crawler settings
-            'maxDepth': 3,
-            'maxUrls': 5000000,
-            'crawlDelay': 1,
-            'followRedirects': True,
-            'crawlExternalLinks': False,
-
-            # Request settings
-            'userAgent': 'WailingNewt/1.0 (Web Crawler)',
-            'timeout': 10,
-            'retries': 3,
-            'acceptLanguage': 'en-US,en;q=0.9',
-            'respectRobotsTxt': True,
-            'allowCookies': True,
-            'discoverSitemaps': True,
-            'enablePageSpeed': False,
-            'googleApiKey': '',
-
-            # Filter settings
-            'includeExtensions': 'html,htm,php,asp,aspx,jsp',
-            'excludeExtensions': 'pdf,doc,docx,zip,exe,dmg',
-            'includePatterns': '',
-            'excludePatterns': '',
-            'maxFileSize': 50,
-
-            # Duplication detection settings
-            'enableDuplicationCheck': True,
-            'duplicationThreshold': 0.85,
-
-            # Export settings
-            'exportFormat': 'csv',
-            'exportFields': ['url', 'status_code', 'title', 'meta_description', 'h1'],
-
-            # Advanced settings
-            'concurrency': 5,
-            'memoryLimit': 512,
-            'logLevel': 'INFO',
-            'saveSession': False,
-            'enableProxy': False,
-            'proxyUrl': '',
-            'customHeaders': '',
-
-            # JavaScript rendering settings
-            'enableJavaScript': False,
-            'jsWaitTime': 3,
-            'jsTimeout': 30,
-            'jsBrowser': 'chromium',
-            'jsHeadless': True,
-            'jsUserAgent': 'WailingNewt/1.0 (Web Crawler with JavaScript)',
-            'jsViewportWidth': 1920,
-            'jsViewportHeight': 1080,
-            'jsMaxConcurrentPages': 3,
-
-            # Custom CSS styling
-            'customCSS': '',
-
-            # Issue exclusion patterns
-            'issueExclusionPatterns': '''# WordPress admin & system paths
-/wp-admin/*
-/wp-content/plugins/*
-/wp-content/themes/*
-/wp-content/uploads/*
-/wp-includes/*
-/wp-login.php
-/wp-cron.php
-/xmlrpc.php
-/wp-json/*
-/wp-activate.php
-/wp-signup.php
-/wp-trackback.php
-
-# Auth & user management pages
-/login*
-/signin*
-/sign-in*
-/log-in*
-/auth/*
-/authenticate/*
-/register*
-/signup*
-/sign-up*
-/registration/*
-/logout*
-/signout*
-/sign-out*
-/log-out*
-/forgot-password*
-/reset-password*
-/password-reset*
-/recover-password*
-/change-password*
-/account/password/*
-/user/password/*
-/activate/*
-/verification/*
-/verify/*
-/confirm/*
-
-# Admin panels & dashboards
-/admin/*
-/administrator/*
-/_admin/*
-/backend/*
-/dashboard/*
-/cpanel/*
-/phpmyadmin/*
-/pma/*
-/webmail/*
-/plesk/*
-/control-panel/*
-/manage/*
-/manager/*
-
-# E-commerce checkout & cart
-/checkout/*
-/cart/*
-/basket/*
-/payment/*
-/billing/*
-/order/*
-/orders/*
-/purchase/*
-
-# User account pages
-/account/*
-/profile/*
-/settings/*
-/preferences/*
-/my-account/*
-/user/*
-/member/*
-/members/*
-
-# CGI & server scripts
-/cgi-bin/*
-/cgi/*
-/fcgi-bin/*
-
-# Version control & config
-/.git/*
-/.svn/*
-/.hg/*
-/.bzr/*
-/.cvs/*
-/.env
-/.env.*
-/.htaccess
-/.htpasswd
-/web.config
-/app.config
-/composer.json
-/package.json
-
-# Development & build artifacts
-/node_modules/*
-/vendor/*
-/bower_components/*
-/jspm_packages/*
-/includes/*
-/lib/*
-/libs/*
-/src/*
-/dist/*
-/build/*
-/builds/*
-/_next/*
-/.next/*
-/out/*
-/_nuxt/*
-/.nuxt/*
-
-# Testing & development
-/test/*
-/tests/*
-/spec/*
-/specs/*
-/__tests__/*
-/debug/*
-/dev/*
-/development/*
-/staging/*
-
-# API internal endpoints
-/api/internal/*
-/api/admin/*
-/api/private/*
-
-# System & internal
-/private/*
-/system/*
-/core/*
-/internal/*
-/tmp/*
-/temp/*
-/cache/*
-/logs/*
-/log/*
-/backup/*
-/backups/*
-/old/*
-/archive/*
-/archives/*
-/config/*
-/configs/*
-/configuration/*
-
-# Media upload forms
-/upload/*
-/uploads/*
-/uploader/*
-/file-upload/*
-
-# Search & filtering (often noisy for SEO)
-/search*
-*/search/*
-?s=*
-?search=*
-*/filter/*
-?filter=*
-*/sort/*
-?sort=*
-
-# Printer-friendly & special views
-/print/*
-?print=*
-/preview/*
-?preview=*
-/embed/*
-?embed=*
-/amp/*
-/amp
-
-# Feed URLs
-/feed/*
-/feeds/*
-/rss/*
-*.rss
-/atom/*
-*.atom
-
-# Common file types to exclude from issues
-*.json
-*.xml
-*.yaml
-*.yml
-*.toml
-*.ini
-*.conf
-*.log
-*.txt
-*.csv
-*.sql
-*.db
-*.bak
-*.backup
-*.old
-*.orig
-*.tmp
-*.swp
-*.map
-*.min.js
-*.min.css'''
-        }
+        return get_default_settings()
 
     def load_settings(self):
         """Load settings from database or return defaults"""
@@ -426,6 +166,8 @@ class SettingsManager:
                 'maxDepth': (1, 10),
                 'maxUrls': (1, 5000000),
                 'crawlDelay': (0, 60),
+                'maxThreads': (1, 50),
+                'maxUrlsPerSecond': (1, 100),
                 'timeout': (1, 120),
                 'retries': (0, 10),
                 'maxFileSize': (1, 1000),
@@ -474,10 +216,15 @@ class SettingsManager:
         """Get settings formatted for the crawler"""
         settings = self.get_settings()
 
+        delay = settings['crawlDelay']
+        if settings.get('limitUrlsPerSecond'):
+            max_urls_per_second = max(1, settings.get('maxUrlsPerSecond', 1))
+            delay = max(0.1, 1 / max_urls_per_second)
+
         return {
             'max_depth': settings['maxDepth'],
             'max_urls': settings['maxUrls'],
-            'delay': settings['crawlDelay'],
+            'delay': delay,
             'follow_redirects': settings['followRedirects'],
             'crawl_external': settings['crawlExternalLinks'],
             'user_agent': settings['userAgent'],
@@ -491,7 +238,7 @@ class SettingsManager:
             'include_patterns': [p.strip() for p in settings['includePatterns'].split('\n') if p.strip()],
             'exclude_patterns': [p.strip() for p in settings['excludePatterns'].split('\n') if p.strip()],
             'max_file_size': settings['maxFileSize'] * 1024 * 1024,  # Convert MB to bytes
-            'concurrency': settings['concurrency'],
+            'concurrency': settings.get('concurrency', settings.get('maxThreads', 5)),
             'memory_limit': settings['memoryLimit'] * 1024 * 1024,  # Convert MB to bytes
             'log_level': settings['logLevel'],
             'enable_proxy': settings['enableProxy'],
