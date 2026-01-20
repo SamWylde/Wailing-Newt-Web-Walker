@@ -479,15 +479,29 @@ app.whenReady().then(async () => {
         resizable: false,
         center: true,
         show: false,
+        skipTaskbar: true,
+        focusable: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
         }
     });
 
-    // Show window once content is loaded
+    // Show window once content is loaded AND force it to front
     loadingWindow.once('ready-to-show', () => {
         loadingWindow.show();
+        loadingWindow.focus();
+        loadingWindow.setAlwaysOnTop(true, 'screen-saver');
+        loadingWindow.moveTop();
+
+        // Extra insurance: bring to front after a short delay
+        setTimeout(() => {
+            if (loadingWindow && !loadingWindow.isDestroyed()) {
+                loadingWindow.focus();
+                loadingWindow.moveTop();
+            }
+        }, 100);
+
         console.log('[Electron] Loading window displayed');
     });
 
