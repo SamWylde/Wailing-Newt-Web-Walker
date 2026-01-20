@@ -215,11 +215,8 @@ class WebCrawler:
             self.base_url = f"{parsed.scheme}://{parsed.netloc}"
             self.base_domain = parsed.netloc
 
-            # If URL has a path (not just domain), set max_depth to 0 to only crawl that page
-            has_path = parsed.path and parsed.path not in ('/', '')
-            if has_path:
-                print(f"URL has path '{parsed.path}' - limiting crawl to single page only")
-                self.config['max_depth'] = 0
+            # Note: max_depth from user settings is respected - no override
+            print(f"Starting crawl from {url} with max_depth={self.config.get('max_depth', 3)}")
 
             # Create database crawl record if session_id provided
             if session_id:

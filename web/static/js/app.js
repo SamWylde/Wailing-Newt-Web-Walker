@@ -2693,3 +2693,191 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
         });
 }
 
+// Crawl Config Modal Functions
+function openCrawlConfig() {
+    document.getElementById('crawlConfigModal').style.display = 'flex';
+    // Load current config values
+    loadCrawlConfigValues();
+}
+
+function closeCrawlConfig() {
+    document.getElementById('crawlConfigModal').style.display = 'none';
+}
+
+function toggleConfigSection(sectionId) {
+    const items = document.getElementById(sectionId + '-items');
+    const arrow = document.getElementById(sectionId + '-arrow');
+
+    if (items.classList.contains('collapsed')) {
+        items.classList.remove('collapsed');
+        items.style.maxHeight = items.scrollHeight + 'px';
+        arrow.innerHTML = '&#x25BC;';
+    } else {
+        items.classList.add('collapsed');
+        items.style.maxHeight = '0';
+        arrow.innerHTML = '&#x25B6;';
+    }
+}
+
+function showConfigPanel(panelId) {
+    // Remove active from all items
+    document.querySelectorAll('.config-item, .config-item-single').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Hide all panels
+    document.querySelectorAll('.config-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+
+    // Show selected panel
+    const panel = document.getElementById('config-panel-' + panelId);
+    if (panel) {
+        panel.classList.add('active');
+    }
+
+    // Update breadcrumb
+    const breadcrumb = document.getElementById('configBreadcrumb');
+    if (breadcrumb) {
+        breadcrumb.textContent = panelId.charAt(0).toUpperCase() + panelId.slice(1).replace(/-/g, ' ');
+    }
+
+    // Update description
+    const descriptions = {
+        'crawl': 'Select link types to crawl and store, and adjust crawling behaviour.',
+        'speed': 'Control the speed of requests made by the SEO Spider.',
+        'user-agent': 'Adjust the user-agent used by the SEO Spider in crawling.',
+        'limits': 'Set limits on the crawl to control scope and resource usage.'
+    };
+    const descEl = document.getElementById('configDescription');
+    if (descEl && descriptions[panelId]) {
+        descEl.textContent = descriptions[panelId];
+    }
+
+    // Add active class to clicked item
+    event.target.classList.add('active');
+}
+
+function filterConfigItems() {
+    const searchTerm = document.getElementById('configSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.config-item, .config-item-single');
+
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function loadCrawlConfigValues() {
+    // Load values from current settings if available
+    if (typeof currentSettings !== 'undefined') {
+        // Speed settings
+        const maxThreads = document.getElementById('configMaxThreads');
+        if (maxThreads && currentSettings.maxThreads) {
+            maxThreads.value = currentSettings.maxThreads;
+        }
+
+        const limitUrls = document.getElementById('configLimitUrls');
+        if (limitUrls && currentSettings.limitUrlsPerSecond !== undefined) {
+            limitUrls.checked = currentSettings.limitUrlsPerSecond;
+        }
+
+        const maxUrlsPerSec = document.getElementById('configMaxUrlsPerSec');
+        if (maxUrlsPerSec && currentSettings.maxUrlsPerSecond) {
+            maxUrlsPerSec.value = currentSettings.maxUrlsPerSecond;
+        }
+
+        // Limits settings
+        const maxDepth = document.getElementById('configMaxDepth');
+        if (maxDepth && currentSettings.maxDepth) {
+            maxDepth.value = currentSettings.maxDepth;
+        }
+
+        const maxUrls = document.getElementById('configMaxUrls');
+        if (maxUrls && currentSettings.maxUrls) {
+            maxUrls.value = currentSettings.maxUrls;
+        }
+
+        // User-Agent settings
+        const httpUA = document.getElementById('configHttpUA');
+        if (httpUA && currentSettings.userAgent) {
+            httpUA.value = currentSettings.userAgent;
+        }
+
+        const robotsUA = document.getElementById('configRobotsUA');
+        if (robotsUA && currentSettings.robotsUserAgent) {
+            robotsUA.value = currentSettings.robotsUserAgent;
+        }
+    }
+}
+
+function saveCrawlConfig() {
+    // Collect values from config modal
+    const configValues = {
+        // Speed
+        maxThreads: parseInt(document.getElementById('configMaxThreads')?.value) || 5,
+        limitUrlsPerSecond: document.getElementById('configLimitUrls')?.checked || false,
+        maxUrlsPerSecond: parseInt(document.getElementById('configMaxUrlsPerSec')?.value) || 2,
+
+        // Limits
+        maxDepth: parseInt(document.getElementById('configMaxDepth')?.value) || 3,
+        maxUrls: parseInt(document.getElementById('configMaxUrls')?.value) || 5000000,
+        maxFileSize: parseInt(document.getElementById('configMaxFileSize')?.value) || 50,
+
+        // User-Agent
+        userAgent: document.getElementById('configHttpUA')?.value || 'WailingNewt/1.0 (Web Crawler)',
+        robotsUserAgent: document.getElementById('configRobotsUA')?.value || 'WailingNewt'
+    };
+
+    // Update currentSettings if it exists
+    if (typeof currentSettings !== 'undefined') {
+        Object.assign(currentSettings, configValues);
+
+        // Save to localStorage
+        try {
+            localStorage.setItem('wailingnewt_settings', JSON.stringify(currentSettings));
+        } catch (e) {
+            console.error('Failed to save config to localStorage:', e);
+        }
+    }
+
+    // Sync to backend
+    fetch('/api/save_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configValues)
+    }).then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Crawl config saved', 'success');
+        }
+    }).catch(err => {
+        console.error('Failed to save config:', err);
+    });
+
+    closeCrawlConfig();
+}
+
+function applyConfigPresetUA() {
+    const presets = {
+        wailingnewt: { http: 'WailingNewt/1.0 (Web Crawler)', robots: 'WailingNewt' },
+        googlebot: { http: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', robots: 'Googlebot' },
+        bingbot: { http: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', robots: 'bingbot' },
+        chrome: { http: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', robots: 'Chrome' },
+        firefox: { http: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0', robots: 'Firefox' },
+        safari: { http: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15', robots: 'Safari' }
+    };
+
+    const select = document.getElementById('configPresetUA');
+    const preset = presets[select.value];
+
+    if (preset) {
+        document.getElementById('configHttpUA').value = preset.http;
+        document.getElementById('configRobotsUA').value = preset.robots;
+    }
+}
+
