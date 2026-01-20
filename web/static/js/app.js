@@ -2745,9 +2745,13 @@ function showConfigPanel(panelId) {
     // Update description
     const descriptions = {
         'crawl': 'Select link types to crawl and store, and adjust crawling behaviour.',
+        'extraction': 'Configure which data to extract from pages during crawling and issues for them.',
+        'limits': 'Limit the size and scope of the crawl. This may help focus on key areas and reduce the time it takes to complete a crawl.',
+        'rendering': 'Configure JavaScript rendering options for crawling dynamic content.',
+        'advanced': 'Adjust a variety of advanced crawler settings for the SEO Spider. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.',
+        'preferences': 'Modify parameters used by the SEO Spider to flag potential issues and populate filters. For example, page title length for the \'Over X Characters\' filter in the Page Titles tab.',
         'speed': 'Control the speed of requests made by the SEO Spider.',
-        'user-agent': 'Adjust the user-agent used by the SEO Spider in crawling.',
-        'limits': 'Set limits on the crawl to control scope and resource usage.'
+        'user-agent': 'Adjust the user-agent used by the SEO Spider in crawling.'
     };
     const descEl = document.getElementById('configDescription');
     if (descEl && descriptions[panelId]) {
