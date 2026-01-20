@@ -2520,10 +2520,28 @@ function closeBulkInputModal() {
 
 function processBulkUrls() {
     const input = document.getElementById('bulkUrlsInput').value;
-    const urls = input.split('\n').map(u => u.trim()).filter(u => u);
+
+    // Extract URLs from text - matches http:// or https:// URLs
+    const urlRegex = /https?:\/\/[^\s]+/gi;
+    const matches = input.match(urlRegex);
+
+    // If no URLs found using regex, fall back to line-by-line processing
+    let urls;
+    if (matches && matches.length > 0) {
+        // Clean up extracted URLs (remove trailing punctuation that might have been caught)
+        urls = matches.map(url => {
+            // Remove trailing punctuation like ), ], }, etc.
+            return url.replace(/[)\]}>.,;:!?]+$/, '');
+        }).filter(u => u);
+    } else {
+        // Fallback: treat each non-empty line as potential URL
+        urls = input.split('\n')
+            .map(u => u.trim())
+            .filter(u => u && (u.startsWith('http://') || u.startsWith('https://')));
+    }
 
     if (urls.length === 0) {
-        alert('Please enter at least one URL');
+        alert('No valid URLs found. Please enter at least one URL starting with http:// or https://');
         return;
     }
 

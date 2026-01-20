@@ -1,6 +1,13 @@
 @echo off
 :: Wailing Newt Web Walker - Electron Launcher
 
+:: Minimize this console window
+if not "%minimized%"=="" goto :minimized
+set minimized=true
+start /min cmd /C "%~dpnx0"
+exit
+:minimized
+
 echo ================================================================================
 echo              Wailing Newt Web Walker - Electron Desktop App
 echo ================================================================================
