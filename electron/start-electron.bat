@@ -23,9 +23,18 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Always check npm packages (ensures electron-updater is installed)
-echo Checking npm packages...
-call npm install --silent
+:: Pull latest updates from git (if git is available)
+echo Checking for updates...
+cd ..
+git pull origin main --quiet 2>nul
+if errorlevel 1 (
+    echo Note: Could not pull updates. Continuing with local version...
+)
+cd electron
+
+:: Always install/update npm packages (ensures electron-updater is installed)
+echo Installing/updating npm packages...
+call npm install
 if errorlevel 1 (
     echo ERROR: Failed to install npm packages
     pause
