@@ -67,8 +67,8 @@ function startPythonBackend() {
         console.log(`Starting Python backend with: ${pythonCmd}`);
         console.log(`App path: ${appPath}`);
 
-        // Start Python server
-        pythonProcess = spawn(pythonCmd, ['main.py', '-l'], {
+        // Start Python server (with --no-browser to prevent opening system browser)
+        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
             stdio: ['ignore', 'pipe', 'pipe']
