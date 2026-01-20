@@ -2349,7 +2349,6 @@ function initializeTheme() {
 }
 
 function toggleTheme() {
-    alert('toggleTheme called!'); // DEBUG
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
