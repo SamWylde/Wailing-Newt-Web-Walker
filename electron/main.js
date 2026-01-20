@@ -488,20 +488,23 @@ function stopPythonBackend() {
             if (process.platform === 'win32') {
                 // On Windows, use taskkill to ensure child processes are killed
                 // Use /T to kill child processes and /F to force kill
-                // Use spawn instead of execSync to properly hide the window
-                const { spawn } = require('child_process');
+                // Use spawnSync for synchronous execution to ensure process is killed before app quits
+                const { spawnSync } = require('child_process');
                 try {
-                    const killProcess = spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], {
+                    console.log(`Killing Python process ${pythonProcess.pid}...`);
+                    const result = spawnSync('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], {
                         windowsHide: true,
                         shell: false,
                         stdio: 'ignore'
                     });
-                    killProcess.on('error', (e) => {
-                        console.log('taskkill error:', e.message);
-                    });
+                    if (result.error) {
+                        console.log('taskkill error:', result.error.message);
+                    } else {
+                        console.log('Python process killed successfully');
+                    }
                 } catch (e) {
                     // taskkill might fail if process already exited, that's ok
-                    console.log('taskkill result:', e.message);
+                    console.log('taskkill exception:', e.message);
                 }
             } else {
                 // On Unix, kill the process group
