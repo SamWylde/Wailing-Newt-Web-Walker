@@ -57,6 +57,13 @@ if errorlevel 1 (
     goto :eof
 )
 
+echo Installing Playwright browsers (first run only)...
+%PYTHON% -m playwright install chromium --quiet 2>nul
+if errorlevel 1 (
+    echo Playwright browser installation required...
+    %PYTHON% -m playwright install chromium
+)
+
 echo.
 echo Starting Wailing Newt Web Walker...
 echo Press Ctrl+C to stop, then type 'exit' to close this window.
