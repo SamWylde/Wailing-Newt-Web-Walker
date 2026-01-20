@@ -489,10 +489,8 @@ app.whenReady().then(async () => {
         createTray();
         createWindow();
 
-        // Initialize auto-updater (only in production builds)
-        if (app.isPackaged) {
-            initAutoUpdater(mainWindow, tray);
-        }
+        // Initialize auto-updater (always initialize to register IPC handlers)
+        initAutoUpdater(mainWindow, tray);
     } catch (error) {
         loadingWindow.close();
         dialog.showErrorBox('Startup Error', error.message);
