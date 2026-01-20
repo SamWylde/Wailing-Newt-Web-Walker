@@ -8,8 +8,17 @@ let defaultSettings = {
     followRedirects: true,
     crawlExternalLinks: false,
 
-    // Request settings
+    // Speed settings
+    maxThreads: 5,
+    limitUrlsPerSecond: false,
+    maxUrlsPerSecond: 2,
+
+    // User-Agent settings
+    presetUserAgent: 'wailingnewt',
     userAgent: 'WailingNewt/1.0 (Web Crawler)',
+    robotsUserAgent: 'WailingNewt',
+
+    // Request settings
     timeout: 10,
     retries: 3,
     acceptLanguage: 'en-US,en;q=0.9',
@@ -309,6 +318,55 @@ function resetIssueExclusions() {
     alert('Issue exclusion patterns have been reset to defaults');
 }
 
+// Preset user agent strings
+const userAgentPresets = {
+    wailingnewt: {
+        http: 'WailingNewt/1.0 (Web Crawler)',
+        robots: 'WailingNewt'
+    },
+    googlebot: {
+        http: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        robots: 'Googlebot'
+    },
+    bingbot: {
+        http: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+        robots: 'bingbot'
+    },
+    chrome: {
+        http: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        robots: 'Chrome'
+    },
+    firefox: {
+        http: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+        robots: 'Firefox'
+    },
+    safari: {
+        http: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+        robots: 'Safari'
+    }
+};
+
+function applyPresetUserAgent() {
+    const presetSelect = document.getElementById('presetUserAgent');
+    const userAgentInput = document.getElementById('userAgent');
+    const robotsUserAgentInput = document.getElementById('robotsUserAgent');
+
+    if (!presetSelect || !userAgentInput || !robotsUserAgentInput) return;
+
+    const preset = presetSelect.value;
+
+    if (preset === 'custom') {
+        // Leave the fields editable, don't change values
+        return;
+    }
+
+    const presetValues = userAgentPresets[preset];
+    if (presetValues) {
+        userAgentInput.value = presetValues.http;
+        robotsUserAgentInput.value = presetValues.robots;
+    }
+}
+
 async function openSettings() {
     // Get user tier info
     let userTier = 'guest';
@@ -458,7 +516,9 @@ function collectSettingsFromForm() {
     // Collect regular form fields
     const formFields = [
         'maxDepth', 'maxUrls', 'crawlDelay', 'followRedirects', 'crawlExternalLinks',
-        'userAgent', 'timeout', 'retries', 'acceptLanguage', 'respectRobotsTxt', 'allowCookies', 'discoverSitemaps', 'enablePageSpeed', 'googleApiKey',
+        'maxThreads', 'limitUrlsPerSecond', 'maxUrlsPerSecond',
+        'presetUserAgent', 'userAgent', 'robotsUserAgent',
+        'timeout', 'retries', 'acceptLanguage', 'respectRobotsTxt', 'allowCookies', 'discoverSitemaps', 'enablePageSpeed', 'googleApiKey',
         'includeExtensions', 'excludeExtensions', 'includePatterns', 'excludePatterns', 'maxFileSize',
         'enableDuplicationCheck', 'duplicationThreshold',
         'exportFormat', 'concurrency', 'memoryLimit', 'logLevel', 'saveSession',

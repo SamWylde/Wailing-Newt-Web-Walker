@@ -647,6 +647,28 @@
                         <span class="setting-help">Delay between requests to be respectful</span>
                     </div>
 
+                    <h3 style="margin-top: 30px;">Speed</h3>
+
+                    <div class="setting-group">
+                        <label for="maxThreads">Max Threads</label>
+                        <input type="number" id="maxThreads" value="5" min="1" max="20">
+                        <span class="setting-help">Number of concurrent threads for crawling</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="limitUrlsPerSecond">
+                            Limit URL/s
+                        </label>
+                        <span class="setting-help">Enable rate limiting by URLs per second</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="maxUrlsPerSecond">Max URL/s</label>
+                        <input type="number" id="maxUrlsPerSecond" value="2" min="1" max="100">
+                        <span class="setting-help">Maximum URLs to request per second when rate limiting is enabled</span>
+                    </div>
+
                     <div class="setting-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="followRedirects" checked>
@@ -669,15 +691,37 @@
                     <h3>HTTP Request Configuration</h3>
 
                     <div class="setting-group">
-                        <label for="userAgent">User Agent</label>
-                        <input type="text" id="userAgent" value="WailingNewt/1.0 (Web Crawler)">
-                        <span class="setting-help">User agent string sent with requests</span>
-                    </div>
-
-                    <div class="setting-group">
                         <label for="timeout">Request Timeout (seconds)</label>
                         <input type="number" id="timeout" value="10" min="1" max="120">
                         <span class="setting-help">How long to wait for a response</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px;">User-Agent</h3>
+
+                    <div class="setting-group">
+                        <label for="presetUserAgent">Preset User-Agents</label>
+                        <select id="presetUserAgent" onchange="applyPresetUserAgent()">
+                            <option value="wailingnewt">Wailing Newt Web Walker</option>
+                            <option value="googlebot">Googlebot</option>
+                            <option value="bingbot">Bingbot</option>
+                            <option value="chrome">Chrome (Latest)</option>
+                            <option value="firefox">Firefox (Latest)</option>
+                            <option value="safari">Safari (Latest)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <span class="setting-help">Select a predefined user agent or choose Custom to enter your own</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="userAgent">HTTP Request User-Agent</label>
+                        <input type="text" id="userAgent" value="WailingNewt/1.0 (Web Crawler)">
+                        <span class="setting-help">User agent string sent with HTTP requests</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="robotsUserAgent">Robots User-Agent</label>
+                        <input type="text" id="robotsUserAgent" value="WailingNewt">
+                        <span class="setting-help">User agent name used for robots.txt compliance checking</span>
                     </div>
 
                     <div class="setting-group">
