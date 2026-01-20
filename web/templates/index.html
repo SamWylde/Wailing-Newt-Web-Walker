@@ -593,8 +593,11 @@
                 <button class="modal-close" onclick="closeBulkInputModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 10px; color: #d1d5db;">Enter URLs to crawl (one per line):</p>
+                <p style="margin-bottom: 10px; color: #d1d5db;">
+                    Paste URLs to crawl - Text labels and formatting will be automatically removed:
+                </p>
                 <textarea id="bulkUrlsInput" rows="10"
+                    placeholder="https://example.com&#10;https://example.com/page1&#10;https://example.com/page2&#10;&#10;Or paste text with URLs mixed in:&#10;HOME PAGE&#10;https://example.com/&#10;&#10;ABOUT US&#10;https://example.com/about"
                     style="width: 100%; background: #1f2937; color: white; border: 1px solid #4b5563; padding: 10px; border-radius: 6px; resize: vertical;"></textarea>
                 <div style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
                     <button class="btn btn-secondary" onclick="closeBulkInputModal()">Cancel</button>
