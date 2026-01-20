@@ -487,6 +487,13 @@ app.whenReady().then(async () => {
         }
     });
 
+    // Don't start backend until loading window is shown
+    let windowShown = false;
+    let windowShowResolver;
+    const windowShownPromise = new Promise(resolve => {
+        windowShowResolver = resolve;
+    });
+
     // Show window once content is loaded AND force it to front
     loadingWindow.once('ready-to-show', () => {
         loadingWindow.show();
@@ -499,10 +506,11 @@ app.whenReady().then(async () => {
             if (loadingWindow && !loadingWindow.isDestroyed()) {
                 loadingWindow.focus();
                 loadingWindow.moveTop();
+                windowShown = true;
+                windowShowResolver();
+                console.log('[Electron] Loading window displayed and ready');
             }
         }, 100);
-
-        console.log('[Electron] Loading window displayed');
     });
 
     loadingWindow.loadURL(`data:text/html;charset=utf-8,
@@ -645,16 +653,30 @@ app.whenReady().then(async () => {
         </html>
     `);
 
+    // WAIT for loading window to show before starting backend
+    await windowShownPromise;
+    console.log('[Electron] Waiting 200ms for window to settle...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     try {
         await startPythonBackend();
-        loadingWindow.close();
+
+        // Keep loading window visible for a moment before switching
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (loadingWindow && !loadingWindow.isDestroyed()) {
+            loadingWindow.close();
+        }
+
         createTray();
         createWindow();
 
         // Initialize auto-updater (always initialize to register IPC handlers)
         initAutoUpdater(mainWindow, tray);
     } catch (error) {
-        loadingWindow.close();
+        if (loadingWindow && !loadingWindow.isDestroyed()) {
+            loadingWindow.close();
+        }
         dialog.showErrorBox('Startup Error', error.message);
         app.quit();
     }
