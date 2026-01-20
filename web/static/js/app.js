@@ -2508,8 +2508,93 @@ function initializeShortcuts() {
     });
 }
 
+// Upload Dropdown Menu
+function toggleUploadDropdown() {
+    const menu = document.getElementById('uploadDropdownMenu');
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        menu.style.display = 'block';
+        // Close dropdown when clicking outside
+        document.addEventListener('click', closeUploadDropdownOnClickOutside);
+    } else {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeUploadDropdownOnClickOutside);
+    }
+}
+
+function closeUploadDropdownOnClickOutside(event) {
+    const dropdown = document.querySelector('.upload-dropdown');
+    if (!dropdown.contains(event.target)) {
+        document.getElementById('uploadDropdownMenu').style.display = 'none';
+        document.removeEventListener('click', closeUploadDropdownOnClickOutside);
+    }
+}
+
+function closeUploadDropdown() {
+    document.getElementById('uploadDropdownMenu').style.display = 'none';
+    document.removeEventListener('click', closeUploadDropdownOnClickOutside);
+}
+
+function openFileUpload() {
+    closeUploadDropdown();
+    // Create hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.txt,.csv,.xml';
+    fileInput.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                // Open bulk input modal with file content
+                document.getElementById('bulkInputModal').style.display = 'flex';
+                document.getElementById('bulkUrlsInput').value = content;
+            };
+            reader.readAsText(file);
+        }
+    };
+    fileInput.click();
+}
+
+async function pasteFromClipboard() {
+    closeUploadDropdown();
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            document.getElementById('bulkInputModal').style.display = 'flex';
+            document.getElementById('bulkUrlsInput').value = text;
+            document.getElementById('bulkUrlsInput').focus();
+        }
+    } catch (err) {
+        alert('Unable to access clipboard. Please use Enter Manually and paste directly.');
+        openBulkInputModal();
+    }
+}
+
+function downloadXMLSitemaps() {
+    closeUploadDropdown();
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) {
+        alert('Please enter a URL first to download its XML sitemaps.');
+        return;
+    }
+    // This would trigger a sitemap discovery and download
+    alert('XML Sitemap download feature will discover and import URLs from sitemap.xml files.');
+    // TODO: Implement sitemap discovery API call
+}
+
+function openGoogleSheetsImport() {
+    closeUploadDropdown();
+    const sheetUrl = prompt('Enter Google Sheets URL (must be publicly accessible or shared):');
+    if (sheetUrl) {
+        alert('Google Sheets import feature coming soon. For now, please export your sheet as CSV and use "From a File..."');
+        // TODO: Implement Google Sheets API integration
+    }
+}
+
 // Bulk Input Modal
 function openBulkInputModal() {
+    closeUploadDropdown();
     document.getElementById('bulkInputModal').style.display = 'flex';
     document.getElementById('bulkUrlsInput').focus();
 }
