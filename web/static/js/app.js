@@ -68,6 +68,9 @@ async function initializeApp() {
     // Initialize keyboard shortcuts
     initializeShortcuts();
 
+    // Initialize auto-update listener (Electron desktop app only)
+    initializeAutoUpdate();
+
     // DEBUG: Check sessionStorage
     console.log('DEBUG: Checking sessionStorage force_ui_refresh:', sessionStorage.getItem('force_ui_refresh'));
 
@@ -2346,6 +2349,118 @@ function initializeTheme() {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
+}
+
+// Auto-Update Management (Electron desktop app only)
+function initializeAutoUpdate() {
+    // Check if running in Electron with update API
+    if (typeof window.electronAPI === 'undefined' || !window.electronAPI.onUpdateDownloaded) {
+        console.log('Auto-update: Not running in Electron or update API not available');
+        return;
+    }
+
+    console.log('Auto-update: Initializing update listener');
+
+    // Listen for update-downloaded event from main process
+    window.electronAPI.onUpdateDownloaded((info) => {
+        console.log('Auto-update: Update downloaded', info);
+        showUpdateBanner(info.version);
+    });
+
+    // Check if an update was already downloaded
+    window.electronAPI.getUpdateStatus().then((status) => {
+        if (status && status.updateDownloaded) {
+            showUpdateBanner();
+        }
+    }).catch((err) => {
+        console.log('Auto-update: Could not get update status', err);
+    });
+}
+
+function showUpdateBanner(version) {
+    // Remove existing banner if present
+    const existingBanner = document.getElementById('update-banner');
+    if (existingBanner) {
+        existingBanner.remove();
+    }
+
+    // Create update banner
+    const banner = document.createElement('div');
+    banner.id = 'update-banner';
+    banner.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: inherit;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+    `;
+
+    const versionText = version ? ` (v${version})` : '';
+    banner.innerHTML = `
+        <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 4px;">Update Ready${versionText}</div>
+            <div style="font-size: 13px; opacity: 0.9;">Restart to apply the latest updates</div>
+        </div>
+        <button onclick="installUpdate()" style="
+            background: white;
+            color: #059669;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        ">Restart Now</button>
+        <button onclick="dismissUpdateBanner()" style="
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            opacity: 0.7;
+            font-size: 18px;
+            line-height: 1;
+        ">&times;</button>
+    `;
+
+    // Add animation keyframes
+    if (!document.getElementById('update-banner-styles')) {
+        const style = document.createElement('style');
+        style.id = 'update-banner-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    document.body.appendChild(banner);
+}
+
+function dismissUpdateBanner() {
+    const banner = document.getElementById('update-banner');
+    if (banner) {
+        banner.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => banner.remove(), 300);
+    }
+}
+
+function installUpdate() {
+    if (window.electronAPI && window.electronAPI.installUpdate) {
+        window.electronAPI.installUpdate();
+    }
 }
 
 function toggleTheme() {

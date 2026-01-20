@@ -17,6 +17,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Notifications
     showNotification: (title, body) => {
         new Notification(title, { body });
+    },
+
+    // Auto-update functions
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+    onUpdateDownloaded: (callback) => {
+        ipcRenderer.on('update-downloaded', (event, info) => callback(info));
     }
 });
 
