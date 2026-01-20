@@ -53,20 +53,72 @@ function findPython() {
 }
 
 /**
+ * Install Python dependencies
+ */
+function installPythonDependencies(pythonCmd) {
+    return new Promise((resolve, reject) => {
+        console.log('Installing Python dependencies...');
+
+        const requirementsPath = path.join(appPath, 'requirements.txt');
+        const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], {
+            cwd: appPath,
+            env: { ...process.env, PYTHONUNBUFFERED: '1' },
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        installProcess.stdout.on('data', (data) => {
+            output += data.toString();
+            console.log(`[pip] ${data.toString().trim()}`);
+        });
+
+        installProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+            console.error(`[pip] ${data.toString().trim()}`);
+        });
+
+        installProcess.on('error', (err) => {
+            console.error('Failed to install dependencies:', err);
+            reject(err);
+        });
+
+        installProcess.on('exit', (code) => {
+            if (code === 0) {
+                console.log('Python dependencies installed successfully');
+                resolve();
+            } else {
+                console.error(`Dependency installation failed with code ${code}`);
+                console.error('Error output:', errorOutput);
+                reject(new Error(`Failed to install Python dependencies (exit code ${code})`));
+            }
+        });
+    });
+}
+
+/**
  * Start the Python backend server
  */
-function startPythonBackend() {
+async function startPythonBackend() {
+    const pythonCmd = findPython();
+
+    if (!pythonCmd) {
+        throw new Error('Python not found. Please install Python 3.11 or later.');
+    }
+
+    console.log(`Starting Python backend with: ${pythonCmd}`);
+    console.log(`App path: ${appPath}`);
+
+    // Install dependencies first
+    try {
+        await installPythonDependencies(pythonCmd);
+    } catch (error) {
+        console.error('Warning: Failed to install Python dependencies:', error.message);
+        // Continue anyway - dependencies might already be installed
+    }
+
     return new Promise((resolve, reject) => {
-        const pythonCmd = findPython();
-
-        if (!pythonCmd) {
-            reject(new Error('Python not found. Please install Python 3.11 or later.'));
-            return;
-        }
-
-        console.log(`Starting Python backend with: ${pythonCmd}`);
-        console.log(`App path: ${appPath}`);
-
         // Start Python server (with --no-browser to prevent opening system browser)
         pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
             cwd: appPath,
