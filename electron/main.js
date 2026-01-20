@@ -143,13 +143,19 @@ async function startPythonBackend() {
         updateLoadingStatus('Starting Python server...');
 
         // Start Python server (with --no-browser to prevent opening system browser)
-        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
+        const spawnOptions = {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
-            stdio: ['ignore', 'pipe', 'pipe'],
-            detached: false,
-            windowsHide: true
-        });
+            stdio: ['ignore', 'pipe', 'pipe']
+        };
+
+        // On Windows, use shell mode to hide the console window
+        if (process.platform === 'win32') {
+            spawnOptions.shell = true;
+            spawnOptions.windowsHide = true;
+        }
+
+        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], spawnOptions);
 
         pythonProcess.stdout.on('data', (data) => {
             const message = data.toString().trim();
@@ -461,10 +467,20 @@ function stopPythonBackend() {
             if (process.platform === 'win32') {
                 // On Windows, use taskkill to ensure child processes are killed
                 // Use /T to kill child processes and /F to force kill
-                spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], { shell: true });
+                const { execSync } = require('child_process');
+                try {
+                    execSync(`taskkill /pid ${pythonProcess.pid} /f /t`, { windowsHide: true });
+                } catch (e) {
+                    // taskkill might fail if process already exited, that's ok
+                    console.log('taskkill result:', e.message);
+                }
             } else {
                 // On Unix, kill the process group
-                process.kill(-pythonProcess.pid, 'SIGTERM');
+                try {
+                    process.kill(-pythonProcess.pid, 'SIGTERM');
+                } catch (e) {
+                    pythonProcess.kill('SIGTERM');
+                }
             }
         } catch (e) {
             console.log('Error killing Python process:', e);
@@ -485,7 +501,7 @@ app.whenReady().then(async () => {
     // Show loading dialog
     loadingWindow = new BrowserWindow({
         width: 500,
-        height: 350,
+        height: 420,
         frame: false,
         transparent: false,
         backgroundColor: '#7cb342',
