@@ -1440,37 +1440,340 @@
                     <div id="config-panel-limits" class="config-panel">
                         <div class="config-info-box">
                             <strong>&#x2139; Info</strong>
-                            <p>Set limits on the crawl to control scope and resource usage.</p>
+                            <p>These options are only available with an SEO Spider Licence.</p>
                         </div>
-                        <div class="setting-group">
-                            <label for="configMaxDepth">Maximum Crawl Depth</label>
-                            <input type="number" id="configMaxDepth" value="3" min="1" max="100">
-                            <span class="setting-help">How deep to crawl from the starting URL</span>
+                        <p class="config-description">Limit the size and scope of the crawl. This may help focus on key areas and reduce the time it takes to complete a crawl.</p>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <div class="config-limit-row">
+                                    <label class="config-checkbox"><input type="checkbox" id="limitCrawlTotal" checked> Limit Crawl Total</label>
+                                    <input type="number" value="500" min="0" id="limitCrawlTotalValue">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label class="config-checkbox"><input type="checkbox" id="limitCrawlDepth" checked> Limit Crawl Depth</label>
+                                    <input type="number" value="0" min="0" id="limitCrawlDepthValue">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label class="config-checkbox"><input type="checkbox" id="limitUrlsPerDepth"> Limit URLs Per Crawl Depth</label>
+                                    <input type="number" value="1000" min="0" id="limitUrlsPerDepthValue">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label class="config-checkbox"><input type="checkbox" id="limitMaxFolderDepth"> Limit Max Folder Depth</label>
+                                    <input type="number" value="5" min="0" id="limitMaxFolderDepthValue">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label class="config-checkbox"><input type="checkbox" id="limitQueryStrings"> Limit Number of Query Strings</label>
+                                    <input type="number" value="5" min="0" id="limitQueryStringsValue">
+                                </div>
+                            </div>
+                            <div class="config-group-box">
+                                <div class="config-limit-row">
+                                    <label class="config-checkbox"><input type="checkbox" id="limitCrawlPerSubdomain"> Limit Crawl Total Per Subdomain</label>
+                                    <input type="number" value="1000" min="0" id="limitCrawlPerSubdomainValue">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max Redirects to Follow</label>
+                                    <input type="number" value="10" min="0" id="limitMaxRedirects">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max URL Length to Crawl</label>
+                                    <input type="number" value="10000" min="0" id="limitMaxUrlLength">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max Links per URL to Crawl</label>
+                                    <input type="number" value="10000" min="0" id="limitMaxLinksPerUrl">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max Page Size (KB) to Crawl</label>
+                                    <input type="number" value="50000" min="0" id="limitMaxPageSize">
+                                </div>
+                            </div>
                         </div>
-                        <div class="setting-group">
-                            <label for="configMaxUrls">Maximum URLs to Crawl</label>
-                            <input type="number" id="configMaxUrls" value="5000000" min="1" max="10000000">
-                            <span class="setting-help">Stop crawling after this many URLs</span>
-                        </div>
-                        <div class="setting-group">
-                            <label for="configMaxFileSize">Maximum File Size (MB)</label>
-                            <input type="number" id="configMaxFileSize" value="50" min="1" max="1000">
-                            <span class="setting-help">Skip files larger than this size</span>
+
+                        <div class="config-group-box" style="margin-top: 20px;">
+                            <h4>Limit by URL Path</h4>
+                            <p class="config-help">Define a list of URL Regex patterns and a maximum number of URLs to crawl for each.</p>
+                            <div class="config-placeholder-box">
+                                <p style="text-align: center; color: #999; padding: 40px;">No URL Path Limits Configured</p>
+                            </div>
+                            <div style="margin-top: 10px; text-align: right;">
+                                <button class="btn btn-secondary btn-sm" onclick="alert('Delete All URL Path Limits')">Delete All</button>
+                                <button class="btn btn-primary btn-sm" onclick="alert('Add URL Path Limit')">+ Add</button>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Placeholder panels for other sections -->
                     <div id="config-panel-extraction" class="config-panel">
-                        <p class="config-placeholder">Extraction settings coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options are only available with an SEO Spider Licence.</p>
+                        </div>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <h4>Page Details</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="extractPageTitle" checked> Page Title</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractMetaDescription" checked> Meta Description</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractMetaKeywords" checked> Meta Keywords</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractH1" checked> H1</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractH2" checked> H2</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractIndexability" checked> Indexability</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractWordCount" checked> Word Count</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractReadability" checked> Readability</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractTextCodeRatio" checked> Text to Code Ratio</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractHashValue" checked> Hash Value</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractPageSize" checked> Page Size</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractForms" checked> Forms</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractAccessibility"> Accessibility (requires JavaScript rendering)</label>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>URL Details</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="extractResponseTime" checked> Response Time</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractLastModified" checked> Last Modified</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractHTTPHeaders"> HTTP Headers</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractCookies"> Cookies</label>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>Directives</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="extractMetaRobots" checked> Meta Robots</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractXRobotsTag" checked> X-Robots-Tag</label>
+                            </div>
+                        </div>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <h4>Structured Data</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="extractJSONLD"> JSON-LD</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractMicrodata"> Microdata</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractRDFa"> RDFa</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractSchemaValidation"> Schema.org Validation</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractGoogleRichResult"> Google Rich Result Feature Validation</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractCaseSensitive"> Case-Sensitive</label>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>HTML</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="extractStoreHTML"> Store HTML</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractStoreRenderedHTML"> Store Rendered HTML</label>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>PDF</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="extractStorePDF"> Store PDF</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractPDFProperties"> Extract PDF Properties</label>
+                                <label class="config-checkbox"><input type="checkbox" id="extractPDFLinkText"> Extract Link Text</label>
+                            </div>
+                        </div>
                     </div>
                     <div id="config-panel-rendering" class="config-panel">
-                        <p class="config-placeholder">Rendering settings (JavaScript execution) coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options are only available with an SEO Spider Licence.</p>
+                        </div>
+
+                        <div class="setting-group">
+                            <label for="renderingMode">Rendering</label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <select id="renderingMode" style="flex: 1;">
+                                    <option value="text-only" selected>Text Only</option>
+                                    <option value="javascript" disabled>JavaScript Rendering (Premium)</option>
+                                </select>
+                                <span>&#x1F512;</span>
+                            </div>
+                            <span class="setting-help">Choose rendering mode for crawling pages</span>
+                        </div>
                     </div>
                     <div id="config-panel-advanced" class="config-panel">
-                        <p class="config-placeholder">Advanced settings coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options are only available with an SEO Spider Licence.</p>
+                        </div>
+                        <p class="config-description">Adjust a variety of advanced crawler settings for the SEO Spider. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.</p>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <div class="setting-group">
+                                    <label for="advCookieStorage">Cookie Storage</label>
+                                    <select id="advCookieStorage">
+                                        <option value="session" selected>Session Only</option>
+                                        <option value="persistent">Persistent</option>
+                                        <option value="none">None</option>
+                                    </select>
+                                </div>
+
+                                <label class="config-checkbox"><input type="checkbox" id="advIgnoreNonIndexable" checked> Ignore Non-Indexable URLs for Issues</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advIgnorePaginated" checked> Ignore Paginated URLs for Duplicate Filters</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advAlwaysFollowRedirects"> Always Follow Redirects</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advAlwaysFollowCanonicals"> Always Follow Canonicals</label>
+                                <label class="config-checkbox">
+                                    <input type="checkbox" id="advRespectNoindex">
+                                    Respect noindex
+                                    <span>&#x1F512;</span>
+                                </label>
+                                <label class="config-checkbox">
+                                    <input type="checkbox" id="advRespectCanonicals">
+                                    Respect Canonicals
+                                    <span>&#x1F512;</span>
+                                </label>
+                                <label class="config-checkbox">
+                                    <input type="checkbox" id="advRespectNextPrev">
+                                    Respect Next/Prev
+                                    <span>&#x1F512;</span>
+                                </label>
+                                <label class="config-checkbox"><input type="checkbox" id="advRespectHSTS"> Respect HSTS Policy</label>
+                            </div>
+                            <div class="config-group-box">
+                                <label class="config-checkbox"><input type="checkbox" id="advRespectMetaRefresh"> Respect Self Referencing Meta Refresh</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advExtractImagesSrcset"> Extract Images from srcset Attribute</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advCrawlFragments"> Crawl Fragment Identifiers</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advHTMLValidation" checked> Perform HTML Validation</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advGreenHosting"> Green Hosting Carbon Calculation</label>
+                                <label class="config-checkbox"><input type="checkbox" id="advAssumeHTML"> Assume Pages are HTML</label>
+
+                                <div class="setting-group" style="margin-top: 20px;">
+                                    <label for="advResponseTimeout">Response Timeout (secs)</label>
+                                    <input type="number" id="advResponseTimeout" value="20" min="1" max="300">
+                                </div>
+                                <div class="setting-group">
+                                    <label for="advResponseRetries">5xx Response Retries</label>
+                                    <input type="number" id="advResponseRetries" value="0" min="0" max="10">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="config-panel-preferences" class="config-panel">
-                        <p class="config-placeholder">Preferences coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options are only available with an SEO Spider Licence.</p>
+                        </div>
+                        <p class="config-description">Modify parameters used by the SEO Spider to flag potential issues and populate filters. For example, page title length for the 'Over X Characters' filter in the Page Titles tab.</p>
+
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <h4>Page Title Width</h4>
+                                <div class="config-limit-row">
+                                    <label>Pixels</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <span>Min</span>
+                                        <input type="number" value="200" min="0" style="width: 80px;">
+                                        <span>Max</span>
+                                        <input type="number" value="561" min="0" style="width: 80px;">
+                                    </div>
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Characters</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <span>Min</span>
+                                        <input type="number" value="30" min="0" style="width: 80px;">
+                                        <span>Max</span>
+                                        <input type="number" value="60" min="0" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">Meta Description Width</h4>
+                                <div class="config-limit-row">
+                                    <label>Pixels</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <span>Min</span>
+                                        <input type="number" value="400" min="0" style="width: 80px;">
+                                        <span>Max</span>
+                                        <input type="number" value="585" min="0" style="width: 80px;">
+                                    </div>
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Characters</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <span>Min</span>
+                                        <input type="number" value="70" min="0" style="width: 80px;">
+                                        <span>Max</span>
+                                        <input type="number" value="155" min="0" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">Links</h4>
+                                <div class="config-limit-row">
+                                    <label>High External Outlinks</label>
+                                    <input type="number" value="10" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>High Internal Outlinks</label>
+                                    <input type="number" value="1000" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>High Crawl Depth</label>
+                                    <input type="number" value="3" min="0">
+                                </div>
+
+                                <h4 style="margin-top: 20px;">Non-Descriptive Anchor Text:</h4>
+                                <textarea rows="8" style="width: 100%; font-family: monospace; font-size: 12px;">click here
+click this
+find out more
+go
+here
+learn more
+more
+over here
+read here
+read more
+right here
+start
+this
+this page</textarea>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>Other</h4>
+                                <div class="config-limit-row">
+                                    <label>Max URL Length Chars</label>
+                                    <input type="number" value="115" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max H1 Length Chars</label>
+                                    <input type="number" value="70" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max H2 Length Chars</label>
+                                    <input type="number" value="70" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>
+                                        <span>&#x1F512;</span> Max Image Alt Text Chars
+                                    </label>
+                                    <input type="number" value="100" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Max Image Size Kilobytes</label>
+                                    <input type="number" value="100" min="0">
+                                </div>
+                                <div class="config-limit-row">
+                                    <label>Low Content Word Count</label>
+                                    <input type="number" value="200" min="0">
+                                </div>
+
+                                <h4 style="margin-top: 20px;">Soft 404 Phrases:</h4>
+                                <textarea rows="16" style="width: 100%; font-family: monospace; font-size: 12px;">404 Not Found
+404 error
+410 Not Found
+can't find the page
+can't seem to find that page
+couldn't find that page
+couldn't find the page
+couldn't find what you're looking for
+error 404
+error occurred
+no products found
+no results found
+not exist
+not found
+nothing found
+page cannot be found
+page does not exist
+page not found
+page you are looking for
+page you requested
+sorry
+we couldn't find</textarea>
+                            </div>
+                        </div>
                     </div>
                     <div id="config-panel-content-area" class="config-panel">
                         <p class="config-placeholder">Content Area settings coming soon...</p>

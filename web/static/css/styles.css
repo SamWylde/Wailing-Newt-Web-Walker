@@ -1428,6 +1428,66 @@ body {
     font-size: 14px;
 }
 
+.config-limit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.config-limit-row label {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.config-limit-row input[type="number"] {
+    width: 120px;
+    padding: 6px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.config-limit-row input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.config-placeholder-box {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.config-panel select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.config-panel select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
 /* Empty State */
 .empty-state {
     display: flex;
