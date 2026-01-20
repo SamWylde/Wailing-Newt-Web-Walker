@@ -41,11 +41,25 @@
                     <input type="url" id="urlInput" class="url-input" placeholder="https://example.com"
                         onkeypress="handleUrlKeypress(event)">
                 </div>
-                <!-- Bulk Input Trigger -->
-                <button class="btn btn-secondary" onclick="openBulkInputModal()"
-                    style="margin-left: 10px; height: 42px;">
-                    Bulk Input
-                </button>
+                <!-- Upload Dropdown -->
+                <div class="upload-dropdown" style="margin-left: 10px; position: relative;">
+                    <button class="btn btn-secondary upload-dropdown-btn" onclick="toggleUploadDropdown()" style="height: 42px; display: flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                        </svg>
+                        Upload
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </button>
+                    <div id="uploadDropdownMenu" class="upload-dropdown-menu" style="display: none;">
+                        <button onclick="openFileUpload()">From a File...</button>
+                        <button onclick="openBulkInputModal()">Enter Manually...</button>
+                        <button onclick="pasteFromClipboard()">Paste</button>
+                        <button onclick="downloadXMLSitemaps()">Download XML Sitemaps...</button>
+                        <button onclick="openGoogleSheetsImport()">From Google Sheets...</button>
+                    </div>
+                </div>
                 <div class="control-buttons">
                     <button id="startBtn" class="btn btn-primary" onclick="toggleCrawl()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -647,6 +661,28 @@
                         <span class="setting-help">Delay between requests to be respectful</span>
                     </div>
 
+                    <h3 style="margin-top: 30px;">Speed</h3>
+
+                    <div class="setting-group">
+                        <label for="maxThreads">Max Threads</label>
+                        <input type="number" id="maxThreads" value="5" min="1" max="20">
+                        <span class="setting-help">Number of concurrent threads for crawling</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="limitUrlsPerSecond">
+                            Limit URL/s
+                        </label>
+                        <span class="setting-help">Enable rate limiting by URLs per second</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="maxUrlsPerSecond">Max URL/s</label>
+                        <input type="number" id="maxUrlsPerSecond" value="2" min="1" max="100">
+                        <span class="setting-help">Maximum URLs to request per second when rate limiting is enabled</span>
+                    </div>
+
                     <div class="setting-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="followRedirects" checked>
@@ -669,15 +705,37 @@
                     <h3>HTTP Request Configuration</h3>
 
                     <div class="setting-group">
-                        <label for="userAgent">User Agent</label>
-                        <input type="text" id="userAgent" value="WailingNewt/1.0 (Web Crawler)">
-                        <span class="setting-help">User agent string sent with requests</span>
-                    </div>
-
-                    <div class="setting-group">
                         <label for="timeout">Request Timeout (seconds)</label>
                         <input type="number" id="timeout" value="10" min="1" max="120">
                         <span class="setting-help">How long to wait for a response</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px;">User-Agent</h3>
+
+                    <div class="setting-group">
+                        <label for="presetUserAgent">Preset User-Agents</label>
+                        <select id="presetUserAgent" onchange="applyPresetUserAgent()">
+                            <option value="wailingnewt">Wailing Newt Web Walker</option>
+                            <option value="googlebot">Googlebot</option>
+                            <option value="bingbot">Bingbot</option>
+                            <option value="chrome">Chrome (Latest)</option>
+                            <option value="firefox">Firefox (Latest)</option>
+                            <option value="safari">Safari (Latest)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <span class="setting-help">Select a predefined user agent or choose Custom to enter your own</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="userAgent">HTTP Request User-Agent</label>
+                        <input type="text" id="userAgent" value="WailingNewt/1.0 (Web Crawler)">
+                        <span class="setting-help">User agent string sent with HTTP requests</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="robotsUserAgent">Robots User-Agent</label>
+                        <input type="text" id="robotsUserAgent" value="WailingNewt">
+                        <span class="setting-help">User agent name used for robots.txt compliance checking</span>
                     </div>
 
                     <div class="setting-group">
