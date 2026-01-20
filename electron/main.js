@@ -473,13 +473,22 @@ app.whenReady().then(async () => {
         width: 500,
         height: 350,
         frame: false,
-        transparent: true,
+        transparent: false,
+        backgroundColor: '#7cb342',
         alwaysOnTop: true,
         resizable: false,
+        center: true,
+        show: false,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
         }
+    });
+
+    // Show window once content is loaded
+    loadingWindow.once('ready-to-show', () => {
+        loadingWindow.show();
+        console.log('[Electron] Loading window displayed');
     });
 
     loadingWindow.loadURL(`data:text/html;charset=utf-8,
@@ -494,8 +503,8 @@ app.whenReady().then(async () => {
                     box-sizing: border-box;
                 }
                 body {
-                    width: 500px;
-                    height: 350px;
+                    width: 100vw;
+                    height: 100vh;
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
@@ -503,8 +512,7 @@ app.whenReady().then(async () => {
                     background: linear-gradient(135deg, #7cb342 0%, #8bc34a 100%);
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     color: #ffffff;
-                    border-radius: 12px;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+                    overflow: hidden;
                 }
                 .logo {
                     font-size: 80px;
