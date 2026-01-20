@@ -2698,6 +2698,32 @@ function openCrawlConfig() {
     document.getElementById('crawlConfigModal').style.display = 'flex';
     // Load current config values
     loadCrawlConfigValues();
+
+    // Setup JavaScript rendering toggle handler
+    const enableJavaScriptCheckbox = document.getElementById('enableJavaScript');
+    if (enableJavaScriptCheckbox) {
+        // Set initial state
+        const jsSettingsGroups = [
+            'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
+            'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+        ];
+
+        const updateJSVisibility = () => {
+            jsSettingsGroups.forEach(groupId => {
+                const group = document.getElementById(groupId);
+                if (group) {
+                    group.style.display = enableJavaScriptCheckbox.checked ? 'block' : 'none';
+                }
+            });
+        };
+
+        // Update on checkbox change
+        enableJavaScriptCheckbox.removeEventListener('change', updateJSVisibility); // Remove if exists
+        enableJavaScriptCheckbox.addEventListener('change', updateJSVisibility);
+
+        // Set initial visibility
+        updateJSVisibility();
+    }
 }
 
 function closeCrawlConfig() {
@@ -2817,6 +2843,52 @@ function loadCrawlConfigValues() {
         if (robotsUA && currentSettings.robotsUserAgent) {
             robotsUA.value = currentSettings.robotsUserAgent;
         }
+
+        // JavaScript Rendering settings
+        const enableJS = document.getElementById('enableJavaScript');
+        if (enableJS && currentSettings.enableJavaScript !== undefined) {
+            enableJS.checked = currentSettings.enableJavaScript;
+        }
+
+        const jsWaitTime = document.getElementById('jsWaitTime');
+        if (jsWaitTime && currentSettings.jsWaitTime !== undefined) {
+            jsWaitTime.value = currentSettings.jsWaitTime;
+        }
+
+        const jsTimeout = document.getElementById('jsTimeout');
+        if (jsTimeout && currentSettings.jsTimeout !== undefined) {
+            jsTimeout.value = currentSettings.jsTimeout;
+        }
+
+        const jsBrowser = document.getElementById('jsBrowser');
+        if (jsBrowser && currentSettings.jsBrowser) {
+            jsBrowser.value = currentSettings.jsBrowser;
+        }
+
+        const jsHeadless = document.getElementById('jsHeadless');
+        if (jsHeadless && currentSettings.jsHeadless !== undefined) {
+            jsHeadless.checked = currentSettings.jsHeadless;
+        }
+
+        const jsUserAgent = document.getElementById('jsUserAgent');
+        if (jsUserAgent && currentSettings.jsUserAgent) {
+            jsUserAgent.value = currentSettings.jsUserAgent;
+        }
+
+        const jsViewportWidth = document.getElementById('jsViewportWidth');
+        if (jsViewportWidth && currentSettings.jsViewportWidth) {
+            jsViewportWidth.value = currentSettings.jsViewportWidth;
+        }
+
+        const jsViewportHeight = document.getElementById('jsViewportHeight');
+        if (jsViewportHeight && currentSettings.jsViewportHeight) {
+            jsViewportHeight.value = currentSettings.jsViewportHeight;
+        }
+
+        const jsMaxPages = document.getElementById('jsMaxConcurrentPages');
+        if (jsMaxPages && currentSettings.jsMaxConcurrentPages) {
+            jsMaxPages.value = currentSettings.jsMaxConcurrentPages;
+        }
     }
 }
 
@@ -2831,6 +2903,17 @@ function saveCrawlConfig() {
     const userAgent = document.getElementById('configHttpUA')?.value || 'WailingNewt/1.0 (Web Crawler)';
     const robotsUserAgent = document.getElementById('configRobotsUA')?.value || 'WailingNewt';
 
+    // Collect JavaScript rendering settings
+    const enableJavaScript = document.getElementById('enableJavaScript')?.checked || false;
+    const jsWaitTime = parseFloat(document.getElementById('jsWaitTime')?.value) || 3;
+    const jsTimeout = parseInt(document.getElementById('jsTimeout')?.value) || 30;
+    const jsBrowser = document.getElementById('jsBrowser')?.value || 'chromium';
+    const jsHeadless = document.getElementById('jsHeadless')?.checked !== false; // default true
+    const jsUserAgent = document.getElementById('jsUserAgent')?.value || 'WailingNewt/1.0 (Web Crawler with JavaScript)';
+    const jsViewportWidth = parseInt(document.getElementById('jsViewportWidth')?.value) || 1920;
+    const jsViewportHeight = parseInt(document.getElementById('jsViewportHeight')?.value) || 1080;
+    const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
+
     // Map Crawl Config fields to backend settings fields
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
@@ -2843,7 +2926,18 @@ function saveCrawlConfig() {
         maxFileSize: maxFileSize,
 
         // User-Agent settings
-        userAgent: userAgent
+        userAgent: userAgent,
+
+        // JavaScript rendering settings
+        enableJavaScript: enableJavaScript,
+        jsWaitTime: jsWaitTime,
+        jsTimeout: jsTimeout,
+        jsBrowser: jsBrowser,
+        jsHeadless: jsHeadless,
+        jsUserAgent: jsUserAgent,
+        jsViewportWidth: jsViewportWidth,
+        jsViewportHeight: jsViewportHeight,
+        jsMaxConcurrentPages: jsMaxConcurrentPages
     };
 
     // Also keep in currentSettings for UI consistency
@@ -2858,7 +2952,17 @@ function saveCrawlConfig() {
         robotsUserAgent: robotsUserAgent,
         // Also update the backend field names in currentSettings
         concurrency: maxThreads,
-        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1
+        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1,
+        // JavaScript settings
+        enableJavaScript: enableJavaScript,
+        jsWaitTime: jsWaitTime,
+        jsTimeout: jsTimeout,
+        jsBrowser: jsBrowser,
+        jsHeadless: jsHeadless,
+        jsUserAgent: jsUserAgent,
+        jsViewportWidth: jsViewportWidth,
+        jsViewportHeight: jsViewportHeight,
+        jsMaxConcurrentPages: jsMaxConcurrentPages
     };
 
     // Update currentSettings if it exists

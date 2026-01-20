@@ -57,7 +57,11 @@ function findPython() {
         try {
             // Use python (not pythonw) just for version check
             const checkCmd = cmd === 'pythonw' ? 'python' : cmd;
-            const result = require('child_process').spawnSync(checkCmd, ['--version'], { windowsHide: true });
+            const spawnOptions = {
+                windowsHide: true,
+                shell: false
+            };
+            const result = require('child_process').spawnSync(checkCmd, ['--version'], spawnOptions);
             if (result.status === 0) {
                 return cmd;
             }
@@ -76,12 +80,22 @@ function installPythonDependencies(pythonCmd) {
         updateLoadingStatus('Installing Python dependencies...');
 
         const requirementsPath = path.join(appPath, 'requirements.txt');
-        const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], {
+
+        // Configure spawn options to hide console window on Windows
+        const spawnOptions = {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
             stdio: ['ignore', 'pipe', 'pipe'],
-            windowsHide: true
-        });
+            windowsHide: true,
+            detached: false
+        };
+
+        // On Windows, set shell to false to prevent cmd.exe window
+        if (process.platform === 'win32') {
+            spawnOptions.shell = false;
+        }
+
+        const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], spawnOptions);
 
         let output = '';
         let errorOutput = '';
@@ -148,13 +162,21 @@ async function startPythonBackend() {
         updateLoadingStatus('Starting Python server...');
 
         // Start Python server (with --no-browser to prevent opening system browser)
-        // windowsHide: true hides the console window on Windows
-        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
+        // Use comprehensive options to hide console window on Windows
+        const spawnOptions = {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
             stdio: ['ignore', 'pipe', 'pipe'],
-            windowsHide: true
-        });
+            windowsHide: true,
+            detached: false
+        };
+
+        // On Windows, also set shell to false to prevent cmd.exe window
+        if (process.platform === 'win32') {
+            spawnOptions.shell = false;
+        }
+
+        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], spawnOptions);
 
         pythonProcess.stdout.on('data', (data) => {
             const message = data.toString().trim();
@@ -466,19 +488,23 @@ function stopPythonBackend() {
             if (process.platform === 'win32') {
                 // On Windows, use taskkill to ensure child processes are killed
                 // Use /T to kill child processes and /F to force kill
-                // Use spawn instead of execSync to properly hide the window
-                const { spawn } = require('child_process');
+                // Use spawnSync for synchronous execution to ensure process is killed before app quits
+                const { spawnSync } = require('child_process');
                 try {
-                    const killProcess = spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], {
+                    console.log(`Killing Python process ${pythonProcess.pid}...`);
+                    const result = spawnSync('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], {
                         windowsHide: true,
+                        shell: false,
                         stdio: 'ignore'
                     });
-                    killProcess.on('error', (e) => {
-                        console.log('taskkill error:', e.message);
-                    });
+                    if (result.error) {
+                        console.log('taskkill error:', result.error.message);
+                    } else {
+                        console.log('Python process killed successfully');
+                    }
                 } catch (e) {
                     // taskkill might fail if process already exited, that's ok
-                    console.log('taskkill result:', e.message);
+                    console.log('taskkill exception:', e.message);
                 }
             } else {
                 // On Unix, kill the process group
