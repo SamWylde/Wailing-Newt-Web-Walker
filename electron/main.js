@@ -23,7 +23,7 @@ let isQuitting = false;
 
 // Configuration
 const SERVER_PORT = 5000;
-const SERVER_URL = `http://localhost:${SERVER_PORT}`;
+const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`; // Use IPv4 explicitly to avoid IPv6 issues
 
 // Determine paths based on whether we're in development or production
 const isDev = !app.isPackaged;
