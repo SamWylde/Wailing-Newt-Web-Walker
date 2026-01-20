@@ -1388,6 +1388,15 @@ def graceful_shutdown(signum, frame):
 
 def main():
     import signal
+    import sys
+    import io
+
+    # Fix Unicode encoding issues on Windows
+    # This prevents UnicodeEncodeError when printing emojis and special characters
+    if sys.platform == 'win32':
+        # Reconfigure stdout and stderr to use UTF-8 encoding
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, graceful_shutdown)
