@@ -146,7 +146,9 @@ async function startPythonBackend() {
         pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
-            stdio: ['ignore', 'pipe', 'pipe']
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: false,
+            windowsHide: true
         });
 
         pythonProcess.stdout.on('data', (data) => {
@@ -455,11 +457,23 @@ function stopPythonBackend() {
     if (pythonProcess) {
         console.log('Stopping Python backend...');
 
-        if (process.platform === 'win32') {
-            // On Windows, use taskkill to ensure child processes are killed
-            spawn('taskkill', ['/pid', pythonProcess.pid, '/f', '/t']);
-        } else {
-            pythonProcess.kill('SIGTERM');
+        try {
+            if (process.platform === 'win32') {
+                // On Windows, use taskkill to ensure child processes are killed
+                // Use /T to kill child processes and /F to force kill
+                spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], { shell: true });
+            } else {
+                // On Unix, kill the process group
+                process.kill(-pythonProcess.pid, 'SIGTERM');
+            }
+        } catch (e) {
+            console.log('Error killing Python process:', e);
+            // Try a direct kill as fallback
+            try {
+                pythonProcess.kill('SIGKILL');
+            } catch (e2) {
+                console.log('Fallback kill also failed:', e2);
+            }
         }
 
         pythonProcess = null;
@@ -575,6 +589,21 @@ app.on('activate', () => {
 app.on('before-quit', () => {
     isQuitting = true;
     stopPythonBackend();
+});
+
+app.on('will-quit', () => {
+    // Ensure Python is stopped when app is quitting
+    stopPythonBackend();
+});
+
+app.on('window-all-closed', () => {
+    // Stop Python backend when all windows are closed
+    stopPythonBackend();
+
+    // On macOS, apps typically stay open until explicitly quit
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
 });
 
 // Handle uncaught exceptions
