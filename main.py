@@ -29,10 +29,13 @@ parser.add_argument('--local', '-l', action='store_true',
                     help='Run in local mode (all users get admin tier, no rate limits)')
 parser.add_argument('--disable-register', '-dr', action='store_true',
                     help='Disable new user registrations')
+parser.add_argument('--no-browser', '-nb', action='store_true',
+                    help='Do not open browser on startup (used when running inside Electron)')
 args = parser.parse_args()
 
 LOCAL_MODE = args.local
 DISABLE_REGISTER = args.disable_register
+NO_BROWSER = args.no_browser
 
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
 app.secret_key = 'wailingnewt-secret-key-change-in-production'  # TODO: Use environment variable in production
@@ -1419,13 +1422,14 @@ def main():
     print(f"\nPress Ctrl+C to stop the server\n")
     print("=" * 60 + "\n")
 
-    # Open browser in a separate thread after short delay
-    def open_browser():
-        time.sleep(1.5)  # Wait for Flask to start
-        webbrowser.open('http://localhost:5000')
+    # Open browser in a separate thread after short delay (unless --no-browser flag is set)
+    if not NO_BROWSER:
+        def open_browser():
+            time.sleep(1.5)  # Wait for Flask to start
+            webbrowser.open('http://localhost:5000')
 
-    browser_thread = threading.Thread(target=open_browser, daemon=True)
-    browser_thread.start()
+        browser_thread = threading.Thread(target=open_browser, daemon=True)
+        browser_thread.start()
 
     # Run Flask server with Waitress (production-grade WSGI server)
     from waitress import serve
