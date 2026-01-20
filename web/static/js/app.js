@@ -2694,35 +2694,29 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
 }
 
 // Crawl Config Modal Functions
+function toggleCrawlConfigJSSettings(isEnabled) {
+    const jsSettingsGroups = [
+        'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
+        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+    ];
+
+    jsSettingsGroups.forEach(groupId => {
+        const group = document.getElementById(groupId);
+        if (group) {
+            group.style.display = isEnabled ? 'block' : 'none';
+        }
+    });
+}
+
 function openCrawlConfig() {
     document.getElementById('crawlConfigModal').style.display = 'flex';
     // Load current config values
     loadCrawlConfigValues();
 
-    // Setup JavaScript rendering toggle handler
+    // Set initial visibility of JS settings based on checkbox state
     const enableJavaScriptCheckbox = document.getElementById('enableJavaScript');
     if (enableJavaScriptCheckbox) {
-        // Set initial state
-        const jsSettingsGroups = [
-            'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-            'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
-        ];
-
-        const updateJSVisibility = () => {
-            jsSettingsGroups.forEach(groupId => {
-                const group = document.getElementById(groupId);
-                if (group) {
-                    group.style.display = enableJavaScriptCheckbox.checked ? 'block' : 'none';
-                }
-            });
-        };
-
-        // Update on checkbox change
-        enableJavaScriptCheckbox.removeEventListener('change', updateJSVisibility); // Remove if exists
-        enableJavaScriptCheckbox.addEventListener('change', updateJSVisibility);
-
-        // Set initial visibility
-        updateJSVisibility();
+        toggleCrawlConfigJSSettings(enableJavaScriptCheckbox.checked);
     }
 }
 

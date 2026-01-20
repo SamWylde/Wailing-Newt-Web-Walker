@@ -630,7 +630,6 @@
                     <button class="settings-tab-btn" onclick="switchSettingsTab('requests')">Requests</button>
                     <button class="settings-tab-btn" onclick="switchSettingsTab('filters')">Filters</button>
                     <button class="settings-tab-btn" onclick="switchSettingsTab('export')">Export</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('javascript')">JavaScript</button>
                     <button class="settings-tab-btn" onclick="switchSettingsTab('issues')">Issue Exclusion</button>
                     <button class="settings-tab-btn" onclick="switchSettingsTab('customcss')">Custom CSS</button>
                     <button class="settings-tab-btn" onclick="switchSettingsTab('advanced')">Advanced</button>
@@ -952,84 +951,6 @@
                                 <input type="checkbox" name="exportFields" value="issues_detected">
                                 Issues Detected (separate export)
                             </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- JavaScript Settings -->
-                <div id="javascript-settings" class="settings-tab-content">
-                    <h3>JavaScript Rendering Configuration</h3>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="enableJavaScript">
-                            Enable JavaScript Rendering
-                        </label>
-                        <span class="setting-help">Render pages with JavaScript for dynamic content (slower but more
-                            accurate)</span>
-                    </div>
-
-                    <div class="setting-group" id="jsSettings" style="display: none;">
-                        <label for="jsWaitTime">JavaScript Wait Time (seconds)</label>
-                        <input type="number" id="jsWaitTime" value="3" min="0" max="30" step="0.5">
-                        <span class="setting-help">Time to wait for JavaScript to render after page load</span>
-                    </div>
-
-                    <div class="setting-group" id="jsTimeoutGroup" style="display: none;">
-                        <label for="jsTimeout">Page Load Timeout (seconds)</label>
-                        <input type="number" id="jsTimeout" value="30" min="5" max="120">
-                        <span class="setting-help">Maximum time to wait for page to load</span>
-                    </div>
-
-                    <div class="setting-group" id="jsBrowserGroup" style="display: none;">
-                        <label for="jsBrowser">Browser Engine</label>
-                        <select id="jsBrowser">
-                            <option value="chromium">Chromium (Recommended)</option>
-                            <option value="firefox">Firefox</option>
-                            <option value="webkit">WebKit (Safari)</option>
-                        </select>
-                        <span class="setting-help">Browser engine for JavaScript rendering</span>
-                    </div>
-
-                    <div class="setting-group" id="jsHeadlessGroup" style="display: none;">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="jsHeadless" checked>
-                            Headless Mode
-                        </label>
-                        <span class="setting-help">Run browser without visible window (recommended for
-                            performance)</span>
-                    </div>
-
-                    <div class="setting-group" id="jsUserAgentGroup" style="display: none;">
-                        <label for="jsUserAgent">JavaScript User Agent</label>
-                        <input type="text" id="jsUserAgent" value="WailingNewt/1.0 (Web Crawler with JavaScript)">
-                        <span class="setting-help">User agent string for JavaScript-rendered pages</span>
-                    </div>
-
-                    <div class="setting-group" id="jsViewportGroup" style="display: none;">
-                        <label>Browser Viewport Size</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" id="jsViewportWidth" value="1920" min="800" max="4000"
-                                placeholder="Width">
-                            <span>×</span>
-                            <input type="number" id="jsViewportHeight" value="1080" min="600" max="3000"
-                                placeholder="Height">
-                        </div>
-                        <span class="setting-help">Browser window size for rendering (affects responsive layouts)</span>
-                    </div>
-
-                    <div class="setting-group" id="jsConcurrencyGroup" style="display: none;">
-                        <label for="jsMaxConcurrentPages">Max Concurrent Browser Pages</label>
-                        <input type="number" id="jsMaxConcurrentPages" value="3" min="1" max="10">
-                        <span class="setting-help">Number of browser pages for parallel JavaScript rendering (higher =
-                            faster but more memory)</span>
-                    </div>
-
-                    <div class="setting-group" id="jsWarning" style="display: none;">
-                        <div class="settings-box settings-box-warning">
-                            <strong>⚠️ Performance Impact</strong>
-                            JavaScript rendering is significantly slower than HTTP-only crawling. Use for sites with
-                            dynamic content or when static crawling produces incomplete results.
                         </div>
                     </div>
                 </div>
@@ -1561,7 +1482,7 @@
 
                         <div class="setting-group">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="enableJavaScript">
+                                <input type="checkbox" id="enableJavaScript" onchange="toggleCrawlConfigJSSettings(this.checked)">
                                 Enable JavaScript Rendering
                             </label>
                             <span class="setting-help">Render pages with JavaScript for dynamic content (slower but more accurate)</span>
