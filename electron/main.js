@@ -75,7 +75,8 @@ function installPythonDependencies(pythonCmd) {
         const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
-            stdio: ['ignore', 'pipe', 'pipe']
+            stdio: ['ignore', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';
@@ -143,19 +144,13 @@ async function startPythonBackend() {
         updateLoadingStatus('Starting Python server...');
 
         // Start Python server (with --no-browser to prevent opening system browser)
-        const spawnOptions = {
+        // windowsHide: true hides the console window on Windows
+        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
-            stdio: ['ignore', 'pipe', 'pipe']
-        };
-
-        // On Windows, use shell mode to hide the console window
-        if (process.platform === 'win32') {
-            spawnOptions.shell = true;
-            spawnOptions.windowsHide = true;
-        }
-
-        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], spawnOptions);
+            stdio: ['ignore', 'pipe', 'pipe'],
+            windowsHide: true
+        });
 
         pythonProcess.stdout.on('data', (data) => {
             const message = data.toString().trim();
