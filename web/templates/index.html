@@ -729,8 +729,7 @@
                             placeholder="Enter your Google PageSpeed Insights API key">
                         <span class="setting-help">
                             API key for higher rate limits (25k requests/day vs limited without key).
-                            <a href="https://developers.google.com/speed/docs/insights/v5/get-started" target="_blank"
-                                style="color: #8b5cf6;">Get API key here</a>
+                            <a href="https://developers.google.com/speed/docs/insights/v5/get-started" target="_blank">Get API key here</a>
                         </span>
                     </div>
                 </div>
@@ -969,9 +968,8 @@
                     </div>
 
                     <div class="setting-group" id="jsWarning" style="display: none;">
-                        <div
-                            style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 6px; padding: 12px; color: #fbbf24;">
-                            <strong>⚠️ Performance Impact</strong><br>
+                        <div class="settings-box settings-box-warning">
+                            <strong>⚠️ Performance Impact</strong>
                             JavaScript rendering is significantly slower than HTTP-only crawling. Use for sites with
                             dynamic content or when static crawling produces incomplete results.
                         </div>
@@ -992,8 +990,7 @@
 *.json"></textarea>
                         <span class="setting-help">Use * for wildcards. Examples: /admin/*, *.json, /test/*</span>
                         <div style="margin-top: 10px;">
-                            <button type="button" onclick="resetIssueExclusions()"
-                                style="background: #6b7280; padding: 8px 16px; border-radius: 6px; border: none; color: white; cursor: pointer;">
+                            <button type="button" onclick="resetIssueExclusions()" class="settings-reset-btn">
                                 Reset to Defaults
                             </button>
                             <span class="setting-help" style="margin-left: 10px;">Restore the default exclusion
@@ -1002,9 +999,8 @@
                     </div>
 
                     <div class="setting-group">
-                        <div
-                            style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 12px;">
-                            <strong>ℹ️ Default Exclusions Include:</strong><br>
+                        <div class="settings-box settings-box-info">
+                            <strong>ℹ️ Default Exclusions Include:</strong>
                             • WordPress admin areas (/wp-admin/*, /wp-content/plugins/*)<br>
                             • Common admin panels (/admin/*, /administrator/*, /cpanel/*)<br>
                             • Development files (/.git/*, /node_modules/*, /vendor/*)<br>
@@ -1032,9 +1028,8 @@
                     </div>
 
                     <div class="setting-group">
-                        <div
-                            style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; padding: 12px;">
-                            <strong>💡 CSS Tips:</strong><br>
+                        <div class="settings-box settings-box-tip">
+                            <strong>💡 CSS Tips:</strong>
                             • Target specific elements: <code>.header</code>, <code>.data-table</code>,
                             <code>.sidebar</code><br>
                             • Change colors: <code>background-color</code>, <code>color</code>,
@@ -1048,18 +1043,16 @@
                     </div>
 
                     <div class="setting-group">
-                        <div
-                            style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 12px;">
-                            <strong>🎨 Example Customizations:</strong><br><br>
-                            <code
-                                style="display: block; background: #1f2937; padding: 10px; border-radius: 4px; margin: 8px 0; font-size: 13px; color: #e5e7eb;">
-                            /* Dark purple header */<br>
-                            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }<br><br>
-                            /* Green accent buttons */<br>
-                            .btn-primary { background: #10b981; }<br><br>
-                            /* Larger table text */<br>
-                            .data-table { font-size: 14px; }
-                            </code>
+                        <div class="settings-box settings-box-info">
+                            <strong>🎨 Example Customizations:</strong>
+                            <code class="settings-box-code">/* Dark purple header */
+.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
+/* Green accent buttons */
+.btn-primary { background: #10b981; }
+
+/* Larger table text */
+.data-table { font-size: 14px; }</code>
                         </div>
                     </div>
                 </div>

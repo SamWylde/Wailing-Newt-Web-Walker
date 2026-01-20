@@ -2,7 +2,18 @@ const { app, BrowserWindow, Menu, Tray, dialog, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
-const { initAutoUpdater, checkForUpdates, getUpdateState } = require('./updater');
+
+// Auto-updater (optional - gracefully handle if electron-updater not installed)
+let updater = null;
+try {
+    updater = require('./updater');
+} catch (e) {
+    console.log('[AutoUpdater] electron-updater not available:', e.message);
+}
+
+const initAutoUpdater = updater?.initAutoUpdater || (() => {});
+const checkForUpdates = updater?.checkForUpdates || (() => {});
+const getUpdateState = updater?.getUpdateState || (() => ({ updateDownloaded: false, downloadProgress: 0 }));
 
 // Keep references to prevent garbage collection
 let mainWindow = null;

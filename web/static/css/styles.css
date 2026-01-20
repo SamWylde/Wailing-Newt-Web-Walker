@@ -30,6 +30,7 @@
     --accent-hover: #9333ea;
     --accent-light: rgba(139, 92, 246, 0.1);
     --accent-medium: rgba(139, 92, 246, 0.2);
+    --accent-border: rgba(139, 92, 246, 0.3);
 
     /* Status Colors */
     --success-primary: var(--success-primary);
@@ -41,6 +42,7 @@
     --warning-secondary: #d97706;
     --warning-light: rgba(245, 158, 11, 0.1);
     --warning-medium: var(--warning-light);
+    --warning-border: rgba(245, 158, 11, 0.3);
 
     --error-primary: var(--error-primary);
     --error-secondary: #dc2626;
@@ -51,6 +53,7 @@
     --info-secondary: #2563eb;
     --info-light: rgba(59, 130, 246, 0.1);
     --info-medium: var(--info-light);
+    --info-border: rgba(59, 130, 246, 0.3);
 
     /* Interactive States */
     --hover-overlay: rgba(255, 255, 255, 0.08);
@@ -125,6 +128,7 @@
     --accent-hover: #6d28d9;
     --accent-light: rgba(124, 58, 237, 0.08);
     --accent-medium: rgba(124, 58, 237, 0.15);
+    --accent-border: rgba(124, 58, 237, 0.25);
 
     /* Status Colors */
     --success-primary: #059669;
@@ -136,6 +140,7 @@
     --warning-secondary: #b45309;
     --warning-light: rgba(217, 119, 6, 0.08);
     --warning-medium: rgba(217, 119, 6, 0.15);
+    --warning-border: rgba(217, 119, 6, 0.25);
 
     --error-primary: #dc2626;
     --error-secondary: #b91c1c;
@@ -146,6 +151,7 @@
     --info-secondary: #1d4ed8;
     --info-light: rgba(37, 99, 235, 0.08);
     --info-medium: rgba(37, 99, 235, 0.15);
+    --info-border: rgba(37, 99, 235, 0.25);
 
     /* Interactive States */
     --hover-overlay: rgba(0, 0, 0, 0.04);
@@ -891,6 +897,82 @@ body {
     color: var(--text-secondary);
     font-weight: 400;
     line-height: 1.4;
+}
+
+.setting-help a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.setting-help a:hover {
+    text-decoration: underline;
+}
+
+/* Settings Info/Warning/Tip Boxes */
+.settings-box {
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+.settings-box strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.settings-box code {
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+}
+
+.settings-box-info {
+    background: var(--info-light);
+    border: 1px solid var(--info-border);
+    color: var(--text-primary);
+}
+
+.settings-box-warning {
+    background: var(--warning-light);
+    border: 1px solid var(--warning-border);
+    color: var(--text-primary);
+}
+
+.settings-box-tip {
+    background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+    color: var(--text-primary);
+}
+
+.settings-box-code {
+    display: block;
+    background: var(--bg-primary);
+    padding: 10px;
+    border-radius: 4px;
+    margin: 8px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: 'Consolas', 'SF Mono', Monaco, monospace;
+    white-space: pre-wrap;
+}
+
+.settings-reset-btn {
+    background: var(--button-secondary-bg);
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.settings-reset-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-secondary);
 }
 
 /* Checkbox Styles */
