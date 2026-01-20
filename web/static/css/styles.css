@@ -973,9 +973,9 @@ body {
 }
 
 .tab-btn.active {
-    color: var(--accent-tertiary);
+    color: var(--text-primary);
     border-bottom-color: var(--accent-primary);
-    background: var(--accent-light);
+    background: var(--accent-medium);
 }
 
 .tab-content {
