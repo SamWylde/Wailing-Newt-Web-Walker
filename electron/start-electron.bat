@@ -10,8 +10,6 @@ if /i "%~1"=="" (
 set "LAUNCH_MODE=%~1"
 set "RUN_SETUP=1"
 
-pushd "%~dp0"
-
 if /i "%LAUNCH_MODE%"=="--silent" set "RUN_SETUP=auto"
 if /i "%LAUNCH_MODE%"=="--console" set "RUN_SETUP=auto"
 if /i "%LAUNCH_MODE%"=="--setup" set "RUN_SETUP=1"
@@ -109,6 +107,11 @@ if /i "%LAUNCH_MODE%"=="--console" (
 if /i "%LAUNCH_MODE%"=="--silent" (
     call npm start
     popd
+    exit /b
+)
+
+if /i "%LAUNCH_MODE%"=="--silent" (
+    call npm start
     exit /b
 )
 
