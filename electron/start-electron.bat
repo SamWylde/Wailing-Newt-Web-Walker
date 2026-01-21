@@ -1,13 +1,12 @@
 @echo off
 :: Wailing Newt Web Walker - Electron Launcher
 
-:: Relaunch silently by default when double-clicked
-if /i "%~1"=="" (
-    wscript "%~dp0start-electron-silent.vbs"
-    exit /b
-)
-
-set "LAUNCH_MODE=%~1"
+:: Minimize this console window
+if not "%minimized%"=="" goto :minimized
+set minimized=true
+start /min cmd /C "%~dpnx0"
+exit
+:minimized
 
 echo ================================================================================
 echo              Wailing Newt Web Walker - Electron Desktop App
@@ -69,10 +68,4 @@ echo Starting Wailing Newt Desktop App...
 echo.
 
 :: Start Electron
-if /i "%LAUNCH_MODE%"=="--console" (
-    call npm start
-    exit /b
-)
-
-start "" /b cmd /c "npm start"
-exit /b
+call npm start
