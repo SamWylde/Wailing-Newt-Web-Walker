@@ -100,6 +100,13 @@ if /i not "%LAUNCH_MODE%"=="--silent" (
 :: Start Electron
 if /i "%LAUNCH_MODE%"=="--console" (
     call npm start
+    popd
+    exit /b
+)
+
+if /i "%LAUNCH_MODE%"=="--silent" (
+    call npm start
+    popd
     exit /b
 )
 
@@ -109,4 +116,5 @@ if /i "%LAUNCH_MODE%"=="--silent" (
 )
 
 start "" /b cmd /c "npm start"
+popd
 exit /b
