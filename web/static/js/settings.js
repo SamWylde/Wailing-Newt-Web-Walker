@@ -274,6 +274,26 @@ let defaultSettings = {
 *.min.css`
 };
 
+function normalizeSpeedSettings(settings) {
+    const normalized = { ...settings };
+    const concurrencyValue = settings.concurrency ?? settings.maxThreads ?? defaultSettings.maxThreads;
+    normalized.maxThreads = concurrencyValue;
+
+    if (normalized.limitUrlsPerSecond === undefined && normalized.maxUrlsPerSecond) {
+        normalized.limitUrlsPerSecond = true;
+    }
+
+    if (normalized.limitUrlsPerSecond === undefined) {
+        normalized.limitUrlsPerSecond = defaultSettings.limitUrlsPerSecond;
+    }
+
+    if (!normalized.maxUrlsPerSecond || normalized.maxUrlsPerSecond <= 0) {
+        normalized.maxUrlsPerSecond = defaultSettings.maxUrlsPerSecond;
+    }
+
+    return normalized;
+}
+
 // Initialize settings when page loads
 document.addEventListener('DOMContentLoaded', function () {
     loadSettings();
@@ -516,7 +536,6 @@ function collectSettingsFromForm() {
     // Collect regular form fields
     const formFields = [
         'maxDepth', 'maxUrls', 'crawlDelay', 'followRedirects', 'crawlExternalLinks',
-        'maxThreads', 'limitUrlsPerSecond', 'maxUrlsPerSecond',
         'presetUserAgent', 'userAgent', 'robotsUserAgent',
         'timeout', 'retries', 'acceptLanguage', 'respectRobotsTxt', 'allowCookies', 'discoverSitemaps', 'enablePageSpeed', 'googleApiKey',
         'includeExtensions', 'excludeExtensions', 'includePatterns', 'excludePatterns', 'maxFileSize',
@@ -549,7 +568,8 @@ function collectSettingsFromForm() {
 
 function saveSettings() {
     // Collect settings from form
-    const newSettings = collectSettingsFromForm();
+    const collectedSettings = collectSettingsFromForm();
+    const newSettings = normalizeSpeedSettings({ ...currentSettings, ...collectedSettings });
 
     // Validate settings
     const validation = validateSettings(newSettings);
@@ -716,43 +736,34 @@ function validateSettings(settings) {
 }
 
 function loadSettings() {
-    // Try to load from localStorage first (browser-specific persistence)
-    try {
-        const savedSettings = localStorage.getItem('wailingnewt_settings');
-        if (savedSettings) {
-            const parsed = JSON.parse(savedSettings);
-            currentSettings = { ...defaultSettings, ...parsed };
-            console.log('Settings loaded from localStorage');
-
-            // Apply custom CSS after loading settings
-            applyCustomCSS();
-
-            // Sync to backend for crawler configuration
-            syncSettingsToBackend();
-            return;
-        }
-    } catch (error) {
-        console.warn('Failed to load settings from localStorage:', error);
-    }
-
-    // Fallback: Load from backend (legacy support)
     fetch('/api/get_settings')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                currentSettings = { ...defaultSettings, ...data.settings };
-                // Save to localStorage for future loads
+                currentSettings = normalizeSpeedSettings({ ...defaultSettings, ...data.settings });
                 localStorage.setItem('wailingnewt_settings', JSON.stringify(currentSettings));
-                // Apply custom CSS after loading settings
                 applyCustomCSS();
-            } else {
-                console.warn('Failed to load settings, using defaults');
-                currentSettings = { ...defaultSettings };
+                return;
             }
+            throw new Error(data.error || 'Failed to load settings from backend');
         })
         .catch(error => {
-            console.error('Error loading settings:', error);
-            currentSettings = { ...defaultSettings };
+            console.warn('Backend settings load failed, trying localStorage:', error);
+            try {
+                const savedSettings = localStorage.getItem('wailingnewt_settings');
+                if (savedSettings) {
+                    const parsed = JSON.parse(savedSettings);
+                    currentSettings = normalizeSpeedSettings({ ...defaultSettings, ...parsed });
+                    applyCustomCSS();
+                    syncSettingsToBackend();
+                    return;
+                }
+            } catch (storageError) {
+                console.warn('Failed to load settings from localStorage:', storageError);
+            }
+
+            currentSettings = normalizeSpeedSettings({ ...defaultSettings });
+            applyCustomCSS();
         });
 }
 
