@@ -681,9 +681,9 @@
                         <input type="text" placeholder="Search..." id="settingsSearch" oninput="filterSettingsItems()">
                     </div>
                     <div class="settings-nav">
-                        <div class="settings-nav-item active" onclick="showSettingsPanel('licence')">
-                            <span class="settings-nav-icon">&#x1F4DC;</span>
-                            <span>Licence</span>
+                        <div class="settings-nav-item active" onclick="showSettingsPanel('about')">
+                            <span class="settings-nav-icon">&#x1F438;</span>
+                            <span>About</span>
                         </div>
                         <div class="settings-nav-item" onclick="showSettingsPanel('interface')">
                             <span class="settings-nav-icon">&#x1F5BC;</span>
@@ -725,24 +725,25 @@
                 </div>
                 <!-- Content Panels -->
                 <div class="settings-content">
-                    <!-- Licence Panel -->
-                    <div id="settings-panel-licence" class="settings-panel active">
-                        <h3>Licence</h3>
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>View and manage your Wailing Newt licence information.</p>
+                    <!-- About Panel -->
+                    <div id="settings-panel-about" class="settings-panel active">
+                        <h3>About Wailing Newt</h3>
+                        <div class="about-logo" style="text-align: center; margin: 20px 0;">
+                            <span style="font-size: 64px;">&#x1F438;</span>
                         </div>
-                        <div class="setting-group">
-                            <label>Licence Status</label>
-                            <div class="licence-status-box">
-                                <span class="licence-badge licence-free">Free Version</span>
-                                <p>You are using the free version of Wailing Newt Web Walker.</p>
-                            </div>
+                        <div class="setting-group" style="text-align: center;">
+                            <h4 style="margin: 0 0 5px 0;">Wailing Newt Web Walker</h4>
+                            <p style="color: var(--text-secondary); margin: 0;">Version 1.0.1</p>
                         </div>
-                        <div class="setting-group">
-                            <label for="licenceKey">Enter Licence Key</label>
-                            <input type="text" id="licenceKey" placeholder="XXXX-XXXX-XXXX-XXXX">
-                            <button class="btn btn-primary btn-sm" style="margin-top: 10px;">Activate Licence</button>
+                        <div class="setting-group" style="text-align: center;">
+                            <p style="color: var(--text-secondary); font-size: 13px;">
+                                A free and open source SEO spider tool for website analysis.
+                            </p>
+                        </div>
+                        <div class="setting-group" style="text-align: center;">
+                            <a href="https://github.com/SamWylde/Wailing-Newt-Web-Walker" target="_blank" class="btn btn-secondary btn-sm">
+                                &#x1F4BB; View on GitHub
+                            </a>
                         </div>
                     </div>
 
@@ -1639,11 +1640,6 @@ we couldn't find</textarea>
                         </div>
                     </div>
                     <div id="config-panel-content-area" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an <a href="#" style="color: #84cc16;">SEO Spider Licence</a>.</p>
-                        </div>
-
                         <label class="config-checkbox">
                             <input type="checkbox" id="contentAreaCheckAltText">
                             Check Alt Text
@@ -1689,11 +1685,6 @@ footer</textarea>
                         <p class="config-placeholder">Embeddings settings coming soon...</p>
                     </div>
                     <div id="config-panel-robots" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>These options are only available with an <a href="#" style="color: #84cc16;">SEO Spider Licence</a>.</p>
-                        </div>
-
                         <div class="setting-group">
                             <label for="robotsMode">Robots.txt Mode</label>
                             <select id="robotsMode">

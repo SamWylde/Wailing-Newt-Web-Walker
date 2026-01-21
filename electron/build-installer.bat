@@ -27,8 +27,33 @@ if not exist "node_modules" (
 )
 
 echo.
+echo Cleaning previous build artifacts...
+:: Remove dist folder to ensure fresh build
+if exist "dist" (
+    rmdir /s /q "dist"
+    echo   - Removed dist folder
+)
+
+:: Remove electron-builder cache to force fresh copy of files
+if exist "%LOCALAPPDATA%\electron-builder\Cache" (
+    echo   - Note: electron-builder cache exists at %LOCALAPPDATA%\electron-builder\Cache
+    echo     Delete manually if you experience caching issues
+)
+
+:: Remove any unpacked folders
+for /d %%i in ("dist\win-unpacked*") do (
+    rmdir /s /q "%%i" 2>nul
+)
+
+echo.
 echo Building Windows installer...
 echo This may take a few minutes...
+echo.
+echo Source files being packaged:
+echo   - electron\main.js, preload.js, updater.js, loading.html
+echo   - main.py, requirements.txt
+echo   - src\**\*
+echo   - web\**\*
 echo.
 
 :: Build the installer
