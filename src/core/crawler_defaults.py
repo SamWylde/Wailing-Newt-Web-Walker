@@ -232,6 +232,10 @@ def get_default_settings():
         'retries': 3,
         'acceptLanguage': 'en-US,en;q=0.9',
         'respectRobotsTxt': True,
+        'robotsMode': 'respect',  # 'respect' or 'ignore'
+        'showInternalBlocked': True,  # Show internal URLs blocked by robots.txt
+        'showExternalBlocked': True,  # Show external URLs blocked by robots.txt
+        'robotsUserAgent': 'WailingNewt',  # User agent for robots.txt checking
         'allowCookies': True,
         'discoverSitemaps': True,
         'enablePageSpeed': False,
@@ -293,6 +297,10 @@ def get_default_crawler_config():
         'retries': 3,
         'accept_language': 'en-US,en;q=0.9',
         'respect_robots': True,
+        'robots_mode': 'respect',
+        'show_internal_blocked': True,
+        'show_external_blocked': True,
+        'robots_user_agent': 'WailingNewt',
         'allow_cookies': True,
         'include_extensions': ['html', 'htm', 'php', 'asp', 'aspx', 'jsp'],
         'exclude_extensions': ['pdf', 'doc', 'docx', 'zip', 'exe', 'dmg'],
