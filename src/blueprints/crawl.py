@@ -11,7 +11,7 @@ crawl_bp = Blueprint('crawl', __name__)
 @crawl_bp.route('/api/start_crawl', methods=['POST'])
 @login_required
 def start_crawl():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json()
     url = data.get('url')
     extra_urls = data.get('extra_urls', [])
 
