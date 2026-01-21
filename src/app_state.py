@@ -58,6 +58,15 @@ def get_session_settings():
         return crawler_instances[session_id]['settings']
 
 
+def get_crawler_for_session(session_id: str):
+    """Get crawler instance for a specific session ID (without creating)."""
+    with instances_lock:
+        if session_id in crawler_instances:
+            crawler_instances[session_id]['last_accessed'] = datetime.now()
+            return crawler_instances[session_id]['crawler']
+        return None
+
+
 def cleanup_old_instances():
     """Remove crawler instances that haven't been accessed in 1 hour."""
     timeout = timedelta(hours=1)

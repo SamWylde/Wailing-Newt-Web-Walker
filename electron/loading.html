@@ -39,21 +39,7 @@
         .subtitle {
             font-size: 14px;
             opacity: 0.95;
-            margin-bottom: 10px;
-        }
-        .welcome-message {
-            font-size: 12px;
-            font-style: italic;
-            opacity: 0.85;
             margin-bottom: 25px;
-            max-width: 400px;
-            text-align: center;
-            min-height: 36px;
-            animation: fadeIn 0.5s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 0.85; transform: translateY(0); }
         }
         .progress-container {
             width: 350px;
@@ -123,7 +109,6 @@
     <div class="logo">&#x1F438;</div>
     <div class="title">Wailing Newt</div>
     <div class="subtitle">SEO Spider Tool</div>
-    <div class="welcome-message" id="welcomeMessage"></div>
     <div class="progress-container">
         <div class="progress-bar"></div>
     </div>
@@ -134,12 +119,11 @@
         const { ipcRenderer } = require('electron');
         const consoleEl = document.getElementById('console');
         const statusEl = document.getElementById('status');
-        const welcomeEl = document.getElementById('welcomeMessage');
         const maxConsoleLines = 6;
         const consoleLines = [];
 
-        // Silly welcome messages
-        const welcomeMessages = [
+        // Silly loading messages that rotate in the status line
+        const funnyMessages = [
             "Warming up the web crawlers... they're a bit sleepy today!",
             "Teaching newts how to read HTML... it's harder than it looks!",
             "Polishing our SEO goggles for maximum clarity!",
@@ -174,14 +158,16 @@
             "Generating witty loading messages... wait, that's meta."
         ];
 
-        // Display random welcome message
-        const randomMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
-        welcomeEl.textContent = `"${randomMessage}"`;
+        // Rotate funny messages in the status line
+        let messageIndex = Math.floor(Math.random() * funnyMessages.length);
+        statusEl.textContent = funnyMessages[messageIndex];
+
+        setInterval(() => {
+            messageIndex = (messageIndex + 1) % funnyMessages.length;
+            statusEl.textContent = funnyMessages[messageIndex];
+        }, 3000);
 
         ipcRenderer.on('loading-status', (event, message) => {
-            // Update main status
-            statusEl.textContent = message;
-
             // Determine line class
             let lineClass = 'console-line';
             if (message.toLowerCase().includes('update')) {
@@ -190,7 +176,7 @@
                 lineClass += ' success';
             }
 
-            // Add to console
+            // Add to console only (status line shows funny messages)
             consoleLines.push({ text: message, class: lineClass });
             if (consoleLines.length > maxConsoleLines) {
                 consoleLines.shift();
