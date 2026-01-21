@@ -2966,6 +2966,7 @@ function saveCrawlConfig() {
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
         concurrency: maxThreads,
+        maxThreads: maxThreads,
         crawlDelay: computedDelay,
         limitUrlsPerSecond: limitUrlsPerSecond,
         maxUrlsPerSecond: maxUrlsPerSec,
