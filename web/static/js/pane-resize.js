@@ -25,12 +25,28 @@
         const minDetailsHeight = 160;
         const maxDetailsHeight = 420;
 
+        const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+        const getMaxDetailWidth = () => {
+            const paneWidth = splitPane.getBoundingClientRect().width;
+            const calculatedMax = paneWidth > 0 ? paneWidth - minDetailWidth : maxDetailWidth;
+            return Math.max(minDetailWidth, Math.min(maxDetailWidth, calculatedMax));
+        };
+
+        const getMaxDetailsHeight = () => {
+            const paneHeight = splitPane.getBoundingClientRect().height;
+            const calculatedMax = paneHeight > 0 ? paneHeight - minDetailsHeight : maxDetailsHeight;
+            return Math.max(minDetailsHeight, Math.min(maxDetailsHeight, calculatedMax));
+        };
+
         const applyDetailWidth = (value) => {
-            splitPane.style.setProperty('--detail-pane-width', `${value}px`);
+            const clamped = clamp(value, minDetailWidth, getMaxDetailWidth());
+            splitPane.style.setProperty('--detail-pane-width', `${clamped}px`);
         };
 
         const applyDetailsHeight = (value) => {
-            splitPane.style.setProperty('--details-pane-height', `${value}px`);
+            const clamped = clamp(value, minDetailsHeight, getMaxDetailsHeight());
+            splitPane.style.setProperty('--details-pane-height', `${clamped}px`);
         };
 
         const savedWidth = Number(localStorage.getItem(widthStorageKey));
@@ -80,16 +96,14 @@
             if (resizeAxis === 'vertical') {
                 const deltaX = clientX - startX;
                 const nextWidth = startWidth - deltaX;
-                const clampedWidth = Math.min(Math.max(nextWidth, minDetailWidth), maxDetailWidth);
-                applyDetailWidth(clampedWidth);
+                applyDetailWidth(nextWidth);
                 verticalHandle.classList.add('resizing');
             }
 
             if (resizeAxis === 'horizontal') {
                 const deltaY = clientY - startY;
                 const nextHeight = startHeight - deltaY;
-                const clampedHeight = Math.min(Math.max(nextHeight, minDetailsHeight), maxDetailsHeight);
-                applyDetailsHeight(clampedHeight);
+                applyDetailsHeight(nextHeight);
                 horizontalHandle.classList.add('resizing');
             }
         };

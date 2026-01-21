@@ -115,13 +115,13 @@
         <p class="auto-redirect">Redirecting automatically in <span id="countdown">5</span> seconds<span
                 class="spinner"></span></p>
         {% else %}
-        <a href="{{ url_for('login_page') }}" class="button">Go to Login</a>
+        <a href="{{ url_for('auth.login_page') }}" class="button">Go to Login</a>
         {% endif %}
         {% else %}
         <div class="icon error">✗</div>
         <h1>Verification Failed</h1>
         <p class="message">{{ message }}</p>
-        <a href="{{ url_for('login_page') }}" class="button">Go to Login</a>
+        <a href="{{ url_for('auth.login_page') }}" class="button">Go to Login</a>
         {% endif %}
     </div>
 
