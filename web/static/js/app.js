@@ -2958,10 +2958,17 @@ function saveCrawlConfig() {
     const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
 
     // Map Crawl Config fields to backend settings fields
+    const existingDelay = (typeof currentSettings !== 'undefined' && currentSettings.crawlDelay !== undefined)
+        ? currentSettings.crawlDelay
+        : 1;
+    const computedDelay = limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : existingDelay;
+
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
         concurrency: maxThreads,
-        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1,
+        crawlDelay: computedDelay,
+        limitUrlsPerSecond: limitUrlsPerSecond,
+        maxUrlsPerSecond: maxUrlsPerSec,
 
         // Limits settings
         maxDepth: maxDepth,
@@ -2995,7 +3002,7 @@ function saveCrawlConfig() {
         robotsUserAgent: robotsUserAgent,
         // Also update the backend field names in currentSettings
         concurrency: maxThreads,
-        crawlDelay: limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : 1,
+        crawlDelay: computedDelay,
         // JavaScript settings
         enableJavaScript: enableJavaScript,
         jsWaitTime: jsWaitTime,

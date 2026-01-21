@@ -29,6 +29,7 @@ class SettingsManager:
         user_settings = [
             # Crawler tab
             'maxDepth', 'maxUrls', 'crawlDelay', 'followRedirects', 'crawlExternalLinks',
+            'maxThreads', 'limitUrlsPerSecond', 'maxUrlsPerSecond',
             # Export tab
             'exportFormat', 'exportFields',
             # Issues tab
@@ -165,6 +166,8 @@ class SettingsManager:
                 'maxDepth': (1, 10),
                 'maxUrls': (1, 5000000),
                 'crawlDelay': (0, 60),
+                'maxThreads': (1, 50),
+                'maxUrlsPerSecond': (1, 100),
                 'timeout': (1, 120),
                 'retries': (0, 10),
                 'maxFileSize': (1, 1000),
@@ -213,10 +216,15 @@ class SettingsManager:
         """Get settings formatted for the crawler"""
         settings = self.get_settings()
 
+        delay = settings['crawlDelay']
+        if settings.get('limitUrlsPerSecond'):
+            max_urls_per_second = max(1, settings.get('maxUrlsPerSecond', 1))
+            delay = max(0.1, 1 / max_urls_per_second)
+
         return {
             'max_depth': settings['maxDepth'],
             'max_urls': settings['maxUrls'],
-            'delay': settings['crawlDelay'],
+            'delay': delay,
             'follow_redirects': settings['followRedirects'],
             'crawl_external': settings['crawlExternalLinks'],
             'user_agent': settings['userAgent'],
@@ -230,7 +238,7 @@ class SettingsManager:
             'include_patterns': [p.strip() for p in settings['includePatterns'].split('\n') if p.strip()],
             'exclude_patterns': [p.strip() for p in settings['excludePatterns'].split('\n') if p.strip()],
             'max_file_size': settings['maxFileSize'] * 1024 * 1024,  # Convert MB to bytes
-            'concurrency': settings['concurrency'],
+            'concurrency': settings.get('concurrency', settings.get('maxThreads', 5)),
             'memory_limit': settings['memoryLimit'] * 1024 * 1024,  # Convert MB to bytes
             'log_level': settings['logLevel'],
             'enable_proxy': settings['enableProxy'],
