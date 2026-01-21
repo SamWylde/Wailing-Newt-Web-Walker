@@ -336,15 +336,8 @@ function createWindow() {
     mainWindow.on('close', (event) => {
         if (!isQuitting) {
             event.preventDefault();
-            mainWindow.hide();
-
-            // Show tray notification on first minimize
-            if (tray) {
-                tray.displayBalloon({
-                    title: 'Wailing Newt',
-                    content: 'Application minimized to system tray'
-                });
-            }
+            isQuitting = true;
+            app.quit();
         }
     });
 
@@ -621,6 +614,9 @@ app.whenReady().then(async () => {
         }
     });
 
+    loadingWindow.show();
+    loadingWindow.focus();
+
     // Don't start backend until loading window is shown
     let windowShown = false;
     let windowShowResolver;
@@ -700,14 +696,6 @@ app.whenReady().then(async () => {
         }
 
         dialog.showErrorBox('Startup Error', errorDetail);
-        app.quit();
-    }
-});
-
-app.on('window-all-closed', () => {
-    // On macOS, keep app running in menu bar
-    if (process.platform !== 'darwin') {
-        isQuitting = true;
         app.quit();
     }
 });
