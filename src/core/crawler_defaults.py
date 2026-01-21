@@ -225,9 +225,6 @@ def get_default_settings():
         'crawlDelay': 1,
         'followRedirects': True,
         'crawlExternalLinks': False,
-        'maxThreads': 5,
-        'limitUrlsPerSecond': False,
-        'maxUrlsPerSecond': 2,
 
         # Request settings
         'userAgent': 'WailingNewt/1.0 (Web Crawler)',

@@ -274,18 +274,10 @@ let defaultSettings = {
 *.min.css`
 };
 
-function normalizeSpeedSettings(settings, options = {}) {
+function normalizeSpeedSettings(settings) {
     const normalized = { ...settings };
-    const hasConcurrency = options.hasConcurrency ?? Object.prototype.hasOwnProperty.call(settings, 'concurrency');
-    const hasMaxThreads = options.hasMaxThreads ?? Object.prototype.hasOwnProperty.call(settings, 'maxThreads');
-    const concurrencyValue = hasConcurrency
-        ? settings.concurrency
-        : (hasMaxThreads ? settings.maxThreads : defaultSettings.maxThreads);
-
-    normalized.maxThreads = concurrencyValue ?? defaultSettings.maxThreads;
-    if (!hasConcurrency && hasMaxThreads) {
-        normalized.concurrency = normalized.maxThreads;
-    }
+    const concurrencyValue = settings.concurrency ?? settings.maxThreads ?? defaultSettings.maxThreads;
+    normalized.maxThreads = concurrencyValue;
 
     if (normalized.limitUrlsPerSecond === undefined && normalized.maxUrlsPerSecond) {
         normalized.limitUrlsPerSecond = true;
@@ -577,14 +569,7 @@ function collectSettingsFromForm() {
 function saveSettings() {
     // Collect settings from form
     const collectedSettings = collectSettingsFromForm();
-    const newSettings = normalizeSpeedSettings(
-        { ...currentSettings, ...collectedSettings },
-        {
-            hasConcurrency: Object.prototype.hasOwnProperty.call(collectedSettings, 'concurrency')
-                || Object.prototype.hasOwnProperty.call(currentSettings, 'concurrency'),
-            hasMaxThreads: Object.prototype.hasOwnProperty.call(currentSettings, 'maxThreads')
-        }
-    );
+    const newSettings = normalizeSpeedSettings({ ...currentSettings, ...collectedSettings });
 
     // Validate settings
     const validation = validateSettings(newSettings);
@@ -755,14 +740,7 @@ function loadSettings() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const rawSettings = data.settings || {};
-                currentSettings = normalizeSpeedSettings(
-                    { ...defaultSettings, ...rawSettings },
-                    {
-                        hasConcurrency: Object.prototype.hasOwnProperty.call(rawSettings, 'concurrency'),
-                        hasMaxThreads: Object.prototype.hasOwnProperty.call(rawSettings, 'maxThreads')
-                    }
-                );
+                currentSettings = normalizeSpeedSettings({ ...defaultSettings, ...data.settings });
                 localStorage.setItem('wailingnewt_settings', JSON.stringify(currentSettings));
                 applyCustomCSS();
                 return;
@@ -775,13 +753,7 @@ function loadSettings() {
                 const savedSettings = localStorage.getItem('wailingnewt_settings');
                 if (savedSettings) {
                     const parsed = JSON.parse(savedSettings);
-                    currentSettings = normalizeSpeedSettings(
-                        { ...defaultSettings, ...parsed },
-                        {
-                            hasConcurrency: Object.prototype.hasOwnProperty.call(parsed, 'concurrency'),
-                            hasMaxThreads: Object.prototype.hasOwnProperty.call(parsed, 'maxThreads')
-                        }
-                    );
+                    currentSettings = normalizeSpeedSettings({ ...defaultSettings, ...parsed });
                     applyCustomCSS();
                     syncSettingsToBackend();
                     return;

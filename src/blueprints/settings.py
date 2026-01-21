@@ -11,7 +11,7 @@ settings_bp = Blueprint('settings', __name__)
 @login_required
 def filter_issues():
     try:
-        data = request.get_json(silent=True) or {}
+        data = request.get_json()
         issues = data.get('issues', [])
         settings_manager = get_session_settings()
 
@@ -41,7 +41,7 @@ def get_settings():
 @login_required
 def save_settings():
     try:
-        data = request.get_json(silent=True) or {}
+        data = request.get_json()
         settings_manager = get_session_settings()
         success, message = settings_manager.save_settings(data)
         return jsonify({'success': success, 'message': message})

@@ -22,7 +22,7 @@ export_bp = Blueprint('export', __name__)
 @login_required
 def export_data():
     try:
-        data = request.get_json(silent=True) or {}
+        data = request.get_json()
         export_format = data.get('format', 'csv')
         export_fields = data.get('fields', ['url', 'status_code', 'title'])
         local_data = data.get('localData', {})
