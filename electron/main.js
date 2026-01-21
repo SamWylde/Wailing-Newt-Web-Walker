@@ -235,9 +235,24 @@ async function startPythonBackend() {
         pythonProcess.on('exit', (code) => {
             console.log(`Python process exited with code ${code}`);
             if (!isQuitting) {
-                dialog.showErrorBox('Server Stopped',
-                    'The backend server has stopped unexpectedly. The application will close.');
-                app.quit();
+                // Check if server is already running (port in use by another instance)
+                http.get(SERVER_URL, (res) => {
+                    if (res.statusCode >= 200 && res.statusCode < 500) {
+                        // Server is running - another instance exists
+                        console.log('[Electron] Server already running on another instance. Quitting silently...');
+                        app.quit();
+                    } else {
+                        // Server not running - actual crash
+                        dialog.showErrorBox('Server Stopped',
+                            'The backend server has stopped unexpectedly. The application will close.');
+                        app.quit();
+                    }
+                }).on('error', () => {
+                    // Server not running and Python crashed
+                    dialog.showErrorBox('Server Stopped',
+                        'The backend server has stopped unexpectedly. The application will close.');
+                    app.quit();
+                });
             }
         });
 
@@ -695,6 +710,27 @@ app.whenReady().then(async () => {
             }
         } else {
             updateLoadingStatus('Starting Wailing Newt...');
+        }
+
+        // Check if server is already running (another instance)
+        const serverAlreadyRunning = await new Promise((resolve) => {
+            http.get(SERVER_URL, (res) => {
+                resolve(res.statusCode >= 200 && res.statusCode < 500);
+            }).on('error', () => {
+                resolve(false);
+            });
+        });
+
+        if (serverAlreadyRunning) {
+            console.log('[Electron] Server already running - focusing existing instance');
+            updateLoadingStatus('App already running...');
+            if (loadingWindow && !loadingWindow.isDestroyed()) {
+                loadingWindow.close();
+            }
+            // Open browser to existing instance instead of showing error
+            require('electron').shell.openExternal(SERVER_URL);
+            app.quit();
+            return;
         }
 
         await startPythonBackend();
