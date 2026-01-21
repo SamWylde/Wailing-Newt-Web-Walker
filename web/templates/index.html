@@ -1772,7 +1772,81 @@ we couldn't find</textarea>
                         <p class="config-placeholder">Embeddings settings coming soon...</p>
                     </div>
                     <div id="config-panel-robots" class="config-panel">
-                        <p class="config-placeholder">robots.txt settings coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options are only available with an <a href="#" style="color: #84cc16;">SEO Spider Licence</a>.</p>
+                        </div>
+                        <p class="config-description">Modify how the SEO Spider interprets robots.txt. By default, robots.txt is respected, which means URLs won't be crawled if disallowed. Modify behaviour to 'Ignore' robots.txt to crawl these URLs, or provide a custom robots.txt to be used during crawling.</p>
+
+                        <div class="setting-group">
+                            <label for="robotsMode">Robots.txt Mode</label>
+                            <select id="robotsMode">
+                                <option value="respect">Respect robots.txt</option>
+                                <option value="ignore">Ignore robots.txt</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="showInternalBlocked" checked>
+                                Show Internal URLs Blocked by robots.txt
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="showExternalBlocked" checked>
+                                Show External URLs Blocked by robots.txt
+                            </label>
+                        </div>
+
+                        <div class="config-group-box" style="margin-top: 20px;">
+                            <h4>Custom Robots</h4>
+                            <p class="config-help">Per subdomain robots.txt configuration. You can write your own robots.txt file to be used in a crawl, or download and modify the existing one for the site.</p>
+
+                            <div class="robots-custom-container">
+                                <div class="robots-subdomains-panel">
+                                    <div class="robots-subdomains-header">Subdomains</div>
+                                    <div class="robots-subdomains-list" id="robotsSubdomainsList">
+                                        <!-- Subdomains will be populated here -->
+                                    </div>
+                                    <div class="robots-subdomains-actions">
+                                        <button class="btn btn-danger btn-sm" onclick="deleteRobotsSubdomain()" id="robotsDeleteBtn" disabled>Delete</button>
+                                        <button class="btn btn-secondary btn-sm" onclick="editRobotsSubdomain()" id="robotsEditBtn" disabled>Edit</button>
+                                        <button class="btn btn-primary btn-sm" onclick="addRobotsSubdomain()">+ Add</button>
+                                    </div>
+                                </div>
+
+                                <div class="robots-editor-panel">
+                                    <div class="robots-editor-container">
+                                        <div class="robots-line-numbers" id="robotsLineNumbers">1</div>
+                                        <textarea id="robotsEditorContent" class="robots-editor" placeholder="User-agent: *&#10;Disallow: /admin/&#10;Allow: /" spellcheck="false"></textarea>
+                                    </div>
+                                    <div class="robots-editor-status">
+                                        <span>Ln <span id="robotsLn">1</span>, Col <span id="robotsCol">1</span></span>
+                                    </div>
+                                    <div class="robots-editor-actions">
+                                        <button class="btn btn-secondary btn-sm" onclick="downloadRobotsTxt()">Download robots.txt</button>
+                                        <button class="btn btn-secondary btn-sm" onclick="clearRobotsEditor()">Clear</button>
+                                    </div>
+                                </div>
+
+                                <div class="robots-analysis-panel">
+                                    <div class="robots-analysis-header">Analysis</div>
+                                    <div class="robots-analysis-content" id="robotsAnalysisContent">
+                                        <p class="robots-analysis-placeholder">Select a subdomain or add content to see analysis</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="robots-test-section">
+                                <div class="robots-test-input-group">
+                                    <input type="text" id="robotsTestPath" placeholder="enter path to test" class="robots-test-input">
+                                    <button class="btn btn-primary btn-sm" onclick="testRobotsPath()">Test</button>
+                                </div>
+                                <div id="robotsTestResult" class="robots-test-result"></div>
+                            </div>
+                        </div>
                     </div>
                     <div id="config-panel-url-rewriting" class="config-panel">
                         <p class="config-placeholder">URL Rewriting settings coming soon...</p>

@@ -17,6 +17,7 @@ from src.blueprints.export import export_bp
 from src.blueprints.history import history_bp
 from src.blueprints.imports import imports_bp
 from src.blueprints.pages import pages_bp
+from src.blueprints.robots import robots_bp
 from src.blueprints.settings import settings_bp
 
 load_dotenv()
@@ -56,6 +57,7 @@ def create_app():
     app.register_blueprint(export_bp)
     app.register_blueprint(debug_bp)
     app.register_blueprint(imports_bp)
+    app.register_blueprint(robots_bp)
 
     return app
 

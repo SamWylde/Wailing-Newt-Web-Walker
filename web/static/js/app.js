@@ -1803,6 +1803,135 @@ function closeUrlDetails() {
     }
 }
 
+// Track currently selected row
+let selectedRowElement = null;
+
+function selectUrlRow(rowElement, urlData) {
+    // Remove selection from previous row
+    if (selectedRowElement) {
+        selectedRowElement.classList.remove('selected-row');
+    }
+
+    // Select new row
+    rowElement.classList.add('selected-row');
+    selectedRowElement = rowElement;
+
+    // Populate the URL Details panel
+    populateUrlDetailsPanel(urlData);
+}
+
+function populateUrlDetailsPanel(urlData) {
+    const tableBody = document.getElementById('urlDetailsTableBody');
+    if (!tableBody) return;
+
+    // Helper function to escape HTML
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    // Build the details rows
+    const details = [
+        { property: 'URL', value: urlData.url || '', notes: urlData.is_internal ? 'Internal' : 'External' },
+        { property: 'Status Code', value: urlData.status_code || '', notes: getStatusCodeDescription(urlData.status_code) },
+        { property: 'Content Type', value: urlData.content_type || '', notes: '' },
+        { property: 'Size', value: formatBytes(urlData.size || 0), notes: '' },
+        { property: 'Response Time', value: `${urlData.response_time || 0}ms`, notes: urlData.response_time > 1000 ? 'Slow' : 'OK' },
+        { property: 'Title', value: urlData.title || '', notes: getTitleNotes(urlData.title) },
+        { property: 'Meta Description', value: urlData.meta_description || '', notes: getMetaDescNotes(urlData.meta_description) },
+        { property: 'H1', value: urlData.h1 || '', notes: urlData.h1 ? '' : 'Missing H1' },
+        { property: 'Word Count', value: urlData.word_count || 0, notes: urlData.word_count < 300 ? 'Thin content' : '' },
+        { property: 'Canonical URL', value: urlData.canonical_url || '', notes: '' },
+        { property: 'Robots', value: urlData.robots || '', notes: '' },
+        { property: 'Language', value: urlData.lang || '', notes: '' },
+        { property: 'Internal Links', value: urlData.internal_links || 0, notes: '' },
+        { property: 'External Links', value: urlData.external_links || 0, notes: '' },
+        { property: 'Images', value: (urlData.images || []).length, notes: '' },
+        { property: 'Depth', value: urlData.depth || 0, notes: '' }
+    ];
+
+    // Add analytics info if present
+    if (urlData.analytics) {
+        const analyticsItems = [];
+        if (urlData.analytics.google_analytics) analyticsItems.push('GA');
+        if (urlData.analytics.gtag) analyticsItems.push('Gtag');
+        if (urlData.analytics.ga4_id) analyticsItems.push(`GA4: ${urlData.analytics.ga4_id}`);
+        if (urlData.analytics.gtm_id) analyticsItems.push(`GTM: ${urlData.analytics.gtm_id}`);
+        if (urlData.analytics.facebook_pixel) analyticsItems.push('FB Pixel');
+        if (analyticsItems.length > 0) {
+            details.push({ property: 'Analytics', value: analyticsItems.join(', '), notes: '' });
+        }
+    }
+
+    // Add OG tags count
+    const ogCount = Object.keys(urlData.og_tags || {}).length;
+    if (ogCount > 0) {
+        details.push({ property: 'OpenGraph Tags', value: `${ogCount} tags`, notes: '' });
+    }
+
+    // Add JSON-LD count
+    const jsonLdCount = (urlData.json_ld || []).length;
+    if (jsonLdCount > 0) {
+        details.push({ property: 'JSON-LD Scripts', value: `${jsonLdCount} scripts`, notes: '' });
+    }
+
+    // Add linked from info
+    if (urlData.linked_from && urlData.linked_from.length > 0) {
+        details.push({ property: 'Linked From', value: `${urlData.linked_from.length} pages`, notes: '' });
+    }
+
+    // Generate table HTML
+    tableBody.innerHTML = details.map(d => `
+        <tr>
+            <td><strong>${escapeHtml(d.property)}</strong></td>
+            <td style="word-break: break-all;">${escapeHtml(String(d.value))}</td>
+            <td style="color: ${d.notes && (d.notes.includes('Missing') || d.notes.includes('Thin') || d.notes.includes('Slow')) ? '#ef4444' : '#9ca3af'};">${escapeHtml(d.notes)}</td>
+        </tr>
+    `).join('');
+}
+
+function getStatusCodeDescription(code) {
+    const descriptions = {
+        200: 'OK',
+        201: 'Created',
+        301: 'Moved Permanently',
+        302: 'Found (Temporary Redirect)',
+        304: 'Not Modified',
+        400: 'Bad Request',
+        401: 'Unauthorized',
+        403: 'Forbidden',
+        404: 'Not Found',
+        500: 'Internal Server Error',
+        502: 'Bad Gateway',
+        503: 'Service Unavailable'
+    };
+    return descriptions[code] || '';
+}
+
+function getTitleNotes(title) {
+    if (!title) return 'Missing title';
+    if (title.length < 30) return 'Title too short';
+    if (title.length > 60) return 'Title too long';
+    return '';
+}
+
+function getMetaDescNotes(desc) {
+    if (!desc) return 'Missing meta description';
+    if (desc.length < 70) return 'Description too short';
+    if (desc.length > 160) return 'Description too long';
+    return '';
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 function displayPageSpeedResults(results) {
     const container = document.getElementById('pagespeedResults');
     if (!container || !results || results.length === 0) {
@@ -2171,7 +2300,7 @@ function renderOverviewRow(row, urlData, index) {
         linksInfo,
         imagesCount > 0 ? `${imagesCount} images` : '',
         jsRendered,
-        `<button class="details-btn" onclick="showUrlDetails('${urlData.url.replace(/'/g, "\\'")}')">📊 Details</button>`
+        `<button class="details-btn" onclick="event.stopPropagation(); showUrlDetails('${urlData.url.replace(/'/g, "\\'")}')">📊 Details</button>`
     ];
 
     cells.forEach(cellData => {
@@ -2183,6 +2312,10 @@ function renderOverviewRow(row, urlData, index) {
         }
         row.appendChild(cell);
     });
+
+    // Add click handler to select row and populate details panel
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
 }
 
 function renderInternalRow(row, urlData, index) {
@@ -2199,6 +2332,10 @@ function renderInternalRow(row, urlData, index) {
         cell.textContent = cellData;
         row.appendChild(cell);
     });
+
+    // Add click handler to select row and populate details panel
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
 }
 
 function renderExternalRow(row, urlData, index) {
@@ -2215,6 +2352,10 @@ function renderExternalRow(row, urlData, index) {
         cell.textContent = cellData;
         row.appendChild(cell);
     });
+
+    // Add click handler to select row and populate details panel
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
 }
 
 function renderInternalLinkRow(row, link, index) {
@@ -3063,4 +3204,501 @@ function applyConfigPresetUA() {
         document.getElementById('configHttpUA').value = preset.http;
         document.getElementById('configRobotsUA').value = preset.robots;
     }
+}
+
+// ========================================
+// ROBOTS.TXT CONFIGURATION FUNCTIONS
+// ========================================
+
+// Track selected subdomain for robots.txt editing
+let selectedRobotsSubdomain = null;
+let robotsSubdomains = [];
+
+// Initialize robots.txt editor event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const robotsEditor = document.getElementById('robotsEditorContent');
+    if (robotsEditor) {
+        // Update line numbers when content changes
+        robotsEditor.addEventListener('input', updateRobotsLineNumbers);
+        robotsEditor.addEventListener('scroll', syncRobotsScroll);
+
+        // Track cursor position
+        robotsEditor.addEventListener('keyup', updateRobotsCursorPosition);
+        robotsEditor.addEventListener('click', updateRobotsCursorPosition);
+
+        // Parse robots.txt content when it changes
+        robotsEditor.addEventListener('input', debounce(parseRobotsContent, 500));
+    }
+
+    // Load saved subdomains
+    loadRobotsSubdomains();
+});
+
+function updateRobotsLineNumbers() {
+    const editor = document.getElementById('robotsEditorContent');
+    const lineNumbers = document.getElementById('robotsLineNumbers');
+    if (!editor || !lineNumbers) return;
+
+    const lines = editor.value.split('\n').length;
+    const numbers = [];
+    for (let i = 1; i <= Math.max(lines, 1); i++) {
+        numbers.push(i);
+    }
+    lineNumbers.textContent = numbers.join('\n');
+}
+
+function syncRobotsScroll() {
+    const editor = document.getElementById('robotsEditorContent');
+    const lineNumbers = document.getElementById('robotsLineNumbers');
+    if (!editor || !lineNumbers) return;
+
+    lineNumbers.scrollTop = editor.scrollTop;
+}
+
+function updateRobotsCursorPosition() {
+    const editor = document.getElementById('robotsEditorContent');
+    if (!editor) return;
+
+    const text = editor.value.substring(0, editor.selectionStart);
+    const lines = text.split('\n');
+    const line = lines.length;
+    const col = lines[lines.length - 1].length + 1;
+
+    const lnEl = document.getElementById('robotsLn');
+    const colEl = document.getElementById('robotsCol');
+    if (lnEl) lnEl.textContent = line;
+    if (colEl) colEl.textContent = col;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function parseRobotsContent() {
+    const editor = document.getElementById('robotsEditorContent');
+    const analysisContent = document.getElementById('robotsAnalysisContent');
+    if (!editor || !analysisContent) return;
+
+    const content = editor.value.trim();
+    if (!content) {
+        analysisContent.innerHTML = '<p class="robots-analysis-placeholder">Enter robots.txt content to see analysis</p>';
+        return;
+    }
+
+    // Parse the content locally
+    const analysis = analyzeRobotsContent(content);
+    displayRobotsAnalysis(analysis);
+}
+
+function analyzeRobotsContent(content) {
+    const lines = content.split('\n');
+    const userAgents = new Set();
+    const disallowRules = [];
+    const allowRules = [];
+    const sitemaps = [];
+    let currentUA = '*';
+
+    lines.forEach(line => {
+        line = line.split('#')[0].trim();
+        if (!line) return;
+
+        const [directive, ...valueParts] = line.split(':');
+        const value = valueParts.join(':').trim();
+
+        switch (directive.toLowerCase()) {
+            case 'user-agent':
+                currentUA = value;
+                userAgents.add(value);
+                break;
+            case 'disallow':
+                if (value) disallowRules.push({ ua: currentUA, path: value });
+                break;
+            case 'allow':
+                if (value) allowRules.push({ ua: currentUA, path: value });
+                break;
+            case 'sitemap':
+                if (value) sitemaps.push(value);
+                break;
+        }
+    });
+
+    return {
+        userAgents: Array.from(userAgents),
+        disallowRules,
+        allowRules,
+        sitemaps
+    };
+}
+
+function displayRobotsAnalysis(analysis) {
+    const analysisContent = document.getElementById('robotsAnalysisContent');
+    if (!analysisContent) return;
+
+    let html = '';
+
+    // User Agents
+    if (analysis.userAgents.length > 0) {
+        html += `
+            <div class="robots-analysis-section">
+                <h5>User Agents (${analysis.userAgents.length})</h5>
+                <ul class="robots-analysis-list">
+                    ${analysis.userAgents.map(ua => `<li>${escapeHtml(ua)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    // Disallow Rules
+    if (analysis.disallowRules.length > 0) {
+        html += `
+            <div class="robots-analysis-section">
+                <h5>Blocked Paths (${analysis.disallowRules.length})</h5>
+                <ul class="robots-analysis-list">
+                    ${analysis.disallowRules.slice(0, 10).map(r => `<li style="color: #ef4444;">Disallow: ${escapeHtml(r.path)}</li>`).join('')}
+                    ${analysis.disallowRules.length > 10 ? `<li>... and ${analysis.disallowRules.length - 10} more</li>` : ''}
+                </ul>
+            </div>
+        `;
+    }
+
+    // Allow Rules
+    if (analysis.allowRules.length > 0) {
+        html += `
+            <div class="robots-analysis-section">
+                <h5>Allowed Paths (${analysis.allowRules.length})</h5>
+                <ul class="robots-analysis-list">
+                    ${analysis.allowRules.slice(0, 10).map(r => `<li style="color: #10b981;">Allow: ${escapeHtml(r.path)}</li>`).join('')}
+                    ${analysis.allowRules.length > 10 ? `<li>... and ${analysis.allowRules.length - 10} more</li>` : ''}
+                </ul>
+            </div>
+        `;
+    }
+
+    // Sitemaps
+    if (analysis.sitemaps.length > 0) {
+        html += `
+            <div class="robots-analysis-section">
+                <h5>Sitemaps (${analysis.sitemaps.length})</h5>
+                <ul class="robots-analysis-list">
+                    ${analysis.sitemaps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (!html) {
+        html = '<p class="robots-analysis-placeholder">No valid directives found</p>';
+    }
+
+    analysisContent.innerHTML = html;
+}
+
+function loadRobotsSubdomains() {
+    fetch('/api/robots/custom/list')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                robotsSubdomains = data.subdomains || [];
+                renderRobotsSubdomainsList();
+            }
+        })
+        .catch(err => console.error('Failed to load robots subdomains:', err));
+}
+
+function renderRobotsSubdomainsList() {
+    const list = document.getElementById('robotsSubdomainsList');
+    if (!list) return;
+
+    if (robotsSubdomains.length === 0) {
+        list.innerHTML = '<div style="padding: 15px; color: var(--text-tertiary); text-align: center; font-size: 12px;">No custom robots.txt configured</div>';
+        return;
+    }
+
+    list.innerHTML = robotsSubdomains.map(subdomain => `
+        <div class="robots-subdomain-item ${subdomain === selectedRobotsSubdomain ? 'selected' : ''}"
+             onclick="selectRobotsSubdomain('${escapeHtml(subdomain)}')">
+            ${escapeHtml(subdomain)}
+        </div>
+    `).join('');
+}
+
+function selectRobotsSubdomain(subdomain) {
+    selectedRobotsSubdomain = subdomain;
+    renderRobotsSubdomainsList();
+
+    // Enable edit/delete buttons
+    document.getElementById('robotsDeleteBtn').disabled = false;
+    document.getElementById('robotsEditBtn').disabled = false;
+
+    // Load the robots.txt content for this subdomain
+    fetch('/api/robots/custom/get', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomain })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const editor = document.getElementById('robotsEditorContent');
+            if (editor) {
+                editor.value = data.content || '';
+                updateRobotsLineNumbers();
+                parseRobotsContent();
+            }
+        }
+    })
+    .catch(err => console.error('Failed to load robots content:', err));
+}
+
+function addRobotsSubdomain() {
+    const subdomain = prompt('Enter subdomain (e.g., www.example.com):');
+    if (!subdomain) return;
+
+    // Validate subdomain format
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]+[a-zA-Z0-9]$/.test(subdomain)) {
+        showNotification('Invalid subdomain format', 'error');
+        return;
+    }
+
+    // Add to list and save empty content
+    fetch('/api/robots/custom/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomain, content: '' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            robotsSubdomains.push(subdomain);
+            selectedRobotsSubdomain = subdomain;
+            renderRobotsSubdomainsList();
+
+            // Clear editor for new subdomain
+            const editor = document.getElementById('robotsEditorContent');
+            if (editor) {
+                editor.value = '';
+                updateRobotsLineNumbers();
+            }
+
+            document.getElementById('robotsDeleteBtn').disabled = false;
+            document.getElementById('robotsEditBtn').disabled = false;
+
+            showNotification(`Added ${subdomain}`, 'success');
+        } else {
+            showNotification(data.error || 'Failed to add subdomain', 'error');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to add subdomain:', err);
+        showNotification('Failed to add subdomain', 'error');
+    });
+}
+
+function editRobotsSubdomain() {
+    if (!selectedRobotsSubdomain) return;
+
+    const newSubdomain = prompt('Edit subdomain:', selectedRobotsSubdomain);
+    if (!newSubdomain || newSubdomain === selectedRobotsSubdomain) return;
+
+    // Delete old, add new with same content
+    const editor = document.getElementById('robotsEditorContent');
+    const content = editor ? editor.value : '';
+
+    fetch('/api/robots/custom/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomain: selectedRobotsSubdomain })
+    })
+    .then(() => {
+        return fetch('/api/robots/custom/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subdomain: newSubdomain, content })
+        });
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const index = robotsSubdomains.indexOf(selectedRobotsSubdomain);
+            if (index > -1) {
+                robotsSubdomains[index] = newSubdomain;
+            }
+            selectedRobotsSubdomain = newSubdomain;
+            renderRobotsSubdomainsList();
+            showNotification('Subdomain updated', 'success');
+        }
+    })
+    .catch(err => console.error('Failed to edit subdomain:', err));
+}
+
+function deleteRobotsSubdomain() {
+    if (!selectedRobotsSubdomain) return;
+
+    if (!confirm(`Delete custom robots.txt for ${selectedRobotsSubdomain}?`)) return;
+
+    fetch('/api/robots/custom/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomain: selectedRobotsSubdomain })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            robotsSubdomains = robotsSubdomains.filter(s => s !== selectedRobotsSubdomain);
+            selectedRobotsSubdomain = null;
+            renderRobotsSubdomainsList();
+
+            // Clear editor
+            const editor = document.getElementById('robotsEditorContent');
+            if (editor) {
+                editor.value = '';
+                updateRobotsLineNumbers();
+            }
+
+            // Clear analysis
+            const analysisContent = document.getElementById('robotsAnalysisContent');
+            if (analysisContent) {
+                analysisContent.innerHTML = '<p class="robots-analysis-placeholder">Select a subdomain or add content to see analysis</p>';
+            }
+
+            document.getElementById('robotsDeleteBtn').disabled = true;
+            document.getElementById('robotsEditBtn').disabled = true;
+
+            showNotification('Subdomain deleted', 'success');
+        }
+    })
+    .catch(err => console.error('Failed to delete subdomain:', err));
+}
+
+function downloadRobotsTxt() {
+    const urlInput = document.getElementById('urlInput');
+    let baseUrl = urlInput ? urlInput.value.trim() : '';
+
+    if (!baseUrl) {
+        baseUrl = prompt('Enter website URL to download robots.txt from:');
+        if (!baseUrl) return;
+    }
+
+    // Ensure URL has protocol
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = 'https://' + baseUrl;
+    }
+
+    fetch('/api/robots/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: baseUrl })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const editor = document.getElementById('robotsEditorContent');
+            if (editor) {
+                editor.value = data.content || '';
+                updateRobotsLineNumbers();
+                parseRobotsContent();
+            }
+            showNotification('robots.txt downloaded', 'success');
+        } else {
+            showNotification(data.error || 'Failed to download robots.txt', 'error');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to download robots.txt:', err);
+        showNotification('Failed to download robots.txt', 'error');
+    });
+}
+
+function clearRobotsEditor() {
+    const editor = document.getElementById('robotsEditorContent');
+    if (editor) {
+        editor.value = '';
+        updateRobotsLineNumbers();
+    }
+
+    const analysisContent = document.getElementById('robotsAnalysisContent');
+    if (analysisContent) {
+        analysisContent.innerHTML = '<p class="robots-analysis-placeholder">Enter robots.txt content to see analysis</p>';
+    }
+}
+
+function testRobotsPath() {
+    const pathInput = document.getElementById('robotsTestPath');
+    const resultDiv = document.getElementById('robotsTestResult');
+    const editor = document.getElementById('robotsEditorContent');
+
+    if (!pathInput || !resultDiv) return;
+
+    const path = pathInput.value.trim();
+    if (!path) {
+        showNotification('Please enter a path to test', 'warning');
+        return;
+    }
+
+    const content = editor ? editor.value : '';
+
+    fetch('/api/robots/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            path,
+            content,
+            user_agent: '*'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const result = data.data;
+            if (result.allowed) {
+                resultDiv.className = 'robots-test-result allowed';
+                resultDiv.innerHTML = `<strong>ALLOWED</strong> - Path "${escapeHtml(path)}" is allowed for crawling.<br><small>${result.reason || ''}</small>`;
+            } else {
+                resultDiv.className = 'robots-test-result blocked';
+                resultDiv.innerHTML = `<strong>BLOCKED</strong> - Path "${escapeHtml(path)}" is blocked by robots.txt.<br><small>${result.matched_rule || ''}</small>`;
+            }
+        } else {
+            resultDiv.className = 'robots-test-result';
+            resultDiv.innerHTML = `Error: ${data.error || 'Unknown error'}`;
+        }
+    })
+    .catch(err => {
+        console.error('Failed to test path:', err);
+        resultDiv.className = 'robots-test-result';
+        resultDiv.innerHTML = 'Error testing path';
+    });
+}
+
+// Save robots.txt content when switching subdomains or closing modal
+function saveCurrentRobotsContent() {
+    if (!selectedRobotsSubdomain) return;
+
+    const editor = document.getElementById('robotsEditorContent');
+    if (!editor) return;
+
+    fetch('/api/robots/custom/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            subdomain: selectedRobotsSubdomain,
+            content: editor.value
+        })
+    })
+    .catch(err => console.error('Failed to save robots content:', err));
+}
+
+// Helper function to escape HTML (if not already defined)
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
