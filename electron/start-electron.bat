@@ -10,8 +10,6 @@ if /i "%~1"=="" (
 set "LAUNCH_MODE=%~1"
 set "RUN_SETUP=1"
 
-pushd "%~dp0"
-
 if /i "%LAUNCH_MODE%"=="--silent" set "RUN_SETUP=auto"
 if /i "%LAUNCH_MODE%"=="--console" set "RUN_SETUP=auto"
 if /i "%LAUNCH_MODE%"=="--setup" set "RUN_SETUP=1"
@@ -61,7 +59,7 @@ if /i "%RUN_SETUP%"=="1" (
         exit /b 1
     )
 ) else (
-    if not exist "node_modules\\.bin\\electron.cmd" (
+    if not exist "node_modules" (
         if /i not "%LAUNCH_MODE%"=="--silent" echo Installing npm packages (first run)...
         call npm install
         if errorlevel 1 (
@@ -107,8 +105,13 @@ if /i "%LAUNCH_MODE%"=="--console" (
 )
 
 if /i "%LAUNCH_MODE%"=="--silent" (
-    powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath cmd -ArgumentList '/c','npm start > \"%TEMP%\\wailing-newt-electron.log\" 2>&1' -WorkingDirectory '%~dp0' -WindowStyle Hidden"
+    call npm start
     popd
+    exit /b
+)
+
+if /i "%LAUNCH_MODE%"=="--silent" (
+    call npm start
     exit /b
 )
 
