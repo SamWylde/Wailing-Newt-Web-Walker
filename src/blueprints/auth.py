@@ -80,7 +80,7 @@ def register():
     if current_app.config.get('DISABLE_REGISTER'):
         return jsonify({'success': False, 'message': 'Registration is currently disabled'})
 
-    data = request.get_json(silent=True) or {}
+    data = request.get_json()
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
@@ -132,7 +132,7 @@ def register():
 
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json()
     username = data.get('username')
     password = data.get('password')
 

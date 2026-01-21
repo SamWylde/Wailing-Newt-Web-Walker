@@ -66,7 +66,7 @@ def dedupe_urls(urls):
 @imports_bp.route('/api/sitemaps/discover', methods=['POST'])
 @login_required
 def discover_sitemaps():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json()
     url = data.get('url')
 
     if not url:
@@ -106,7 +106,7 @@ def discover_sitemaps():
 @imports_bp.route('/api/import/google-sheets', methods=['POST'])
 @login_required
 def import_google_sheets():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json()
     sheet_url = data.get('sheet_url')
 
     if not sheet_url:
