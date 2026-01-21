@@ -60,7 +60,9 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "icon.ico"
+      "icon": "icon.ico",
+      "sign": null,
+      "signingHashAlgorithms": []
     },
     "nsis": {
       "oneClick": false,
