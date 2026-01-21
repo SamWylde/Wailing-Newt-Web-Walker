@@ -1187,10 +1187,6 @@
                     </div>
 
                     <div id="config-panel-speed" class="config-panel">
-                        <div class="config-info-box">
-                            <strong>&#x2139; Info</strong>
-                            <p>Control the speed of requests made by the SEO Spider.</p>
-                        </div>
                         <div class="config-group-row">
                             <div class="config-group-box">
                                 <h4>Concurrent Threads</h4>
@@ -1276,8 +1272,6 @@
                     </div>
 
                     <div id="config-panel-limits" class="config-panel">
-                        <p class="config-description">Limit the size and scope of the crawl. This may help focus on key areas and reduce the time it takes to complete a crawl.</p>
-
                         <div class="config-group-row">
                             <div class="config-group-box">
                                 <div class="config-limit-row">
@@ -1465,8 +1459,6 @@
                         </div>
                     </div>
                     <div id="config-panel-advanced" class="config-panel">
-                        <p class="config-description">Adjust a variety of advanced crawler settings for the SEO Spider. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.</p>
-
                         <div class="config-group-row">
                             <div class="config-group-box">
                                 <div class="setting-group">
@@ -1519,8 +1511,6 @@
                         </div>
                     </div>
                     <div id="config-panel-preferences" class="config-panel">
-                        <p class="config-description">Modify parameters used by the SEO Spider to flag potential issues and populate filters. For example, page title length for the 'Over X Characters' filter in the Page Titles tab.</p>
-
                         <div class="config-group-row">
                             <div class="config-group-box">
                                 <h4>Page Title Width</h4>
@@ -1649,7 +1639,45 @@ we couldn't find</textarea>
                         </div>
                     </div>
                     <div id="config-panel-content-area" class="config-panel">
-                        <p class="config-placeholder">Content Area settings coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>These options are only available with an <a href="#" style="color: #84cc16;">SEO Spider Licence</a>.</p>
+                        </div>
+
+                        <label class="config-checkbox">
+                            <input type="checkbox" id="contentAreaCheckAltText">
+                            Check Alt Text
+                        </label>
+
+                        <fieldset class="config-fieldset">
+                            <legend>HTML Elements</legend>
+                            <p class="config-help">Add a list of HTML elements to be excluded, one per line</p>
+
+                            <div class="content-area-mode">
+                                <label>Mode</label>
+                                <label class="radio-label"><input type="radio" name="contentAreaMode" value="include"> Include</label>
+                                <label class="radio-label"><input type="radio" name="contentAreaMode" value="exclude" checked> Exclude</label>
+                            </div>
+
+                            <div class="content-area-section">
+                                <label>Exclude Tags</label>
+                                <textarea id="contentAreaExcludeTags" rows="3" placeholder="nav&#10;footer&#10;aside">nav
+footer</textarea>
+                                <button class="btn btn-secondary btn-xs" onclick="document.getElementById('contentAreaExcludeTags').value=''">&#x270F; Clear</button>
+                            </div>
+
+                            <div class="content-area-section">
+                                <label>Exclude Classes</label>
+                                <textarea id="contentAreaExcludeClasses" rows="4" placeholder="sidebar&#10;advertisement&#10;nav-menu"></textarea>
+                                <button class="btn btn-secondary btn-xs" onclick="document.getElementById('contentAreaExcludeClasses').value=''">&#x270F; Clear</button>
+                            </div>
+
+                            <div class="content-area-section">
+                                <label>Exclude IDs</label>
+                                <textarea id="contentAreaExcludeIds" rows="4" placeholder="header&#10;footer&#10;sidebar"></textarea>
+                                <button class="btn btn-secondary btn-xs" onclick="document.getElementById('contentAreaExcludeIds').value=''">&#x270F; Clear</button>
+                            </div>
+                        </fieldset>
                     </div>
                     <div id="config-panel-duplicates" class="config-panel">
                         <p class="config-placeholder">Duplicate detection settings coming soon...</p>
@@ -1665,7 +1693,6 @@ we couldn't find</textarea>
                             <strong>&#x2139; Info</strong>
                             <p>These options are only available with an <a href="#" style="color: #84cc16;">SEO Spider Licence</a>.</p>
                         </div>
-                        <p class="config-description">Modify how the SEO Spider interprets robots.txt. By default, robots.txt is respected, which means URLs won't be crawled if disallowed. Modify behaviour to 'Ignore' robots.txt to crawl these URLs, or provide a custom robots.txt to be used during crawling.</p>
 
                         <div class="setting-group">
                             <label for="robotsMode">Robots.txt Mode</label>
@@ -1750,7 +1777,27 @@ we couldn't find</textarea>
                         <p class="config-placeholder">Exclude patterns coming soon...</p>
                     </div>
                     <div id="config-panel-http-header" class="config-panel">
-                        <p class="config-placeholder">HTTP Header settings coming soon...</p>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>User-Agent can be configured from the User Agent configuration menu.</p>
+                        </div>
+
+                        <div class="http-headers-table">
+                            <div class="http-headers-row http-headers-header">
+                                <div class="http-header-name">Header</div>
+                                <div class="http-header-value">Value</div>
+                                <div class="http-header-enabled">Enabled</div>
+                                <div class="http-header-actions"></div>
+                            </div>
+                            <div id="httpHeadersList">
+                                <!-- Default headers populated by JS -->
+                            </div>
+                        </div>
+
+                        <div class="http-headers-footer">
+                            <button class="btn btn-secondary btn-sm" onclick="resetHttpHeaders()">&#x21BA; Reset to Default</button>
+                            <button class="btn btn-primary btn-sm" onclick="addHttpHeader()">+ Add</button>
+                        </div>
                     </div>
                     <div id="config-panel-custom-search" class="config-panel">
                         <p class="config-placeholder">Custom Search settings coming soon...</p>

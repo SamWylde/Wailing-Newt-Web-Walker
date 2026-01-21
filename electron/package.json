@@ -36,6 +36,7 @@
       "main.js",
       "preload.js",
       "updater.js",
+      "loading.html",
       "icon.png"
     ],
     "extraResources": [
