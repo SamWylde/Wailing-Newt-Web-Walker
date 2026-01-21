@@ -2612,6 +2612,182 @@ body {
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* HTTP Headers Configuration */
+.http-headers-table {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.http-headers-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 70px 50px;
+    gap: 10px;
+    padding: 10px 15px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.http-headers-row:last-child {
+    border-bottom: none;
+}
+
+.http-headers-header {
+    background: var(--bg-elevated);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.http-header-name input,
+.http-header-value input {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.http-header-name input:focus,
+.http-header-value input:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    background: var(--input-bg-focus);
+}
+
+.header-input-readonly {
+    background: var(--bg-secondary) !important;
+    color: var(--text-tertiary) !important;
+}
+
+.http-header-enabled {
+    text-align: center;
+}
+
+.http-header-enabled input[type="checkbox"] {
+    accent-color: var(--accent-primary);
+    width: 18px;
+    height: 18px;
+}
+
+.http-header-actions {
+    text-align: center;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.btn-icon:hover {
+    opacity: 1;
+}
+
+.btn-icon.btn-delete:hover {
+    color: var(--error-primary);
+}
+
+.btn-icon:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.http-headers-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+}
+
+/* Content Area Configuration */
+.config-fieldset {
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 15px 20px;
+    margin-top: 20px;
+    background: var(--bg-tertiary);
+}
+
+.config-fieldset legend {
+    padding: 0 10px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.content-area-mode {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin: 15px 0;
+}
+
+.content-area-mode label:first-child {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.radio-label input[type="radio"] {
+    accent-color: var(--accent-primary);
+}
+
+.content-area-section {
+    margin-bottom: 20px;
+}
+
+.content-area-section label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.content-area-section textarea {
+    width: 100%;
+    padding: 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: 'Consolas', 'SF Mono', Monaco, monospace;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.content-area-section textarea:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    background: var(--input-bg-focus);
+}
+
+.content-area-section .btn-xs {
+    margin-top: 8px;
+    float: right;
+}
+
+.btn-xs {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
 /* Small button styles */
 .btn-sm {
     padding: 5px 10px;

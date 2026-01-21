@@ -3214,8 +3214,18 @@ function saveCrawlConfig() {
         jsUserAgent: jsUserAgent,
         jsViewportWidth: jsViewportWidth,
         jsViewportHeight: jsViewportHeight,
-        jsMaxConcurrentPages: jsMaxConcurrentPages
+        jsMaxConcurrentPages: jsMaxConcurrentPages,
+
+        // HTTP Headers
+        httpHeaders: getEnabledHttpHeaders(),
+
+        // Content Area settings
+        contentArea: getContentAreaConfig()
     };
+
+    // Save HTTP headers and content area separately
+    saveHttpHeaders();
+    saveContentAreaConfig();
 
     // Also keep in currentSettings for UI consistency
     const configValues = {
@@ -3291,6 +3301,190 @@ function applyConfigPresetUA() {
         document.getElementById('configRobotsUA').value = preset.robots;
     }
 }
+
+// ========================================
+// HTTP HEADERS CONFIGURATION FUNCTIONS
+// ========================================
+
+const defaultHttpHeaders = [
+    { name: 'User-Agent', value: 'WailingNewt/1.0 (Web Crawler)', enabled: true, readonly: true, linked: true },
+    { name: 'Accept', value: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', enabled: true, readonly: false },
+    { name: 'Accept-Encoding', value: 'gzip, deflate', enabled: true, readonly: false },
+    { name: 'Cache-Control', value: 'no-cache', enabled: true, readonly: false },
+    { name: 'Pragma', value: 'no-cache', enabled: true, readonly: false }
+];
+
+let httpHeaders = [...defaultHttpHeaders];
+
+function initHttpHeaders() {
+    // Load from localStorage
+    try {
+        const saved = localStorage.getItem('wailingnewt_http_headers');
+        if (saved) {
+            httpHeaders = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error('Failed to load HTTP headers:', e);
+    }
+    renderHttpHeaders();
+}
+
+function renderHttpHeaders() {
+    const container = document.getElementById('httpHeadersList');
+    if (!container) return;
+
+    container.innerHTML = httpHeaders.map((header, index) => `
+        <div class="http-headers-row" data-index="${index}">
+            <div class="http-header-name">
+                <input type="text" value="${escapeHtml(header.name)}"
+                    ${header.readonly ? 'readonly class="header-input-readonly"' : ''}
+                    onchange="updateHttpHeader(${index}, 'name', this.value)">
+            </div>
+            <div class="http-header-value">
+                <input type="text" value="${escapeHtml(header.value)}"
+                    ${header.linked ? 'id="httpHeaderUserAgent"' : ''}
+                    onchange="updateHttpHeader(${index}, 'value', this.value)">
+            </div>
+            <div class="http-header-enabled">
+                <input type="checkbox" ${header.enabled ? 'checked' : ''}
+                    onchange="updateHttpHeader(${index}, 'enabled', this.checked)">
+            </div>
+            <div class="http-header-actions">
+                ${header.linked
+                    ? '<button class="btn-icon" title="Linked to User-Agent config" disabled>&#x1F517;</button>'
+                    : `<button class="btn-icon btn-delete" onclick="deleteHttpHeader(${index})" title="Delete">&#x1F5D1;</button>`
+                }
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateHttpHeader(index, field, value) {
+    if (httpHeaders[index]) {
+        httpHeaders[index][field] = value;
+        // Sync User-Agent with main config if it's the User-Agent header
+        if (httpHeaders[index].linked && field === 'value') {
+            const configUA = document.getElementById('configHttpUA');
+            if (configUA) configUA.value = value;
+        }
+        saveHttpHeaders();
+    }
+}
+
+function deleteHttpHeader(index) {
+    httpHeaders.splice(index, 1);
+    renderHttpHeaders();
+    saveHttpHeaders();
+}
+
+function addHttpHeader() {
+    httpHeaders.push({
+        name: 'New-Header',
+        value: '',
+        enabled: true,
+        readonly: false
+    });
+    renderHttpHeaders();
+    saveHttpHeaders();
+}
+
+function resetHttpHeaders() {
+    httpHeaders = [...defaultHttpHeaders];
+    // Sync User-Agent with current config value
+    const configUA = document.getElementById('configHttpUA');
+    if (configUA) {
+        httpHeaders[0].value = configUA.value;
+    }
+    renderHttpHeaders();
+    saveHttpHeaders();
+}
+
+function saveHttpHeaders() {
+    try {
+        localStorage.setItem('wailingnewt_http_headers', JSON.stringify(httpHeaders));
+    } catch (e) {
+        console.error('Failed to save HTTP headers:', e);
+    }
+}
+
+function getEnabledHttpHeaders() {
+    return httpHeaders
+        .filter(h => h.enabled)
+        .reduce((acc, h) => {
+            acc[h.name] = h.value;
+            return acc;
+        }, {});
+}
+
+// Helper function for HTML escaping
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ========================================
+// CONTENT AREA CONFIGURATION FUNCTIONS
+// ========================================
+
+function getContentAreaConfig() {
+    const mode = document.querySelector('input[name="contentAreaMode"]:checked')?.value || 'exclude';
+    const excludeTags = document.getElementById('contentAreaExcludeTags')?.value || '';
+    const excludeClasses = document.getElementById('contentAreaExcludeClasses')?.value || '';
+    const excludeIds = document.getElementById('contentAreaExcludeIds')?.value || '';
+    const checkAltText = document.getElementById('contentAreaCheckAltText')?.checked || false;
+
+    return {
+        mode: mode,
+        checkAltText: checkAltText,
+        excludeTags: excludeTags.split('\n').map(s => s.trim()).filter(s => s),
+        excludeClasses: excludeClasses.split('\n').map(s => s.trim()).filter(s => s),
+        excludeIds: excludeIds.split('\n').map(s => s.trim()).filter(s => s)
+    };
+}
+
+function loadContentAreaConfig() {
+    try {
+        const saved = localStorage.getItem('wailingnewt_content_area');
+        if (saved) {
+            const config = JSON.parse(saved);
+
+            // Set mode
+            const modeRadio = document.querySelector(`input[name="contentAreaMode"][value="${config.mode}"]`);
+            if (modeRadio) modeRadio.checked = true;
+
+            // Set checkboxes and textareas
+            const checkAltText = document.getElementById('contentAreaCheckAltText');
+            if (checkAltText) checkAltText.checked = config.checkAltText || false;
+
+            const excludeTags = document.getElementById('contentAreaExcludeTags');
+            if (excludeTags && config.excludeTags) excludeTags.value = config.excludeTags.join('\n');
+
+            const excludeClasses = document.getElementById('contentAreaExcludeClasses');
+            if (excludeClasses && config.excludeClasses) excludeClasses.value = config.excludeClasses.join('\n');
+
+            const excludeIds = document.getElementById('contentAreaExcludeIds');
+            if (excludeIds && config.excludeIds) excludeIds.value = config.excludeIds.join('\n');
+        }
+    } catch (e) {
+        console.error('Failed to load content area config:', e);
+    }
+}
+
+function saveContentAreaConfig() {
+    try {
+        const config = getContentAreaConfig();
+        localStorage.setItem('wailingnewt_content_area', JSON.stringify(config));
+    } catch (e) {
+        console.error('Failed to save content area config:', e);
+    }
+}
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+    initHttpHeaders();
+    loadContentAreaConfig();
+});
 
 // ========================================
 // ROBOTS.TXT CONFIGURATION FUNCTIONS

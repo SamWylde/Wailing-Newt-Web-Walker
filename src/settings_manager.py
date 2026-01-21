@@ -247,7 +247,7 @@ class SettingsManager:
             'log_level': settings['logLevel'],
             'enable_proxy': settings['enableProxy'],
             'proxy_url': settings['proxyUrl'] if settings['enableProxy'] else None,
-            'custom_headers': self._parse_custom_headers(settings['customHeaders']),
+            'custom_headers': self._get_all_headers(settings),
             'discover_sitemaps': settings['discoverSitemaps'],
             'enable_pagespeed': settings['enablePageSpeed'],
             'google_api_key': settings['googleApiKey'],
@@ -262,7 +262,15 @@ class SettingsManager:
             'js_max_concurrent_pages': settings['jsMaxConcurrentPages'],
             'issue_exclusion_patterns': [p.strip() for p in settings['issueExclusionPatterns'].split('\n') if p.strip()],
             'enable_duplication_check': settings['enableDuplicationCheck'],
-            'duplication_threshold': settings['duplicationThreshold']
+            'duplication_threshold': settings['duplicationThreshold'],
+            # Content area settings
+            'content_area': settings.get('contentArea', {
+                'mode': 'exclude',
+                'checkAltText': False,
+                'excludeTags': ['nav', 'footer'],
+                'excludeClasses': [],
+                'excludeIds': []
+            })
         }
 
     def _parse_custom_headers(self, headers_text):
@@ -274,4 +282,18 @@ class SettingsManager:
                 if ':' in line:
                     key, value = line.split(':', 1)
                     headers[key.strip()] = value.strip()
+        return headers
+
+    def _get_all_headers(self, settings):
+        """Get all HTTP headers from both text-based and object-based sources"""
+        headers = {}
+
+        # Parse text-based custom headers (legacy)
+        if settings.get('customHeaders'):
+            headers.update(self._parse_custom_headers(settings['customHeaders']))
+
+        # Merge object-based HTTP headers from the new UI
+        if settings.get('httpHeaders') and isinstance(settings['httpHeaders'], dict):
+            headers.update(settings['httpHeaders'])
+
         return headers
