@@ -2961,7 +2961,24 @@ function showConfigPanel(panelId) {
         'advanced': 'Adjust a variety of advanced crawler settings for the SEO Spider. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.',
         'preferences': 'Modify parameters used by the SEO Spider to flag potential issues and populate filters. For example, page title length for the \'Over X Characters\' filter in the Page Titles tab.',
         'speed': 'Control the speed of requests made by the SEO Spider.',
-        'user-agent': 'Adjust the user-agent used by the SEO Spider in crawling.'
+        'user-agent': 'Adjust the user-agent used by the SEO Spider in crawling.',
+        'robots': 'Modify how the SEO Spider interprets robots.txt. By default, robots.txt is respected, which means URLs won\'t be crawled if disallowed.',
+        'content-area': 'Configure content area analysis settings.',
+        'duplicates': 'Configure duplicate content detection settings.',
+        'spelling': 'Configure spelling and grammar checking settings.',
+        'embeddings': 'Configure embeddings and similarity settings.',
+        'url-rewriting': 'Configure URL rewriting rules.',
+        'cdns': 'Configure CDN detection and handling.',
+        'include': 'Configure URL patterns to include in the crawl.',
+        'exclude': 'Configure URL patterns to exclude from the crawl.',
+        'http-header': 'Configure custom HTTP headers to send with requests.',
+        'custom-search': 'Configure custom search patterns.',
+        'custom-extraction': 'Configure custom data extraction rules.',
+        'google-analytics': 'Connect Google Analytics for traffic data.',
+        'search-console': 'Connect Google Search Console for search data.',
+        'pagespeed': 'Connect PageSpeed Insights for performance metrics.',
+        'authentication': 'Configure authentication for crawling protected pages.',
+        'crawl-analysis': 'Configure crawl analysis and reporting options.'
     };
     const descEl = document.getElementById('configDescription');
     if (descEl && descriptions[panelId]) {
@@ -3212,7 +3229,7 @@ function saveCrawlConfig() {
         robotsUserAgent: robotsUserAgent,
         // Also update the backend field names in currentSettings
         concurrency: maxThreads,
-        crawlDelay: computedDelay,
+        crawlDelay: crawlDelay,
         // JavaScript settings
         enableJavaScript: enableJavaScript,
         jsWaitTime: jsWaitTime,
