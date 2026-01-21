@@ -39,7 +39,21 @@
         .subtitle {
             font-size: 14px;
             opacity: 0.95;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
+        }
+        .welcome-message {
+            font-size: 12px;
+            font-style: italic;
+            opacity: 0.85;
+            margin-bottom: 25px;
+            max-width: 400px;
+            text-align: center;
+            min-height: 36px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 0.85; transform: translateY(0); }
         }
         .progress-container {
             width: 350px;
@@ -97,12 +111,19 @@
             opacity: 0.85;
             margin-bottom: 4px;
         }
+        .console-line.update {
+            color: #ffeb3b;
+        }
+        .console-line.success {
+            color: #b9f6ca;
+        }
     </style>
 </head>
 <body>
     <div class="logo">&#x1F438;</div>
     <div class="title">Wailing Newt</div>
     <div class="subtitle">SEO Spider Tool</div>
+    <div class="welcome-message" id="welcomeMessage"></div>
     <div class="progress-container">
         <div class="progress-bar"></div>
     </div>
@@ -113,21 +134,70 @@
         const { ipcRenderer } = require('electron');
         const consoleEl = document.getElementById('console');
         const statusEl = document.getElementById('status');
+        const welcomeEl = document.getElementById('welcomeMessage');
         const maxConsoleLines = 6;
         const consoleLines = [];
+
+        // Silly welcome messages
+        const welcomeMessages = [
+            "Warming up the web crawlers... they're a bit sleepy today!",
+            "Teaching newts how to read HTML... it's harder than it looks!",
+            "Polishing our SEO goggles for maximum clarity!",
+            "Convincing the server to wake up... it wanted 5 more minutes.",
+            "Loading pixels... some of them are being stubborn.",
+            "Untangling the world wide web... it's quite a mess!",
+            "Asking Google nicely if we can crawl today.",
+            "Brewing a fresh batch of meta descriptions!",
+            "Calculating the optimal number of H1 tags... it's always 1.",
+            "Stretching our amphibian limbs for maximum crawling efficiency!",
+            "Checking if robots.txt is in a good mood today.",
+            "Warming up the 404 detector... beep boop!",
+            "Teaching spiders proper web etiquette.",
+            "Calibrating our canonical URL compass!",
+            "Preparing redirect chains for untangling!",
+            "Making sure all our links are feeling linked.",
+            "Giving the server a pep talk... you got this, buddy!",
+            "Loading enthusiasm for finding broken links!",
+            "Practicing our crawl delay dance moves.",
+            "Assembling the SEO dream team... Go Newts!",
+            "Inflating our pagerank... just kidding, that's not how it works!",
+            "Dusting off the sitemap reader.",
+            "Convincing JavaScript to render... pretty please?",
+            "Counting all the divs in the universe... 1, 2, 3...",
+            "Preparing to judge your meta descriptions (constructively)!",
+            "Newt's Law: Every crawl has an equal and opposite 429 error.",
+            "Firing up the amphibious web engine!",
+            "Checking if alt tags have any actual alt-ernatives.",
+            "Ready to find all the orphan pages a loving home!",
+            "Lubricating the link extractor gears.",
+            "This newt runs on coffee and valid HTML!",
+            "Generating witty loading messages... wait, that's meta."
+        ];
+
+        // Display random welcome message
+        const randomMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+        welcomeEl.textContent = `"${randomMessage}"`;
 
         ipcRenderer.on('loading-status', (event, message) => {
             // Update main status
             statusEl.textContent = message;
 
+            // Determine line class
+            let lineClass = 'console-line';
+            if (message.toLowerCase().includes('update')) {
+                lineClass += ' update';
+            } else if (message.toLowerCase().includes('success') || message.toLowerCase().includes('ready')) {
+                lineClass += ' success';
+            }
+
             // Add to console
-            consoleLines.push(message);
+            consoleLines.push({ text: message, class: lineClass });
             if (consoleLines.length > maxConsoleLines) {
                 consoleLines.shift();
             }
 
             consoleEl.innerHTML = consoleLines
-                .map(line => '<div class="console-line">' + line + '</div>')
+                .map(line => `<div class="${line.class}">${line.text}</div>`)
                 .join('');
 
             // Auto-scroll to bottom

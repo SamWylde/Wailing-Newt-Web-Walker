@@ -489,6 +489,44 @@ function switchSettingsTab(tabName) {
     document.getElementById(tabName + '-settings').classList.add('active');
 }
 
+// New settings panel navigation (for the new sidebar-style settings modal)
+function showSettingsPanel(panelName) {
+    // Remove active class from all nav items
+    document.querySelectorAll('.settings-nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Hide all panels
+    document.querySelectorAll('.settings-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+
+    // Show selected panel
+    const panel = document.getElementById('settings-panel-' + panelName);
+    if (panel) {
+        panel.classList.add('active');
+    }
+
+    // Add active class to clicked item
+    if (event && event.target) {
+        event.target.closest('.settings-nav-item').classList.add('active');
+    }
+}
+
+function filterSettingsItems() {
+    const searchTerm = document.getElementById('settingsSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.settings-nav-item');
+
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
 function populateSettingsForm() {
     // Populate all form fields with current settings
     Object.keys(currentSettings).forEach(key => {

@@ -669,456 +669,305 @@
     </div>
 
     <div id="settingsModal" class="modal" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content settings-modal-new">
             <div class="modal-header">
                 <h2>Settings</h2>
                 <button class="modal-close" onclick="closeSettings()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="settings-tabs">
-                    <button class="settings-tab-btn active" onclick="switchSettingsTab('crawler')">Crawler</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('requests')">Requests</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('filters')">Filters</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('export')">Export</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('issues')">Issue Exclusion</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('customcss')">Custom CSS</button>
-                    <button class="settings-tab-btn" onclick="switchSettingsTab('advanced')">Advanced</button>
-                </div>
-
-                <!-- Crawler Settings -->
-                <div id="crawler-settings" class="settings-tab-content active">
-                    <h3>Crawler Configuration</h3>
-
-                    <div class="setting-group">
-                        <label for="maxDepth">Maximum Crawl Depth</label>
-                        <input type="number" id="maxDepth" value="3" min="1" max="10">
-                        <span class="setting-help">How deep to crawl from the starting URL</span>
+            <div class="modal-body settings-body-new">
+                <!-- Sidebar Navigation -->
+                <div class="settings-sidebar">
+                    <div class="settings-search">
+                        <input type="text" placeholder="Search..." id="settingsSearch" oninput="filterSettingsItems()">
                     </div>
-
-                    <div class="setting-group">
-                        <label for="maxUrls">Maximum URLs to Crawl</label>
-                        <input type="number" id="maxUrls" value="5000000" min="1" max="5000000">
-                        <span class="setting-help">Stop crawling after this many URLs</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="crawlDelay">Crawl Delay (seconds)</label>
-                        <input type="number" id="crawlDelay" value="1" min="0" max="60" step="0.1">
-                        <span class="setting-help">Delay between requests to be respectful</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="followRedirects" checked>
-                            Follow Redirects
-                        </label>
-                        <span class="setting-help">Follow 3xx redirects automatically</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="crawlExternalLinks">
-                            Crawl External Links
-                        </label>
-                        <span class="setting-help">Include external domains in crawl</span>
-                    </div>
-                </div>
-
-                <!-- Request Settings -->
-                <div id="requests-settings" class="settings-tab-content">
-                    <h3>HTTP Request Configuration</h3>
-
-                    <div class="setting-group">
-                        <label for="timeout">Request Timeout (seconds)</label>
-                        <input type="number" id="timeout" value="10" min="1" max="120">
-                        <span class="setting-help">How long to wait for a response</span>
-                    </div>
-
-                    <h3 style="margin-top: 30px;">User-Agent</h3>
-
-                    <div class="setting-group">
-                        <label for="presetUserAgent">Preset User-Agents</label>
-                        <select id="presetUserAgent" onchange="applyPresetUserAgent()">
-                            <option value="wailingnewt">Wailing Newt Web Walker</option>
-                            <option value="googlebot">Googlebot</option>
-                            <option value="bingbot">Bingbot</option>
-                            <option value="chrome">Chrome (Latest)</option>
-                            <option value="firefox">Firefox (Latest)</option>
-                            <option value="safari">Safari (Latest)</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                        <span class="setting-help">Select a predefined user agent or choose Custom to enter your own</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="userAgent">HTTP Request User-Agent</label>
-                        <input type="text" id="userAgent" value="WailingNewt/1.0 (Web Crawler)">
-                        <span class="setting-help">User agent string sent with HTTP requests</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="robotsUserAgent">Robots User-Agent</label>
-                        <input type="text" id="robotsUserAgent" value="WailingNewt">
-                        <span class="setting-help">User agent name used for robots.txt compliance checking</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="retries">Retry Attempts</label>
-                        <input type="number" id="retries" value="3" min="0" max="10">
-                        <span class="setting-help">Number of retries for failed requests</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="acceptLanguage">Accept Language</label>
-                        <input type="text" id="acceptLanguage" value="en-US,en;q=0.9">
-                        <span class="setting-help">Preferred language for responses</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="respectRobotsTxt" checked>
-                            Respect robots.txt
-                        </label>
-                        <span class="setting-help">Check robots.txt before crawling</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="allowCookies" checked>
-                            Allow Cookies
-                        </label>
-                        <span class="setting-help">Accept and send cookies</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="discoverSitemaps" checked>
-                            Discover Sitemaps
-                        </label>
-                        <span class="setting-help">Automatically find and parse sitemap.xml files (including nested
-                            sitemaps)</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="enablePageSpeed">
-                            Enable PageSpeed Analysis
-                        </label>
-                        <span class="setting-help">Run Google PageSpeed Insights on homepage and 2 category pages after
-                            crawl completes</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="googleApiKey">Google PageSpeed API Key</label>
-                        <input type="password" id="googleApiKey"
-                            placeholder="Enter your Google PageSpeed Insights API key">
-                        <span class="setting-help">
-                            API key for higher rate limits (25k requests/day vs limited without key).
-                            <a href="https://developers.google.com/speed/docs/insights/v5/get-started" target="_blank">Get API key here</a>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Filter Settings -->
-                <div id="filters-settings" class="settings-tab-content">
-                    <h3>Content Filters</h3>
-
-                    <div class="setting-group">
-                        <label for="includeExtensions">Include File Extensions</label>
-                        <input type="text" id="includeExtensions" value="html,htm,php,asp,aspx,jsp">
-                        <span class="setting-help">Comma-separated list of extensions to crawl</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="excludeExtensions">Exclude File Extensions</label>
-                        <input type="text" id="excludeExtensions" value="pdf,doc,docx,zip,exe,dmg">
-                        <span class="setting-help">Comma-separated list of extensions to skip</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="includePatterns">Include URL Patterns</label>
-                        <textarea id="includePatterns" rows="3"
-                            placeholder="One pattern per line (regex supported)"></textarea>
-                        <span class="setting-help">Only crawl URLs matching these patterns</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="excludePatterns">Exclude URL Patterns</label>
-                        <textarea id="excludePatterns" rows="3"
-                            placeholder="One pattern per line (regex supported)"></textarea>
-                        <span class="setting-help">Skip URLs matching these patterns</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="maxFileSize">Maximum File Size (MB)</label>
-                        <input type="number" id="maxFileSize" value="50" min="1" max="1000">
-                        <span class="setting-help">Skip files larger than this size</span>
-                    </div>
-
-                    <h3 style="margin-top: 30px;">Duplication Detection</h3>
-
-                    <div class="setting-group">
-                        <label>
-                            <input type="checkbox" id="enableDuplicationCheck" checked>
-                            Enable Duplication Check
-                        </label>
-                        <span class="setting-help">Detect duplicate content across all crawled pages</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="duplicationThreshold">Duplication Similarity Threshold</label>
-                        <input type="number" id="duplicationThreshold" value="0.85" min="0" max="1" step="0.05">
-                        <span class="setting-help">Content similarity threshold (0.0-1.0). Higher values = stricter
-                            matching. Default: 0.85 (85% similar)</span>
-                    </div>
-                </div>
-
-                <!-- Export Settings -->
-                <div id="export-settings" class="settings-tab-content">
-                    <h3>Export Configuration</h3>
-
-                    <div class="setting-group">
-                        <label for="exportFormat">Default Export Format</label>
-                        <select id="exportFormat">
-                            <option value="csv">CSV</option>
-                            <option value="xlsx">Excel (XLSX)</option>
-                            <option value="json">JSON</option>
-                            <option value="xml">XML</option>
-                        </select>
-                        <span class="setting-help">Default format for data exports</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Export Fields</label>
-                        <div class="checkbox-grid">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="url" checked>
-                                URL
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="status_code" checked>
-                                Status Code
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="title" checked>
-                                Title
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="meta_description" checked>
-                                Meta Description
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="h1" checked>
-                                H1 Tags
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="word_count">
-                                Word Count
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="content_type">
-                                Content Type
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="response_time">
-                                Response Time
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="canonical_url">
-                                Canonical URL
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="og_tags">
-                                OpenGraph Tags
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="twitter_tags">
-                                Twitter Cards
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="json_ld">
-                                JSON-LD Data
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="analytics">
-                                Analytics Tracking
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="internal_links">
-                                Internal Links Count
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="external_links">
-                                External Links Count
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="images">
-                                Images Count
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="links_detailed">
-                                Detailed Links Data (separate file)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="lang">
-                                Language
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="charset">
-                                Charset
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="viewport">
-                                Viewport
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="robots">
-                                Robots Meta
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="exportFields" value="issues_detected">
-                                Issues Detected (separate export)
-                            </label>
+                    <div class="settings-nav">
+                        <div class="settings-nav-item active" onclick="showSettingsPanel('licence')">
+                            <span class="settings-nav-icon">&#x1F4DC;</span>
+                            <span>Licence</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('interface')">
+                            <span class="settings-nav-icon">&#x1F5BC;</span>
+                            <span>User Interface</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('language')">
+                            <span class="settings-nav-icon">&#x1F310;</span>
+                            <span>Language</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('proxy')">
+                            <span class="settings-nav-icon">&#x1F5A7;</span>
+                            <span>Proxy</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('storage')">
+                            <span class="settings-nav-icon">&#x1F4BE;</span>
+                            <span>Storage Mode</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('memory')">
+                            <span class="settings-nav-icon">&#x1F4CA;</span>
+                            <span>Memory Allocation</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('retention')">
+                            <span class="settings-nav-icon">&#x1F5C3;</span>
+                            <span>Crawl Retention</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('browser')">
+                            <span class="settings-nav-icon">&#x1F310;</span>
+                            <span>Embedded Browser</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('certificates')">
+                            <span class="settings-nav-icon">&#x1F512;</span>
+                            <span>Trusted Certificates</span>
+                        </div>
+                        <div class="settings-nav-item" onclick="showSettingsPanel('notifications')">
+                            <span class="settings-nav-icon">&#x1F514;</span>
+                            <span>Notifications</span>
                         </div>
                     </div>
                 </div>
-
-                <!-- Issue Exclusion Settings -->
-                <div id="issues-settings" class="settings-tab-content">
-                    <h3>Issue Exclusion Patterns</h3>
-                    <p class="setting-help">URLs matching these patterns will be excluded from issue detection. These
-                        are typically admin areas, development files, and framework internals that should never be
-                        indexed by search engines.</p>
-
-                    <div class="setting-group">
-                        <label for="issueExclusionPatterns">Exclusion Patterns (one per line)</label>
-                        <textarea id="issueExclusionPatterns" rows="20" placeholder="/admin/*
-/wp-admin/*
-*.json"></textarea>
-                        <span class="setting-help">Use * for wildcards. Examples: /admin/*, *.json, /test/*</span>
-                        <div style="margin-top: 10px;">
-                            <button type="button" onclick="resetIssueExclusions()" class="settings-reset-btn">
-                                Reset to Defaults
-                            </button>
-                            <span class="setting-help" style="margin-left: 10px;">Restore the default exclusion
-                                patterns</span>
+                <!-- Content Panels -->
+                <div class="settings-content">
+                    <!-- Licence Panel -->
+                    <div id="settings-panel-licence" class="settings-panel active">
+                        <h3>Licence</h3>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>View and manage your Wailing Newt licence information.</p>
+                        </div>
+                        <div class="setting-group">
+                            <label>Licence Status</label>
+                            <div class="licence-status-box">
+                                <span class="licence-badge licence-free">Free Version</span>
+                                <p>You are using the free version of Wailing Newt Web Walker.</p>
+                            </div>
+                        </div>
+                        <div class="setting-group">
+                            <label for="licenceKey">Enter Licence Key</label>
+                            <input type="text" id="licenceKey" placeholder="XXXX-XXXX-XXXX-XXXX">
+                            <button class="btn btn-primary btn-sm" style="margin-top: 10px;">Activate Licence</button>
                         </div>
                     </div>
 
-                    <div class="setting-group">
-                        <div class="settings-box settings-box-info">
-                            <strong>ℹ️ Default Exclusions Include:</strong>
-                            • WordPress admin areas (/wp-admin/*, /wp-content/plugins/*)<br>
-                            • Common admin panels (/admin/*, /administrator/*, /cpanel/*)<br>
-                            • Development files (/.git/*, /node_modules/*, /vendor/*)<br>
-                            • Build and cache directories (/build/*, /cache/*, /tmp/*)<br>
-                            • Configuration files (*.json, *.yaml, *.xml)<br>
-                            • Backup files (*.bak, *.backup, *.old)
+                    <!-- User Interface Panel -->
+                    <div id="settings-panel-interface" class="settings-panel">
+                        <h3>User Interface</h3>
+                        <div class="setting-group">
+                            <label for="uiTheme">Theme</label>
+                            <select id="uiTheme">
+                                <option value="dark">Dark (Default)</option>
+                                <option value="light">Light</option>
+                                <option value="system">System</option>
+                            </select>
+                            <span class="setting-help">Choose the application color scheme</span>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Custom CSS Settings -->
-                <div id="customcss-settings" class="settings-tab-content">
-                    <h3>Custom CSS Styling</h3>
-                    <p class="setting-help">Write custom CSS to personalize the look and feel of the Wailing Newt Web
-                        Walker interface. Changes apply immediately after saving.</p>
-
-                    <div class="setting-group">
-                        <label for="customCSS">Custom CSS Code</label>
-                        <textarea id="customCSS" rows="20" placeholder="/* Write your custom CSS here */
-/* Example: */
-/* .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); } */
-/* .data-table th { background-color: #4f46e5; } */
-/* .btn-primary { background: #10b981; } */"></textarea>
-                        <span class="setting-help">Enter valid CSS rules to customize the interface appearance</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <div class="settings-box settings-box-tip">
-                            <strong>💡 CSS Tips:</strong>
-                            • Target specific elements: <code>.header</code>, <code>.data-table</code>,
-                            <code>.sidebar</code><br>
-                            • Change colors: <code>background-color</code>, <code>color</code>,
-                            <code>border-color</code><br>
-                            • Modify spacing: <code>padding</code>, <code>margin</code>, <code>gap</code><br>
-                            • Adjust fonts: <code>font-family</code>, <code>font-size</code>,
-                            <code>font-weight</code><br>
-                            • Use <code>!important</code> to override default styles if needed<br>
-                            • Changes only affect the frontend UI
+                        <div class="setting-group">
+                            <label for="uiFontSize">Font Size</label>
+                            <select id="uiFontSize">
+                                <option value="small">Small</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="showTooltips" checked>
+                                Show Tooltips
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <label for="customCSS">Custom CSS</label>
+                            <textarea id="customCSS" rows="10" placeholder="/* Custom CSS styles */"></textarea>
+                            <span class="setting-help">Add custom CSS to customize the interface</span>
                         </div>
                     </div>
 
-                    <div class="setting-group">
-                        <div class="settings-box settings-box-info">
-                            <strong>🎨 Example Customizations:</strong>
-                            <code class="settings-box-code">/* Dark purple header */
-.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-
-/* Green accent buttons */
-.btn-primary { background: #10b981; }
-
-/* Larger table text */
-.data-table { font-size: 14px; }</code>
+                    <!-- Language Panel -->
+                    <div id="settings-panel-language" class="settings-panel">
+                        <h3>Language</h3>
+                        <div class="setting-group">
+                            <label for="appLanguage">Application Language</label>
+                            <select id="appLanguage">
+                                <option value="en" selected>English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="ja">Japanese</option>
+                                <option value="zh">Chinese</option>
+                            </select>
+                            <span class="setting-help">Select the language for the application interface</span>
                         </div>
                     </div>
-                </div>
 
-                <!-- Advanced Settings -->
-                <div id="advanced-settings" class="settings-tab-content">
-                    <h3>Advanced Configuration</h3>
-
-                    <div class="setting-group">
-                        <label for="concurrency">Concurrent Requests</label>
-                        <input type="number" id="concurrency" value="5" min="1" max="50">
-                        <span class="setting-help">Number of simultaneous requests (higher = faster but more resource
-                            intensive)</span>
+                    <!-- Proxy Panel -->
+                    <div id="settings-panel-proxy" class="settings-panel">
+                        <h3>Proxy</h3>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="enableProxy">
+                                Enable Proxy
+                            </label>
+                            <span class="setting-help">Route all requests through a proxy server</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="proxyType">Proxy Type</label>
+                            <select id="proxyType">
+                                <option value="http">HTTP</option>
+                                <option value="https">HTTPS</option>
+                                <option value="socks5">SOCKS5</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label for="proxyHost">Proxy Host</label>
+                            <input type="text" id="proxyHost" placeholder="proxy.example.com">
+                        </div>
+                        <div class="setting-group">
+                            <label for="proxyPort">Proxy Port</label>
+                            <input type="number" id="proxyPort" value="8080" min="1" max="65535">
+                        </div>
+                        <div class="setting-group">
+                            <label for="proxyUsername">Username (optional)</label>
+                            <input type="text" id="proxyUsername" placeholder="Username">
+                        </div>
+                        <div class="setting-group">
+                            <label for="proxyPassword">Password (optional)</label>
+                            <input type="password" id="proxyPassword" placeholder="Password">
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="memoryLimit">Memory Limit (MB)</label>
-                        <input type="number" id="memoryLimit" value="512" min="64" max="4096">
-                        <span class="setting-help">Maximum memory usage for crawl data</span>
+                    <!-- Storage Mode Panel -->
+                    <div id="settings-panel-storage" class="settings-panel">
+                        <h3>Storage Mode</h3>
+                        <div class="setting-group">
+                            <label for="storageMode">Storage Mode</label>
+                            <select id="storageMode">
+                                <option value="memory">Memory (faster, limited by RAM)</option>
+                                <option value="database" selected>Database (slower, larger crawls)</option>
+                            </select>
+                            <span class="setting-help">Choose how crawl data is stored during crawling</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="dbPath">Database Path</label>
+                            <input type="text" id="dbPath" value="./crawl_data.db" readonly>
+                            <button class="btn btn-secondary btn-sm" style="margin-top: 5px;">Browse...</button>
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="logLevel">Log Level</label>
-                        <select id="logLevel">
-                            <option value="DEBUG">Debug</option>
-                            <option value="INFO" selected>Info</option>
-                            <option value="WARNING">Warning</option>
-                            <option value="ERROR">Error</option>
-                        </select>
-                        <span class="setting-help">Logging verbosity level</span>
+                    <!-- Memory Allocation Panel -->
+                    <div id="settings-panel-memory" class="settings-panel">
+                        <h3>Memory Allocation</h3>
+                        <div class="setting-group">
+                            <label for="memoryLimit">Maximum Memory (MB)</label>
+                            <input type="number" id="memoryLimit" value="512" min="128" max="8192">
+                            <span class="setting-help">Maximum memory for crawl data storage</span>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoMemoryManagement" checked>
+                                Automatic Memory Management
+                            </label>
+                            <span class="setting-help">Automatically free memory when approaching limit</span>
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="saveSession">
-                            Save Session Data
-                        </label>
-                        <span class="setting-help">Automatically save crawl data between sessions</span>
+                    <!-- Crawl Retention Panel -->
+                    <div id="settings-panel-retention" class="settings-panel">
+                        <h3>Crawl Retention</h3>
+                        <div class="setting-group">
+                            <label for="retentionDays">Keep Crawl History (days)</label>
+                            <input type="number" id="retentionDays" value="30" min="1" max="365">
+                            <span class="setting-help">Number of days to retain completed crawls</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="maxSavedCrawls">Maximum Saved Crawls</label>
+                            <input type="number" id="maxSavedCrawls" value="50" min="1" max="500">
+                            <span class="setting-help">Maximum number of crawls to keep in history</span>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoCleanup" checked>
+                                Auto Cleanup Old Crawls
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="enableProxy">
-                            Enable Proxy
-                        </label>
-                        <span class="setting-help">Route requests through a proxy server</span>
+                    <!-- Embedded Browser Panel -->
+                    <div id="settings-panel-browser" class="settings-panel">
+                        <h3>Embedded Browser</h3>
+                        <div class="config-info-box">
+                            <strong>&#x2139; Info</strong>
+                            <p>Configure the embedded browser used for JavaScript rendering.</p>
+                        </div>
+                        <div class="setting-group">
+                            <label for="browserEngine">Browser Engine</label>
+                            <select id="browserEngine">
+                                <option value="chromium" selected>Chromium</option>
+                                <option value="firefox">Firefox</option>
+                                <option value="webkit">WebKit</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="browserHeadless" checked>
+                                Headless Mode
+                            </label>
+                            <span class="setting-help">Run browser without visible window</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="browserTimeout">Page Load Timeout (seconds)</label>
+                            <input type="number" id="browserTimeout" value="30" min="5" max="120">
+                        </div>
                     </div>
 
-                    <div class="setting-group" id="proxySettings" style="display: none;">
-                        <label for="proxyUrl">Proxy URL</label>
-                        <input type="text" id="proxyUrl" placeholder="http://proxy.example.com:8080">
-                        <span class="setting-help">Proxy server URL with port</span>
+                    <!-- Trusted Certificates Panel -->
+                    <div id="settings-panel-certificates" class="settings-panel">
+                        <h3>Trusted Certificates</h3>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="verifySsl" checked>
+                                Verify SSL Certificates
+                            </label>
+                            <span class="setting-help">Reject connections with invalid SSL certificates</span>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="allowSelfSigned">
+                                Allow Self-Signed Certificates
+                            </label>
+                            <span class="setting-help">Accept self-signed SSL certificates (less secure)</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="customCertPath">Custom CA Certificate Path</label>
+                            <input type="text" id="customCertPath" placeholder="/path/to/ca-bundle.crt">
+                            <button class="btn btn-secondary btn-sm" style="margin-top: 5px;">Browse...</button>
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="customHeaders">Custom Headers</label>
-                        <textarea id="customHeaders" rows="4"
-                            placeholder="Header-Name: Header-Value&#10;Another-Header: Another-Value"></textarea>
-                        <span class="setting-help">Additional HTTP headers to send (one per line)</span>
+                    <!-- Notifications Panel -->
+                    <div id="settings-panel-notifications" class="settings-panel">
+                        <h3>Notifications</h3>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="notifyCrawlComplete" checked>
+                                Notify on Crawl Complete
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="notifyErrors" checked>
+                                Notify on Errors
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="soundEnabled">
+                                Enable Sound Notifications
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="desktopNotifications" checked>
+                                Desktop Notifications
+                            </label>
+                            <span class="setting-help">Show system notifications (requires browser permission)</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1287,6 +1136,8 @@
                             </div>
                             <div class="config-group-box">
                                 <h4>Crawl Behaviour</h4>
+                                <label class="config-checkbox"><input type="checkbox" id="configFollowRedirects" checked> Follow Redirects (3xx)</label>
+                                <label class="config-checkbox"><input type="checkbox" id="configCrawlExternalLinks"> Crawl External Links</label>
                                 <label class="config-checkbox"><input type="checkbox" id="checkLinksOutside" checked> Check Links Outside of Start Folder</label>
                                 <label class="config-checkbox"><input type="checkbox" id="crawlOutside" checked> Crawl Outside of Start Folder</label>
                                 <label class="config-checkbox"><input type="checkbox" id="crawlSubdomains" checked> Crawl All Subdomains</label>
@@ -1340,22 +1191,60 @@
                             <strong>&#x2139; Info</strong>
                             <p>Control the speed of requests made by the SEO Spider.</p>
                         </div>
-                        <div class="setting-group">
-                            <label for="configMaxThreads">Max Threads</label>
-                            <input type="number" id="configMaxThreads" value="5" min="1" max="20">
-                            <span class="setting-help">Number of concurrent threads for crawling</span>
+                        <div class="config-group-row">
+                            <div class="config-group-box">
+                                <h4>Concurrent Threads</h4>
+                                <div class="setting-group">
+                                    <label for="configMaxThreads">Max Threads</label>
+                                    <input type="number" id="configMaxThreads" value="5" min="1" max="20">
+                                    <span class="setting-help">Number of concurrent threads for crawling</span>
+                                </div>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>Rate Limiting</h4>
+                                <div class="setting-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="configLimitUrls">
+                                        Limit URL/s
+                                    </label>
+                                    <span class="setting-help">Enable rate limiting by URLs per second</span>
+                                </div>
+                                <div class="setting-group">
+                                    <label for="configMaxUrlsPerSec">Max URL/s</label>
+                                    <input type="number" id="configMaxUrlsPerSec" value="2" min="1" max="100">
+                                    <span class="setting-help">Maximum URLs to request per second</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="setting-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="configLimitUrls">
-                                Limit URL/s
-                            </label>
-                            <span class="setting-help">Enable rate limiting by URLs per second</span>
-                        </div>
-                        <div class="setting-group">
-                            <label for="configMaxUrlsPerSec">Max URL/s</label>
-                            <input type="number" id="configMaxUrlsPerSec" value="2" min="1" max="100">
-                            <span class="setting-help">Maximum URLs to request per second</span>
+                        <div class="config-group-row" style="margin-top: 20px;">
+                            <div class="config-group-box">
+                                <h4>Crawl Delay</h4>
+                                <div class="setting-group">
+                                    <label for="configCrawlDelay">Crawl Delay (seconds)</label>
+                                    <input type="number" id="configCrawlDelay" value="0.5" min="0" max="60" step="0.1">
+                                    <span class="setting-help">Delay between requests to be respectful to servers</span>
+                                </div>
+                                <div class="setting-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="configRespectCrawlDelay" checked>
+                                        Respect Crawl-Delay in robots.txt
+                                    </label>
+                                    <span class="setting-help">Use crawl delay specified in robots.txt if present</span>
+                                </div>
+                            </div>
+                            <div class="config-group-box">
+                                <h4>Timeout Settings</h4>
+                                <div class="setting-group">
+                                    <label for="configTimeout">Request Timeout (seconds)</label>
+                                    <input type="number" id="configTimeout" value="10" min="1" max="120">
+                                    <span class="setting-help">How long to wait for a response before timing out</span>
+                                </div>
+                                <div class="setting-group">
+                                    <label for="configRetries">Retry Attempts</label>
+                                    <input type="number" id="configRetries" value="3" min="0" max="10">
+                                    <span class="setting-help">Number of retries for failed requests</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

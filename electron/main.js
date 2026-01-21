@@ -668,6 +668,35 @@ app.whenReady().then(async () => {
     await new Promise(resolve => setTimeout(resolve, 200));
 
     try {
+        // Check for updates first (if available)
+        if (app.isPackaged && updater) {
+            updateLoadingStatus('Checking for updates...');
+            try {
+                await new Promise((resolve) => {
+                    // Give update check a few seconds, but don't block startup
+                    const timeout = setTimeout(() => {
+                        updateLoadingStatus('Update check complete');
+                        resolve();
+                    }, 3000);
+
+                    checkForUpdates(false).then(() => {
+                        clearTimeout(timeout);
+                        updateLoadingStatus('You have the latest version!');
+                        setTimeout(resolve, 500);
+                    }).catch(() => {
+                        clearTimeout(timeout);
+                        updateLoadingStatus('Update check complete');
+                        resolve();
+                    });
+                });
+            } catch (e) {
+                console.log('[AutoUpdater] Update check failed:', e.message);
+                updateLoadingStatus('Continuing without update check...');
+            }
+        } else {
+            updateLoadingStatus('Starting Wailing Newt...');
+        }
+
         await startPythonBackend();
 
         // Keep loading window visible for a moment before switching

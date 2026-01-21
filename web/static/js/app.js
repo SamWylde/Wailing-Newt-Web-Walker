@@ -3006,6 +3006,39 @@ function loadCrawlConfigValues() {
             maxUrlsPerSec.value = currentSettings.maxUrlsPerSecond;
         }
 
+        // Crawl Delay settings
+        const crawlDelay = document.getElementById('configCrawlDelay');
+        if (crawlDelay && currentSettings.crawlDelay !== undefined) {
+            crawlDelay.value = currentSettings.crawlDelay;
+        }
+
+        const respectCrawlDelay = document.getElementById('configRespectCrawlDelay');
+        if (respectCrawlDelay && currentSettings.respectCrawlDelay !== undefined) {
+            respectCrawlDelay.checked = currentSettings.respectCrawlDelay;
+        }
+
+        // Timeout settings
+        const timeout = document.getElementById('configTimeout');
+        if (timeout && currentSettings.timeout) {
+            timeout.value = currentSettings.timeout;
+        }
+
+        const retries = document.getElementById('configRetries');
+        if (retries && currentSettings.retries !== undefined) {
+            retries.value = currentSettings.retries;
+        }
+
+        // Crawl Behaviour settings
+        const followRedirects = document.getElementById('configFollowRedirects');
+        if (followRedirects && currentSettings.followRedirects !== undefined) {
+            followRedirects.checked = currentSettings.followRedirects;
+        }
+
+        const crawlExternalLinks = document.getElementById('configCrawlExternalLinks');
+        if (crawlExternalLinks && currentSettings.crawlExternalLinks !== undefined) {
+            crawlExternalLinks.checked = currentSettings.crawlExternalLinks;
+        }
+
         // Limits settings
         const maxDepth = document.getElementById('configMaxDepth');
         if (maxDepth && currentSettings.maxDepth) {
@@ -3026,6 +3059,22 @@ function loadCrawlConfigValues() {
         const robotsUA = document.getElementById('configRobotsUA');
         if (robotsUA && currentSettings.robotsUserAgent) {
             robotsUA.value = currentSettings.robotsUserAgent;
+        }
+
+        // Robots.txt settings
+        const robotsMode = document.getElementById('robotsMode');
+        if (robotsMode && currentSettings.robotsMode) {
+            robotsMode.value = currentSettings.robotsMode;
+        }
+
+        const showInternalBlocked = document.getElementById('showInternalBlocked');
+        if (showInternalBlocked && currentSettings.showInternalBlocked !== undefined) {
+            showInternalBlocked.checked = currentSettings.showInternalBlocked;
+        }
+
+        const showExternalBlocked = document.getElementById('showExternalBlocked');
+        if (showExternalBlocked && currentSettings.showExternalBlocked !== undefined) {
+            showExternalBlocked.checked = currentSettings.showExternalBlocked;
         }
 
         // JavaScript Rendering settings
@@ -3081,11 +3130,23 @@ function saveCrawlConfig() {
     const maxThreads = parseInt(document.getElementById('configMaxThreads')?.value) || 5;
     const limitUrlsPerSecond = document.getElementById('configLimitUrls')?.checked || false;
     const maxUrlsPerSec = parseInt(document.getElementById('configMaxUrlsPerSec')?.value) || 2;
+    const crawlDelay = parseFloat(document.getElementById('configCrawlDelay')?.value) || 0.5;
+    const respectCrawlDelay = document.getElementById('configRespectCrawlDelay')?.checked !== false;
+    const timeout = parseInt(document.getElementById('configTimeout')?.value) || 10;
+    const retries = parseInt(document.getElementById('configRetries')?.value) || 3;
+    const followRedirects = document.getElementById('configFollowRedirects')?.checked !== false;
+    const crawlExternalLinks = document.getElementById('configCrawlExternalLinks')?.checked || false;
     const maxDepth = parseInt(document.getElementById('configMaxDepth')?.value) || 3;
     const maxUrls = parseInt(document.getElementById('configMaxUrls')?.value) || 5000000;
     const maxFileSize = parseInt(document.getElementById('configMaxFileSize')?.value) || 50;
     const userAgent = document.getElementById('configHttpUA')?.value || 'WailingNewt/1.0 (Web Crawler)';
     const robotsUserAgent = document.getElementById('configRobotsUA')?.value || 'WailingNewt';
+
+    // Robots.txt settings
+    const robotsMode = document.getElementById('robotsMode')?.value || 'respect';
+    const respectRobotsTxt = robotsMode === 'respect';
+    const showInternalBlocked = document.getElementById('showInternalBlocked')?.checked !== false;
+    const showExternalBlocked = document.getElementById('showExternalBlocked')?.checked !== false;
 
     // Collect JavaScript rendering settings
     const enableJavaScript = document.getElementById('enableJavaScript')?.checked || false;
@@ -3098,18 +3159,19 @@ function saveCrawlConfig() {
     const jsViewportHeight = parseInt(document.getElementById('jsViewportHeight')?.value) || 1080;
     const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
 
-    // Map Crawl Config fields to backend settings fields
-    const existingDelay = (typeof currentSettings !== 'undefined' && currentSettings.crawlDelay !== undefined)
-        ? currentSettings.crawlDelay
-        : 1;
-    const computedDelay = limitUrlsPerSecond ? Math.max(0.1, 1 / maxUrlsPerSec) : existingDelay;
-
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
         concurrency: maxThreads,
-        crawlDelay: computedDelay,
+        crawlDelay: crawlDelay,
         limitUrlsPerSecond: limitUrlsPerSecond,
         maxUrlsPerSecond: maxUrlsPerSec,
+        respectCrawlDelay: respectCrawlDelay,
+
+        // Request settings
+        timeout: timeout,
+        retries: retries,
+        followRedirects: followRedirects,
+        crawlExternalLinks: crawlExternalLinks,
 
         // Limits settings
         maxDepth: maxDepth,
@@ -3118,6 +3180,13 @@ function saveCrawlConfig() {
 
         // User-Agent settings
         userAgent: userAgent,
+        robotsUserAgent: robotsUserAgent,
+
+        // Robots.txt settings
+        respectRobotsTxt: respectRobotsTxt,
+        robotsMode: robotsMode,
+        showInternalBlocked: showInternalBlocked,
+        showExternalBlocked: showExternalBlocked,
 
         // JavaScript rendering settings
         enableJavaScript: enableJavaScript,
