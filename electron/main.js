@@ -179,7 +179,7 @@ async function startPythonBackend() {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
             windowsHide: true,
-            detached: false
+            detached: process.platform !== 'win32'
         };
 
         // On Windows, use special configuration to prevent console window
@@ -512,18 +512,45 @@ function createMenu() {
  * Stop the Python backend
  */
 function stopPythonBackend() {
-    if (pythonProcess) {
-        console.log('Stopping Python backend...');
+    if (!pythonProcess) {
+        return Promise.resolve();
+    }
+
+    console.log('Stopping Python backend...');
+    const processToKill = pythonProcess;
+    pythonProcess = null;
+
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const finish = () => {
+            if (resolved) {
+                return;
+            }
+            resolved = true;
+            resolve();
+        };
+
+        processToKill.once('exit', finish);
+
+        setTimeout(() => {
+            if (!resolved) {
+                console.log('Python process did not exit in time, forcing shutdown...');
+                try {
+                    processToKill.kill('SIGKILL');
+                } catch (e) {
+                    console.log('Force kill failed:', e.message);
+                }
+            }
+            finish();
+        }, 3000);
 
         try {
             if (process.platform === 'win32') {
-                // On Windows, use taskkill to ensure child processes are killed
-                // Use /T to kill child processes and /F to force kill
-                // Use spawnSync for synchronous execution to ensure process is killed before app quits
                 const { spawnSync } = require('child_process');
                 try {
-                    console.log(`Killing Python process ${pythonProcess.pid}...`);
-                    const result = spawnSync('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'], {
+                    console.log(`Killing Python process ${processToKill.pid}...`);
+                    const result = spawnSync('taskkill', ['/pid', processToKill.pid.toString(), '/f', '/t'], {
                         windowsHide: true,
                         shell: false,
                         stdio: 'ignore'
@@ -534,29 +561,24 @@ function stopPythonBackend() {
                         console.log('Python process killed successfully');
                     }
                 } catch (e) {
-                    // taskkill might fail if process already exited, that's ok
                     console.log('taskkill exception:', e.message);
                 }
             } else {
-                // On Unix, kill the process group
                 try {
-                    process.kill(-pythonProcess.pid, 'SIGTERM');
+                    process.kill(-processToKill.pid, 'SIGTERM');
                 } catch (e) {
-                    pythonProcess.kill('SIGTERM');
+                    processToKill.kill('SIGTERM');
                 }
             }
         } catch (e) {
             console.log('Error killing Python process:', e);
-            // Try a direct kill as fallback
             try {
-                pythonProcess.kill('SIGKILL');
+                processToKill.kill('SIGKILL');
             } catch (e2) {
                 console.log('Fallback kill also failed:', e2);
             }
         }
-
-        pythonProcess = null;
-    }
+    });
 }
 
 // Ensure single instance
@@ -590,7 +612,7 @@ app.whenReady().then(async () => {
         alwaysOnTop: true,
         resizable: false,
         center: true,
-        show: false,
+        show: true,
         skipTaskbar: true,
         focusable: true,
         webPreferences: {
@@ -606,9 +628,21 @@ app.whenReady().then(async () => {
         windowShowResolver = resolve;
     });
 
+    const markWindowShown = () => {
+        if (windowShown) {
+            return;
+        }
+        windowShown = true;
+        windowShowResolver();
+        console.log('[Electron] Loading window displayed and ready');
+    };
+
+    loadingWindow.once('show', () => {
+        markWindowShown();
+    });
+
     // Show window once content is loaded AND force it to front
     loadingWindow.once('ready-to-show', () => {
-        loadingWindow.show();
         loadingWindow.focus();
         loadingWindow.setAlwaysOnTop(true, 'screen-saver');
         loadingWindow.moveTop();
@@ -618,9 +652,6 @@ app.whenReady().then(async () => {
             if (loadingWindow && !loadingWindow.isDestroyed()) {
                 loadingWindow.focus();
                 loadingWindow.moveTop();
-                windowShown = true;
-                windowShowResolver();
-                console.log('[Electron] Loading window displayed and ready');
             }
         }, 100);
     });
@@ -628,6 +659,12 @@ app.whenReady().then(async () => {
     // Load the loading screen HTML file
     const loadingHtmlPath = path.join(__dirname, 'loading.html');
     loadingWindow.loadFile(loadingHtmlPath);
+
+    if (!loadingWindow.isVisible()) {
+        loadingWindow.show();
+    } else {
+        markWindowShown();
+    }
 
     // WAIT for loading window to show before starting backend
     await windowShownPromise;
@@ -684,9 +721,17 @@ app.on('activate', () => {
     }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+    if (isQuitting) {
+        return;
+    }
     isQuitting = true;
-    stopPythonBackend();
+
+    if (pythonProcess) {
+        event.preventDefault();
+        stopPythonBackend()
+            .finally(() => app.quit());
+    }
 });
 
 app.on('will-quit', () => {

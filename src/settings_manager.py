@@ -238,7 +238,11 @@ class SettingsManager:
             'include_patterns': [p.strip() for p in settings['includePatterns'].split('\n') if p.strip()],
             'exclude_patterns': [p.strip() for p in settings['excludePatterns'].split('\n') if p.strip()],
             'max_file_size': settings['maxFileSize'] * 1024 * 1024,  # Convert MB to bytes
-            'concurrency': settings.get('concurrency', settings.get('maxThreads', 5)),
+            'concurrency': (
+                settings.get('concurrency', settings.get('maxThreads', 5))
+                if self.tier == 'admin'
+                else settings.get('maxThreads', settings.get('concurrency', 5))
+            ),
             'memory_limit': settings['memoryLimit'] * 1024 * 1024,  # Convert MB to bytes
             'log_level': settings['logLevel'],
             'enable_proxy': settings['enableProxy'],
