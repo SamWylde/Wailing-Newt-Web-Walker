@@ -10,6 +10,7 @@ function publishCurrentSettings() {
 function sanitizeSettingsForClient(settings) {
     const sanitized = { ...settings };
     delete sanitized.ga4OauthTokens;
+    delete sanitized.gscOauthTokens;
     return sanitized;
 }
 
@@ -165,6 +166,36 @@ let defaultSettings = {
     ga4LastSyncAt: '',
     ga4LastSyncStatus: '',
     ga4LastSyncError: '',
+
+    // Google Search Console (GSC)
+    gscEnabled: false,
+    gscConnected: false,
+    gscSiteUrl: '',
+    gscSiteName: '',
+    gscDateRangePreset: 'last_30_days',
+    gscDateStart: '',
+    gscDateEnd: '',
+    gscDeviceFilter: 'all',
+    gscCountryFilter: '',
+    gscTypeFilter: 'web',
+    gscQueryFilterOperator: 'none',
+    gscQueryFilterValue: '',
+    gscMatchTrailingSlash: true,
+    gscMatchCase: false,
+    gscLimitMaxResults: true,
+    gscMaxResults: 100000,
+    gscCrawlNewUrls: false,
+    gscEnableUrlInspection: false,
+    gscIgnoreNonIndexableUrls: false,
+    gscUseMultipleProperties: false,
+    gscInspectionLanguageCode: 'en-US',
+    gscInspectionMaxUrls: 200,
+    gscLastSyncAt: '',
+    gscLastSyncStatus: '',
+    gscLastSyncError: '',
+    gscLastInspectionAt: '',
+    gscLastInspectionStatus: '',
+    gscLastInspectionError: '',
 
     // Limits Panel
     limitCrawlTotal: true,

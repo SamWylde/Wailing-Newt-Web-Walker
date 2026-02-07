@@ -640,6 +640,7 @@ body {
     display: flex;
     flex: 1;
     overflow: hidden;
+    min-height: 0;
 }
 
 /* Sidebar */
@@ -787,12 +788,15 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
 .split-pane {
     --detail-pane-width: 320px;
     --details-pane-height: 240px;
     flex: 1;
+    height: 100%;
+    min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 6px var(--detail-pane-width);
     grid-template-rows: minmax(0, 1fr) 6px var(--details-pane-height);
@@ -1124,18 +1128,24 @@ body {
 
 .tab-content {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
 .tab-pane {
     height: 100%;
     display: none;
     overflow: hidden;
+    min-height: 0;
 }
 
 .tab-pane.active {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 /* Tables */
@@ -1145,6 +1155,7 @@ body {
     padding: 20px;
     position: relative;
     height: 700px;
+    min-height: 0;
 }
 
 .split-pane .table-container {
@@ -1898,6 +1909,70 @@ body {
     flex-wrap: wrap;
     font-size: 12px;
     color: var(--text-tertiary);
+}
+
+.ga4-setup-card {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #78350f;
+}
+
+.ga4-setup-card h4 {
+    margin: 0 0 6px 0;
+    font-size: 15px;
+    color: #78350f;
+}
+
+.ga4-setup-card p {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+}
+
+.ga4-setup-steps {
+    margin: 0 0 10px 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 13px;
+}
+
+.ga4-setup-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.ga4-setup-grid {
+    margin-top: 8px;
+}
+
+.ga4-setup-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.ga4-setup-status.success {
+    color: #166534;
+}
+
+.ga4-setup-status.error {
+    color: #991b1b;
+}
+
+.ga4-setup-status.info {
+    color: var(--text-secondary);
+}
+
+.ga4-setup-hint {
+    margin: 8px 0 0 0;
+    font-size: 12px;
+    color: #92400e;
 }
 
 .ga4-subtabs {

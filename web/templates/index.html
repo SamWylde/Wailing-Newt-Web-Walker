@@ -843,10 +843,40 @@
                             </div>
 
                             <div id="search-console-tab" class="tab-pane">
-                                <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📊 Search Console</h3>
-                                        <p>Google Search Console data integration and insights.</p>
+                                <div class="ga4-analytics-container">
+                                    <div class="ga4-analytics-summary">
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Sync Status</div>
+                                            <div id="searchConsoleSyncStatus" class="ga4-summary-value">idle</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Matched URLs</div>
+                                            <div id="searchConsoleMatchedCount" class="ga4-summary-value">0</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Unmatched URLs</div>
+                                            <div id="searchConsoleUnmatchedCount" class="ga4-summary-value">0</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Inspected URLs</div>
+                                            <div id="searchConsoleInspectedCount" class="ga4-summary-value">0</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Last Sync</div>
+                                            <div id="searchConsoleLastSync" class="ga4-summary-value">Never</div>
+                                        </div>
+                                    </div>
+                                    <div id="searchConsoleAnalyticsError" class="ga4-analytics-error" style="display:none;">
+                                    </div>
+                                    <div class="table-container">
+                                        <table class="data-table" id="searchConsoleAnalyticsTable" style="display:none;">
+                                            <thead id="searchConsoleAnalyticsHead"></thead>
+                                            <tbody id="searchConsoleAnalyticsBody"></tbody>
+                                        </table>
+                                        <div id="searchConsoleAnalyticsEmpty" class="tab-placeholder">
+                                            <h3>Search Console</h3>
+                                            <p>Search Console metrics will appear here after a crawl with Search Console enabled.</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2311,6 +2341,42 @@ footer</textarea>
 
                             <div class="ga4-subtab-content active" data-tab-content="account">
                                 <p class="config-help">Connect an account, select property, and choose the web stream for this crawl.</p>
+                                <div id="ga4SetupCard" class="ga4-setup-card" style="display:none;">
+                                    <h4>One-time Google sign-in setup</h4>
+                                    <p>Set this up once, then click <strong>Sign in with Google</strong>.</p>
+                                    <ol id="ga4SetupSteps" class="ga4-setup-steps"></ol>
+                                    <div class="ga4-setup-actions">
+                                        <a
+                                            id="ga4SetupCloudLink"
+                                            class="btn btn-secondary btn-sm"
+                                            href="https://console.cloud.google.com/apis/credentials"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Open Google Cloud Console
+                                        </a>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="ga4CopyRedirectUriBtn">Copy Redirect URI</button>
+                                    </div>
+                                    <div class="ga4-form-grid ga4-setup-grid">
+                                        <label class="ga4-field ga4-field-wide">
+                                            <span>Redirect URI</span>
+                                            <input type="text" id="ga4SetupRedirectUri" placeholder="http://localhost:5000/api/ga4/oauth/callback">
+                                        </label>
+                                        <label class="ga4-field">
+                                            <span>Client ID</span>
+                                            <input type="text" id="ga4SetupClientId" placeholder="Paste client ID">
+                                        </label>
+                                        <label class="ga4-field">
+                                            <span>Client Secret</span>
+                                            <input type="password" id="ga4SetupClientSecret" placeholder="Paste client secret" autocomplete="off">
+                                        </label>
+                                    </div>
+                                    <div class="ga4-setup-actions">
+                                        <button type="button" class="btn btn-primary btn-sm" id="ga4SaveSetupBtn">Save setup and continue</button>
+                                        <span id="ga4SetupStatusText" class="ga4-setup-status"></span>
+                                    </div>
+                                    <p id="ga4SetupPathHint" class="ga4-setup-hint"></p>
+                                </div>
                                 <div class="ga4-form-grid">
                                     <label class="ga4-field">
                                         <span>Account</span>
@@ -2402,7 +2468,163 @@ footer</textarea>
                         </div>
                     </div>
                     <div id="config-panel-search-console" class="config-panel">
-                        <p class="config-placeholder">Search Console integration coming soon...</p>
+                        <div class="ga4-config-layout">
+                            <div class="ga4-panel-header">
+                                <div class="ga4-connection-line">
+                                    <span id="gscConnectionBadge" class="ga4-connection-badge disconnected"
+                                        data-connected="false">Not Connected</span>
+                                    <button type="button" class="btn btn-primary btn-sm" id="gscConnectBtn">Sign in
+                                        with Google</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="gscDisconnectBtn"
+                                        disabled>Disconnect</button>
+                                </div>
+                                <div class="ga4-sync-meta">
+                                    <span id="gscLastSyncLabel">Last Sync: Never</span>
+                                    <span id="gscLastSyncStatusLabel">Status: idle</span>
+                                    <span id="gscLastSyncErrorLabel"></span>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtabs">
+                                <button type="button" class="ga4-subtab-btn active" data-tab="account">Account
+                                    Information</button>
+                                <button type="button" class="ga4-subtab-btn" data-tab="search-analytics">Search
+                                    Analytics</button>
+                                <button type="button" class="ga4-subtab-btn" data-tab="url-inspection">URL
+                                    Inspection</button>
+                            </div>
+
+                            <div class="ga4-subtab-content active" data-tab-content="account">
+                                <p class="config-help">Connect a Google account and select the Search Console property
+                                    for this crawl.</p>
+
+                                <div id="gscSetupCard" class="ga4-setup-card" style="display:none;">
+                                    <h4>One-time Google OAuth setup</h4>
+                                    <p>Complete this once to enable Sign in with Google for GA4 and Search Console.</p>
+                                    <ol id="gscSetupSteps" class="ga4-setup-steps"></ol>
+                                    <div class="ga4-setup-actions">
+                                        <a id="gscSetupCloudLink" class="btn btn-secondary btn-sm" target="_blank"
+                                            rel="noopener noreferrer"
+                                            href="https://console.cloud.google.com/apis/credentials">
+                                            Open Google Cloud Console
+                                        </a>
+                                        <button type="button" class="btn btn-secondary btn-sm"
+                                            id="gscCopyRedirectUriBtn">Copy Redirect URI</button>
+                                    </div>
+                                    <div class="ga4-form-grid ga4-setup-grid">
+                                        <label class="ga4-field ga4-field-wide">
+                                            <span>Redirect URI</span>
+                                            <input type="text" id="gscSetupRedirectUri"
+                                                placeholder="http://localhost:5000/api/search_console/oauth/callback">
+                                        </label>
+                                        <label class="ga4-field">
+                                            <span>Client ID</span>
+                                            <input type="text" id="gscSetupClientId" placeholder="Paste client ID">
+                                        </label>
+                                        <label class="ga4-field">
+                                            <span>Client Secret</span>
+                                            <input type="password" id="gscSetupClientSecret"
+                                                placeholder="Paste client secret" autocomplete="off">
+                                        </label>
+                                    </div>
+                                    <div class="ga4-setup-actions">
+                                        <button type="button" class="btn btn-primary btn-sm"
+                                            id="gscSaveSetupBtn">Save setup and continue</button>
+                                        <span id="gscSetupStatusText" class="ga4-setup-status"></span>
+                                    </div>
+                                    <p id="gscSetupPathHint" class="ga4-setup-hint"></p>
+                                </div>
+
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Search Console Property</span>
+                                        <select id="gscSiteSelect">
+                                            <option value="">Select property...</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtab-content" data-tab-content="search-analytics">
+                                <p class="config-help">Select date range, filters, and matching behavior for Search
+                                    Analytics data.</p>
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Date Range</span>
+                                        <select id="gscDateRangePreset"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Start Date</span>
+                                        <input type="date" id="gscDateStart">
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>End Date</span>
+                                        <input type="date" id="gscDateEnd">
+                                    </label>
+                                </div>
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Device Filter</span>
+                                        <select id="gscDeviceFilter"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Country Filter</span>
+                                        <select id="gscCountryFilter"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Type Filter</span>
+                                        <select id="gscTypeFilter"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Query Filter</span>
+                                        <select id="gscQueryFilterOperator"></select>
+                                    </label>
+                                    <label class="ga4-field ga4-field-wide">
+                                        <span>Query Value</span>
+                                        <input type="text" id="gscQueryFilterValue" placeholder="e.g. brand name">
+                                    </label>
+                                </div>
+                                <div class="ga4-general-grid">
+                                    <label class="config-checkbox"><input type="checkbox" id="gscEnabled"> Enable Search
+                                        Console for crawls</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscMatchTrailingSlash"
+                                            checked> Match trailing and non-trailing slash URLs</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscMatchCase"> Match
+                                        uppercase and lowercase URLs</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscCrawlNewUrls"> Crawl
+                                        new URLs discovered in Search Console</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscLimitMaxResults"
+                                            checked> Limit max Search Console rows</label>
+                                    <label class="ga4-field ga4-inline-field">
+                                        <span>Max Rows</span>
+                                        <input type="number" id="gscMaxResults" min="1" max="1000000" step="1"
+                                            value="100000">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtab-content" data-tab-content="url-inspection">
+                                <p class="config-help">Optionally run URL Inspection on top URLs by clicks. Google
+                                    limits this endpoint to 2,000 URLs per property/day.</p>
+                                <div class="ga4-general-grid">
+                                    <label class="config-checkbox"><input type="checkbox" id="gscEnableUrlInspection">
+                                        Enable URL Inspection</label>
+                                    <label class="config-checkbox"><input type="checkbox"
+                                            id="gscIgnoreNonIndexableUrls"> Ignore non-indexable URLs for inspection</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscUseMultipleProperties">
+                                        Use multiple verified properties when needed</label>
+                                    <label class="ga4-field">
+                                        <span>Language</span>
+                                        <select id="gscInspectionLanguageCode"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Max URLs to Inspect</span>
+                                        <input type="number" id="gscInspectionMaxUrls" min="1" max="2000" step="1"
+                                            value="200">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="config-panel-pagespeed" class="config-panel">
                         <p class="config-placeholder">PageSpeed Insights integration coming soon...</p>
@@ -2578,6 +2800,7 @@ footer</textarea>
     <script src="/static/js/dashboard.js?v=4"></script>
     <script src="/static/js/settings.js?v=4"></script>
     <script src="/static/js/ga4-config.js?v=1"></script>
+    <script src="/static/js/search-console-config.js?v=1"></script>
 </body>
 
 </html>

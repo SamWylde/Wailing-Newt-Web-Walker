@@ -22,6 +22,7 @@ from src.core.issue_detector import IssueDetector
 from src.core.memory_monitor import MemoryMonitor
 from src.core.crawler_defaults import get_default_crawler_config
 from src.core.ga4_service import GA4Service
+from src.core.search_console_service import SearchConsoleService
 from src.settings_manager import SettingsManager
 
 
@@ -810,6 +811,7 @@ class WebCrawler:
 
         # Run GA4 enrichment after crawl + issue processing
         self._run_ga4_enrichment()
+        self._run_search_console_enrichment()
 
         # Save final data and mark as complete
         if self.db_save_enabled and self.crawl_id:
@@ -1326,6 +1328,7 @@ class WebCrawler:
 
             # Run GA4 enrichment after crawl + issue processing
             self._run_ga4_enrichment()
+            self._run_search_console_enrichment()
 
             # Save final data and mark as complete
             if self.db_save_enabled and self.crawl_id:
@@ -1543,6 +1546,92 @@ class WebCrawler:
                 }
             )
             print(f"GA4 enrichment failed: {exc}")
+
+    def _run_search_console_enrichment(self):
+        """Attach Search Console data to crawled URLs after crawl completion."""
+        if not self.config.get('gsc_enabled', False):
+            return
+        if not self.config.get('gsc_connected', False):
+            return
+        if not self.config.get('gsc_site_url'):
+            return
+        if not self.crawl_results:
+            return
+
+        print("Running Search Console enrichment...")
+        settings_manager = SettingsManager(
+            session_id=self.session_id,
+            user_id=self.user_id,
+            tier=self.user_tier or 'guest'
+        )
+
+        try:
+            summary = SearchConsoleService.enrich_crawl_results(settings_manager, self.crawl_results, self.config)
+            inspection = summary.get('inspection', {}) if isinstance(summary.get('inspection'), dict) else {}
+            with self.stats_lock:
+                self.stats['gsc_sync'] = summary
+                self.stats['gsc_inspection_sync'] = inspection
+
+            status = summary.get('status', 'error')
+            if status == 'success':
+                self.force_full_refresh = True
+                sync_payload = {
+                    'gscLastSyncAt': summary.get('last_sync_at', ''),
+                    'gscLastSyncStatus': 'success',
+                    'gscLastSyncError': '',
+                    'gscLastInspectionAt': inspection.get('last_inspection_at', ''),
+                    'gscLastInspectionStatus': inspection.get('status', ''),
+                    'gscLastInspectionError': inspection.get('error', ''),
+                }
+
+                if self.db_save_enabled and self.crawl_id:
+                    try:
+                        from src.crawl_db import update_url_analytics_batch
+                        analytics_rows = [
+                            {'url': row.get('url'), 'analytics': row.get('analytics', {})}
+                            for row in self.crawl_results
+                            if row.get('url')
+                        ]
+                        update_url_analytics_batch(self.crawl_id, analytics_rows)
+                    except Exception as db_exc:
+                        print(f"Failed to persist Search Console enrichment to DB: {db_exc}")
+            elif status == 'skipped':
+                sync_payload = {
+                    'gscLastSyncStatus': f"skipped:{summary.get('reason', 'unknown')}",
+                    'gscLastSyncError': '',
+                }
+                if inspection:
+                    sync_payload.update(
+                        {
+                            'gscLastInspectionAt': inspection.get('last_inspection_at', ''),
+                            'gscLastInspectionStatus': inspection.get('status', ''),
+                            'gscLastInspectionError': inspection.get('error', ''),
+                        }
+                    )
+            else:
+                sync_payload = {
+                    'gscLastSyncStatus': status,
+                    'gscLastSyncError': summary.get('error', ''),
+                    'gscLastInspectionAt': inspection.get('last_inspection_at', ''),
+                    'gscLastInspectionStatus': inspection.get('status', ''),
+                    'gscLastInspectionError': inspection.get('error', ''),
+                }
+
+            settings_manager.save_settings(sync_payload)
+            print(f"Search Console enrichment complete: {summary}")
+        except Exception as exc:
+            with self.stats_lock:
+                self.stats['gsc_sync'] = {'status': 'error', 'error': str(exc)}
+                self.stats['gsc_inspection_sync'] = {'status': 'error', 'error': str(exc)}
+            settings_manager.save_settings(
+                {
+                    'gscLastSyncStatus': 'error',
+                    'gscLastSyncError': str(exc),
+                    'gscLastInspectionStatus': 'error',
+                    'gscLastInspectionError': str(exc),
+                }
+            )
+            print(f"Search Console enrichment failed: {exc}")
 
     def _run_pagespeed_analysis(self):
         """Run PageSpeed analysis on selected pages"""

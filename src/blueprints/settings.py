@@ -35,6 +35,7 @@ def get_settings():
         # Never expose OAuth tokens in the generic settings response.
         settings = dict(settings)
         settings.pop('ga4OauthTokens', None)
+        settings.pop('gscOauthTokens', None)
         return jsonify({'success': True, 'settings': settings})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})

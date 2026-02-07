@@ -418,6 +418,9 @@ async function initializeApp() {
             if (window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
                 window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
             }
+            if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.renderSearchConsoleTab === 'function') {
+                window.SearchConsoleConfig.renderSearchConsoleTab(crawlState.urls, crawlState.stats);
+            }
 
             // Check if the crawl is currently running (resumed from dashboard)
             if (data.status === 'running') {
@@ -607,6 +610,9 @@ function clearCrawlData() {
     if (window.GA4Config && typeof window.GA4Config.clearAnalyticsTab === 'function') {
         window.GA4Config.clearAnalyticsTab();
     }
+    if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.clearSearchConsoleTab === 'function') {
+        window.SearchConsoleConfig.clearSearchConsoleTab();
+    }
 
     // Notify plugins of data clear (send empty data)
     if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
@@ -648,9 +654,12 @@ function startPythonCrawl(url) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                updateStatus('Crawling in progress...');
+                updateStatus(getCrawlProgressStatusText(crawlState.stats));
                 if (data.ga4_discovery && data.ga4_discovery.urls_added > 0) {
                     showNotification(`GA4 added ${data.ga4_discovery.urls_added} URLs before crawl start`, 'info');
+                }
+                if (data.gsc_discovery && data.gsc_discovery.urls_added > 0) {
+                    showNotification(`Search Console added ${data.gsc_discovery.urls_added} URLs before crawl start`, 'info');
                 }
                 // Refresh user info to update crawl count
                 loadUserInfo();
@@ -697,7 +706,7 @@ function pollCrawlProgress() {
             if (data.is_running_pagespeed) {
                 updateStatus('Running PageSpeed analysis...');
             } else if (data.status === 'running') {
-                updateStatus('Crawling in progress...');
+                updateStatus(getCrawlProgressStatusText(data.stats || crawlState.stats));
             }
 
             // Update visualization if visualization tab is active
@@ -830,6 +839,9 @@ function updateCrawlData(data) {
     if (window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
         window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
     }
+    if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.renderSearchConsoleTab === 'function') {
+        window.SearchConsoleConfig.renderSearchConsoleTab(crawlState.urls, crawlState.stats);
+    }
 }
 
 function updateProgressText(data) {
@@ -841,16 +853,17 @@ function updateProgressText(data) {
     } else if (data.status === 'completed') {
         statusText.textContent = 'Crawl completed';
     } else if (data.status === 'running') {
-        const stats = data.stats || crawlState.stats;
-        if (stats.crawled === 0) {
-            statusText.textContent = 'Starting crawl...';
-        } else if (stats.discovered > stats.crawled) {
-            statusText.textContent = `Crawling in progress... (${stats.crawled}/${stats.discovered} URLs)`;
-        } else {
-            statusText.textContent = `Finishing up... (${stats.crawled} URLs crawled)`;
-        }
+        statusText.textContent = getCrawlProgressStatusText(data.stats || crawlState.stats);
     }
     // Don't update statusText when not running - let updateStatus handle that
+}
+
+function getCrawlProgressStatusText(stats) {
+    const crawled = Number(stats?.crawled || 0);
+    const discovered = Number(stats?.discovered || 0);
+    const crawledText = Number.isFinite(crawled) ? crawled.toLocaleString() : '0';
+    const discoveredText = Number.isFinite(discovered) ? discovered.toLocaleString() : '0';
+    return `Crawling in progress... Scraped: ${crawledText} URLs | Found: ${discoveredText} URLs`;
 }
 
 function updateStatsDisplay() {
@@ -1161,6 +1174,10 @@ function getColumnValue(urlData, columnId) {
         case 'ga4_key_events': return urlData.analytics?.ga4_key_events ?? urlData.analytics?.ga4?.metrics?.keyEvents ?? '-';
         case 'ga4_event_count': return urlData.analytics?.ga4_event_count ?? urlData.analytics?.ga4?.metrics?.eventCount ?? '-';
         case 'ga4_total_revenue': return urlData.analytics?.ga4_total_revenue ?? urlData.analytics?.ga4?.metrics?.totalRevenue ?? '-';
+        case 'sc_clicks': return urlData.analytics?.sc_clicks ?? urlData.analytics?.search_console?.metrics?.clicks ?? '-';
+        case 'sc_impressions': return urlData.analytics?.sc_impressions ?? urlData.analytics?.search_console?.metrics?.impressions ?? '-';
+        case 'sc_ctr': return urlData.analytics?.sc_ctr ?? urlData.analytics?.search_console?.metrics?.ctr ?? '-';
+        case 'sc_position': return urlData.analytics?.sc_position ?? urlData.analytics?.search_console?.metrics?.position ?? '-';
         case 'json_ld_count': return Array.isArray(urlData.json_ld) ? urlData.json_ld.length : 0;
         case 'in_sitemap': return urlData.in_sitemap ? 'Yes' : 'No';
         default:
@@ -1575,6 +1592,9 @@ function switchTab(tabName) {
 
     if (tabName === 'analytics' && window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
         window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
+    }
+    if (tabName === 'search-console' && window.SearchConsoleConfig && typeof window.SearchConsoleConfig.renderSearchConsoleTab === 'function') {
+        window.SearchConsoleConfig.renderSearchConsoleTab(crawlState.urls, crawlState.stats);
     }
 
     // Initialize visualization if switching to Visualization tab
@@ -2368,6 +2388,39 @@ function populateUrlDetailsPanel(urlData) {
         if (urlData.analytics.facebook_pixel) analyticsItems.push('FB Pixel');
         if (analyticsItems.length > 0) {
             details.push({ property: 'Analytics', value: analyticsItems.join(', '), notes: '' });
+        }
+
+        const scMetrics = urlData.analytics.search_console?.metrics || {};
+        if (Object.keys(scMetrics).length > 0 || urlData.analytics.sc_clicks !== undefined) {
+            const clicks = urlData.analytics.sc_clicks ?? scMetrics.clicks ?? '-';
+            const impressions = urlData.analytics.sc_impressions ?? scMetrics.impressions ?? '-';
+            const ctr = urlData.analytics.sc_ctr ?? scMetrics.ctr ?? '-';
+            const position = urlData.analytics.sc_position ?? scMetrics.position ?? '-';
+            details.push({ property: 'Search Console Clicks', value: clicks, notes: '' });
+            details.push({ property: 'Search Console Impressions', value: impressions, notes: '' });
+            details.push({ property: 'Search Console CTR', value: ctr, notes: '' });
+            details.push({ property: 'Search Console Position', value: position, notes: '' });
+        }
+
+        const inspection = urlData.analytics.search_console?.inspection;
+        if (inspection && typeof inspection === 'object') {
+            details.push({
+                property: 'Search Console Inspection',
+                value: inspection.status || '-',
+                notes: inspection.verdict || inspection.error || ''
+            });
+            if (inspection.coverage_state) {
+                details.push({ property: 'Inspection Coverage', value: inspection.coverage_state, notes: '' });
+            }
+            if (inspection.indexing_state) {
+                details.push({ property: 'Inspection Indexing', value: inspection.indexing_state, notes: '' });
+            }
+            if (inspection.google_canonical) {
+                details.push({ property: 'Google Canonical', value: inspection.google_canonical, notes: '' });
+            }
+            if (inspection.user_canonical) {
+                details.push({ property: 'User Canonical', value: inspection.user_canonical, notes: '' });
+            }
         }
     }
 
@@ -3376,9 +3429,12 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                updateStatus('Crawling in progress...');
+                updateStatus(getCrawlProgressStatusText(crawlState.stats));
                 if (data.ga4_discovery && data.ga4_discovery.urls_added > 0) {
                     showNotification(`GA4 added ${data.ga4_discovery.urls_added} URLs before crawl start`, 'info');
+                }
+                if (data.gsc_discovery && data.gsc_discovery.urls_added > 0) {
+                    showNotification(`Search Console added ${data.gsc_discovery.urls_added} URLs before crawl start`, 'info');
                 }
                 loadUserInfo();
                 pollCrawlProgress();
@@ -3508,6 +3564,9 @@ function showConfigPanel(panelId) {
 
     if (panelId === 'google-analytics' && window.GA4Config && typeof window.GA4Config.onPanelVisible === 'function') {
         window.GA4Config.onPanelVisible();
+    }
+    if (panelId === 'search-console' && window.SearchConsoleConfig && typeof window.SearchConsoleConfig.onPanelVisible === 'function') {
+        window.SearchConsoleConfig.onPanelVisible();
     }
 }
 
@@ -3749,6 +3808,9 @@ function loadCrawlConfigValues() {
         if (window.GA4Config && typeof window.GA4Config.loadFromSettings === 'function') {
             window.GA4Config.loadFromSettings(currentSettings);
         }
+        if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.loadFromSettings === 'function') {
+            window.SearchConsoleConfig.loadFromSettings(currentSettings);
+        }
     }
 }
 
@@ -3916,6 +3978,9 @@ function saveCrawlConfig() {
     const ga4Settings = (window.GA4Config && typeof window.GA4Config.collectSettings === 'function')
         ? window.GA4Config.collectSettings()
         : {};
+    const gscSettings = (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.collectSettings === 'function')
+        ? window.SearchConsoleConfig.collectSettings()
+        : {};
 
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
@@ -4025,7 +4090,9 @@ function saveCrawlConfig() {
         excludePatterns: document.getElementById('excludePatterns')?.value || '',
 
         // GA4 settings
-        ...ga4Settings
+        ...ga4Settings,
+        // Search Console settings
+        ...gscSettings
     };
 
     // Save HTTP headers and content area separately

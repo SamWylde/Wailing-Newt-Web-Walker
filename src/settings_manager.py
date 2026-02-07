@@ -58,7 +58,21 @@ class SettingsManager:
             'ga4MatchTrailingSlash', 'ga4MatchCase',
             'ga4LimitMaxResults', 'ga4MaxResults',
             'ga4CrawlNewUrls', 'ga4OauthTokens',
-            'ga4LastSyncAt', 'ga4LastSyncStatus', 'ga4LastSyncError'
+            'ga4LastSyncAt', 'ga4LastSyncStatus', 'ga4LastSyncError',
+            # Search Console settings (available for all logged-in users)
+            'gscEnabled', 'gscConnected',
+            'gscSiteUrl', 'gscSiteName',
+            'gscDateRangePreset', 'gscDateStart', 'gscDateEnd',
+            'gscDeviceFilter', 'gscCountryFilter', 'gscTypeFilter',
+            'gscQueryFilterOperator', 'gscQueryFilterValue',
+            'gscMatchTrailingSlash', 'gscMatchCase',
+            'gscLimitMaxResults', 'gscMaxResults',
+            'gscCrawlNewUrls',
+            'gscEnableUrlInspection', 'gscIgnoreNonIndexableUrls', 'gscUseMultipleProperties',
+            'gscInspectionLanguageCode', 'gscInspectionMaxUrls',
+            'gscOauthTokens',
+            'gscLastSyncAt', 'gscLastSyncStatus', 'gscLastSyncError',
+            'gscLastInspectionAt', 'gscLastInspectionStatus', 'gscLastInspectionError'
         ]
 
         # extra: all in user + Filters, Requests, Custom CSS, JavaScript tabs
@@ -240,7 +254,9 @@ class SettingsManager:
                 'jsViewportHeight': (600, 3000),
                 'jsMaxConcurrentPages': (1, 10),
                 'duplicationThreshold': (0.0, 1.0),
-                'ga4MaxResults': (1, 1000000)
+                'ga4MaxResults': (1, 1000000),
+                'gscMaxResults': (1, 1000000),
+                'gscInspectionMaxUrls': (1, 2000),
             }
 
             for key, (min_val, max_val) in numeric_validations.items():
@@ -501,6 +517,37 @@ class SettingsManager:
             'ga4_last_sync_at': settings.get('ga4LastSyncAt', ''),
             'ga4_last_sync_status': settings.get('ga4LastSyncStatus', ''),
             'ga4_last_sync_error': settings.get('ga4LastSyncError', ''),
+
+            # Google Search Console settings
+            'gsc_enabled': settings.get('gscEnabled', False),
+            'gsc_connected': settings.get('gscConnected', False),
+            'gsc_site_url': settings.get('gscSiteUrl', ''),
+            'gsc_site_name': settings.get('gscSiteName', ''),
+            'gsc_date_range_preset': settings.get('gscDateRangePreset', 'last_30_days'),
+            'gsc_date_start': settings.get('gscDateStart', ''),
+            'gsc_date_end': settings.get('gscDateEnd', ''),
+            'gsc_device_filter': settings.get('gscDeviceFilter', 'all'),
+            'gsc_country_filter': settings.get('gscCountryFilter', ''),
+            'gsc_type_filter': settings.get('gscTypeFilter', 'web'),
+            'gsc_query_filter_operator': settings.get('gscQueryFilterOperator', 'none'),
+            'gsc_query_filter_value': settings.get('gscQueryFilterValue', ''),
+            'gsc_match_trailing_slash': settings.get('gscMatchTrailingSlash', True),
+            'gsc_match_case': settings.get('gscMatchCase', False),
+            'gsc_limit_max_results': settings.get('gscLimitMaxResults', True),
+            'gsc_max_results': settings.get('gscMaxResults', 100000),
+            'gsc_crawl_new_urls': settings.get('gscCrawlNewUrls', False),
+            'gsc_enable_url_inspection': settings.get('gscEnableUrlInspection', False),
+            'gsc_ignore_non_indexable_urls': settings.get('gscIgnoreNonIndexableUrls', False),
+            'gsc_use_multiple_properties': settings.get('gscUseMultipleProperties', False),
+            'gsc_inspection_language_code': settings.get('gscInspectionLanguageCode', 'en-US'),
+            'gsc_inspection_max_urls': settings.get('gscInspectionMaxUrls', 200),
+            'gsc_oauth_tokens': settings.get('gscOauthTokens', {}),
+            'gsc_last_sync_at': settings.get('gscLastSyncAt', ''),
+            'gsc_last_sync_status': settings.get('gscLastSyncStatus', ''),
+            'gsc_last_sync_error': settings.get('gscLastSyncError', ''),
+            'gsc_last_inspection_at': settings.get('gscLastInspectionAt', ''),
+            'gsc_last_inspection_status': settings.get('gscLastInspectionStatus', ''),
+            'gsc_last_inspection_error': settings.get('gscLastInspectionError', ''),
         }
 
     def _parse_custom_headers(self, headers_text):

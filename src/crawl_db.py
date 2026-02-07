@@ -559,6 +559,7 @@ def load_crawled_urls(crawl_id, limit=None, offset=0):
                 # Mirror GA4 block at top-level for easier consumers.
                 if isinstance(url_data.get('analytics'), dict):
                     url_data['ga4'] = url_data['analytics'].get('ga4', {})
+                    url_data['search_console'] = url_data['analytics'].get('search_console', {})
 
                 urls.append(url_data)
 

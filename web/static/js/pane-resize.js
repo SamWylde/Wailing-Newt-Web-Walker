@@ -49,6 +49,20 @@
             splitPane.style.setProperty('--details-pane-height', `${clamped}px`);
         };
 
+        const readCssPixelValue = (propertyName, fallbackValue) => {
+            const value = getComputedStyle(splitPane).getPropertyValue(propertyName).trim();
+            const parsed = Number.parseFloat(value.replace('px', ''));
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+            }
+            return fallbackValue;
+        };
+
+        const clampCurrentPaneSizes = () => {
+            applyDetailWidth(readCssPixelValue('--detail-pane-width', minDetailWidth));
+            applyDetailsHeight(readCssPixelValue('--details-pane-height', minDetailsHeight));
+        };
+
         const savedWidth = Number(localStorage.getItem(widthStorageKey));
         if (!Number.isNaN(savedWidth) && savedWidth > 0) {
             applyDetailWidth(savedWidth);
@@ -58,6 +72,8 @@
         if (!Number.isNaN(savedHeight) && savedHeight > 0) {
             applyDetailsHeight(savedHeight);
         }
+
+        clampCurrentPaneSizes();
 
         let isResizing = false;
         let resizeAxis = null;
@@ -146,6 +162,10 @@
             verticalHandle.classList.remove('resizing');
             horizontalHandle.classList.remove('resizing');
             stopResize();
+        });
+
+        window.addEventListener('resize', () => {
+            clampCurrentPaneSizes();
         });
     });
 })();

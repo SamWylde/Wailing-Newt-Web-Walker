@@ -279,16 +279,20 @@ Click "Settings" to configure:
 
 For PageSpeed analysis, add a Google API key in Settings > Requests for higher rate limits (25k/day vs limited).
 
-### Google Analytics 4 setup (local)
+### Google API setup (GA4 + Search Console, local)
 
-To enable GA4 integration in Crawl Config > API Access > Google Analytics:
+To enable Google Analytics and Search Console integrations in Crawl Config > API Access:
 
-1. Create a Google OAuth client (Desktop/Web) in Google Cloud.
-2. Add a redirect URI for your local app, for example:
+1. Open Crawl Config > API Access > Google Analytics and use the in-app setup card.
+2. In Google Cloud, create a Google OAuth client (Desktop/Web).
+3. Add local redirect URIs for your app:
    - `http://localhost:5000/api/ga4/oauth/callback`
-3. Configure credentials with either:
-   - `.env` variables: `GA4_OAUTH_CLIENT_ID`, `GA4_OAUTH_CLIENT_SECRET`, `GA4_OAUTH_REDIRECT_URI`
-   - or fallback file: `ga4_oauth.local.json` at project root:
+   - `http://localhost:5000/api/search_console/oauth/callback`
+4. Paste Client ID and Client Secret into the app and click Save setup.
+
+Advanced/manual option (shared by GA4 and Search Console):
+- `.env` variables: `GA4_OAUTH_CLIENT_ID`, `GA4_OAUTH_CLIENT_SECRET`, `GA4_OAUTH_REDIRECT_URI`
+- or fallback file: `ga4_oauth.local.json` at project root:
 
 ```json
 {

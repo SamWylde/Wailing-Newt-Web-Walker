@@ -69,6 +69,15 @@
             last_sync_status: '',
             last_sync_error: ''
         },
+        setupSnapshot: {
+            setup_required: false,
+            has_credentials: false,
+            credential_source: 'none',
+            suggested_redirect_uri: '',
+            config_path: 'ga4_oauth.local.json',
+            setup_error: '',
+            setup_steps: []
+        },
         oauthPollTimer: null,
         initialized: false,
 
@@ -124,6 +133,23 @@
             const disconnectBtn = document.getElementById('ga4DisconnectBtn');
             if (disconnectBtn) {
                 disconnectBtn.addEventListener('click', () => this.disconnectOAuth());
+            }
+
+            const copyRedirectBtn = document.getElementById('ga4CopyRedirectUriBtn');
+            if (copyRedirectBtn) {
+                copyRedirectBtn.addEventListener('click', () => this.copyRedirectUri());
+            }
+
+            const saveSetupBtn = document.getElementById('ga4SaveSetupBtn');
+            if (saveSetupBtn) {
+                saveSetupBtn.addEventListener('click', () => this.saveOAuthSetup());
+            }
+
+            const redirectInput = document.getElementById('ga4SetupRedirectUri');
+            if (redirectInput) {
+                redirectInput.addEventListener('input', () => {
+                    redirectInput.dataset.autofill = 'false';
+                });
             }
 
             const accountSelect = document.getElementById('ga4AccountSelect');
@@ -291,6 +317,7 @@
                 last_sync_status: status.last_sync_status || '',
                 last_sync_error: status.last_sync_error || ''
             };
+            this.updateSetupUI();
             this.updateConnectionUI(status);
             this.updateSyncSummary(status);
         },
@@ -443,6 +470,169 @@
             }
         },
 
+        applySetupStatus: function (status) {
+            const fallbackRedirect = `${window.location.origin}/api/ga4/oauth/callback`;
+            const hasSetupRequired = typeof status?.setup_required === 'boolean'
+                ? status.setup_required
+                : this.setupSnapshot.setup_required;
+            const hasCredentials = typeof status?.has_credentials === 'boolean'
+                ? status.has_credentials
+                : this.setupSnapshot.has_credentials;
+            this.setupSnapshot = {
+                setup_required: !!hasSetupRequired,
+                has_credentials: !!hasCredentials,
+                credential_source: status?.credential_source || this.setupSnapshot.credential_source || 'none',
+                suggested_redirect_uri: status?.suggested_redirect_uri || this.setupSnapshot.suggested_redirect_uri || fallbackRedirect,
+                config_path: status?.config_path || this.setupSnapshot.config_path || 'ga4_oauth.local.json',
+                setup_error: status?.setup_error || this.setupSnapshot.setup_error || '',
+                setup_steps: Array.isArray(status?.setup_steps) ? status.setup_steps.slice() : (this.setupSnapshot.setup_steps || [])
+            };
+
+            this.updateSetupUI();
+        },
+
+        updateSetupUI: function () {
+            const setupCard = document.getElementById('ga4SetupCard');
+            const setupSteps = document.getElementById('ga4SetupSteps');
+            const redirectInput = document.getElementById('ga4SetupRedirectUri');
+            const statusEl = document.getElementById('ga4SetupStatusText');
+            const pathHint = document.getElementById('ga4SetupPathHint');
+
+            if (setupCard) {
+                setupCard.style.display = this.setupSnapshot.setup_required ? 'block' : 'none';
+            }
+
+            if (setupSteps) {
+                const steps = this.setupSnapshot.setup_steps && this.setupSnapshot.setup_steps.length > 0
+                    ? this.setupSnapshot.setup_steps
+                    : [
+                        'Open Google Cloud Console and create an OAuth 2.0 Client ID.',
+                        'Add the Redirect URI shown below in Google Cloud Console.',
+                        'Paste your Client ID and Client Secret below, then click Save setup.'
+                    ];
+                setupSteps.innerHTML = steps.map((step) => `<li>${this.escapeText(step)}</li>`).join('');
+            }
+
+            if (redirectInput) {
+                const shouldAutofill = !redirectInput.value || redirectInput.dataset.autofill !== 'false';
+                if (shouldAutofill) {
+                    redirectInput.value = this.setupSnapshot.suggested_redirect_uri || `${window.location.origin}/api/ga4/oauth/callback`;
+                    redirectInput.dataset.autofill = 'true';
+                }
+            }
+
+            if (pathHint) {
+                pathHint.textContent = `Credentials are saved locally to ${this.setupSnapshot.config_path}.`;
+            }
+
+            if (!this.setupSnapshot.setup_required && statusEl) {
+                statusEl.textContent = '';
+                statusEl.className = 'ga4-setup-status';
+            } else if (this.setupSnapshot.setup_required && this.setupSnapshot.setup_error) {
+                this.setSetupStatusMessage(this.setupSnapshot.setup_error, 'error');
+            }
+        },
+
+        setSetupStatusMessage: function (message, level) {
+            const statusEl = document.getElementById('ga4SetupStatusText');
+            if (!statusEl) {
+                return;
+            }
+
+            const normalizedLevel = ['success', 'error', 'info'].includes(level) ? level : 'info';
+            statusEl.textContent = message || '';
+            statusEl.className = `ga4-setup-status ${normalizedLevel}`.trim();
+        },
+
+        copyToClipboard: async function (text) {
+            const value = String(text || '');
+            if (!value) {
+                return false;
+            }
+
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                try {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                } catch (error) {
+                    console.debug('Clipboard API write failed, using fallback copy', error);
+                }
+            }
+
+            const tempInput = document.createElement('textarea');
+            tempInput.value = value;
+            tempInput.setAttribute('readonly', 'readonly');
+            tempInput.style.position = 'fixed';
+            tempInput.style.left = '-9999px';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            let copied = false;
+            try {
+                copied = document.execCommand('copy');
+            } catch (error) {
+                copied = false;
+            }
+            document.body.removeChild(tempInput);
+            return copied;
+        },
+
+        copyRedirectUri: async function () {
+            const redirectInput = document.getElementById('ga4SetupRedirectUri');
+            const value = redirectInput?.value || this.setupSnapshot.suggested_redirect_uri;
+            const copied = await this.copyToClipboard(value);
+            if (copied) {
+                this.setSetupStatusMessage('Redirect URI copied.', 'success');
+            } else {
+                this.setSetupStatusMessage('Copy failed. Please copy the Redirect URI manually.', 'error');
+            }
+        },
+
+        saveOAuthSetup: async function () {
+            const clientId = document.getElementById('ga4SetupClientId')?.value?.trim() || '';
+            const clientSecret = document.getElementById('ga4SetupClientSecret')?.value?.trim() || '';
+            const redirectUri = document.getElementById('ga4SetupRedirectUri')?.value?.trim() || '';
+
+            if (!clientId || !clientSecret) {
+                this.setSetupStatusMessage('Enter both Client ID and Client Secret to continue.', 'error');
+                return;
+            }
+            if (!redirectUri) {
+                this.setSetupStatusMessage('Redirect URI is required.', 'error');
+                return;
+            }
+
+            this.setSetupStatusMessage('Saving setup...', 'info');
+            try {
+                const response = await fetch('/api/ga4/oauth/configure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        redirect_uri: redirectUri
+                    })
+                });
+                const payload = await response.json();
+                this.applySetupStatus(payload);
+
+                if (!payload.success) {
+                    this.setSetupStatusMessage(payload.error || 'Could not save setup.', 'error');
+                    return;
+                }
+
+                const secretInput = document.getElementById('ga4SetupClientSecret');
+                if (secretInput) {
+                    secretInput.value = '';
+                }
+                this.setSetupStatusMessage('Setup saved. Opening Google sign-in...', 'success');
+                showNotification('Setup saved. Continue in the Google sign-in window.', 'success');
+                await this.startOAuth();
+            } catch (error) {
+                console.error('Failed to save GA4 setup', error);
+                this.setSetupStatusMessage('Could not save setup. Please try again.', 'error');
+            }
+        },
+
         onPanelVisible: async function () {
             const status = await this.refreshOAuthStatus(true);
             if (status?.connected) {
@@ -454,10 +644,21 @@
                 const response = await fetch('/api/ga4/oauth/start');
                 const payload = await response.json();
                 if (!payload.success) {
+                    this.applySetupStatus(payload);
+                    if (payload.setup_required) {
+                        this.switchSubtab('account');
+                        this.setSetupStatusMessage(
+                            payload.setup_error || 'Complete the one-time setup above, then try sign-in again.',
+                            payload.setup_error ? 'error' : 'info'
+                        );
+                        showNotification('Google sign-in needs one-time setup. Follow the steps in Account Information.', 'info');
+                        return;
+                    }
                     showNotification(payload.error || 'Failed to start Google sign-in', 'error');
                     return;
                 }
 
+                this.applySetupStatus(payload);
                 const opened = window.open(payload.auth_url, '_blank');
                 if (!opened) {
                     window.location.href = payload.auth_url;
@@ -507,6 +708,7 @@
                     last_sync_status: payload.last_sync_status || '',
                     last_sync_error: payload.last_sync_error || ''
                 };
+                this.applySetupStatus(payload);
                 this.updateConnectionUI(payload);
                 this.updateSyncSummary(payload);
 
@@ -533,11 +735,25 @@
 
             const connectBtn = document.getElementById('ga4ConnectBtn');
             const disconnectBtn = document.getElementById('ga4DisconnectBtn');
+            const accountSelect = document.getElementById('ga4AccountSelect');
+            const propertySelect = document.getElementById('ga4PropertySelect');
+            const streamSelect = document.getElementById('ga4StreamSelect');
+            const needsSetup = !!this.setupSnapshot.setup_required;
             if (connectBtn) {
                 connectBtn.disabled = !!status.connected;
+                connectBtn.textContent = needsSetup ? 'Set up and Sign in with Google' : 'Sign in with Google';
             }
             if (disconnectBtn) {
                 disconnectBtn.disabled = !status.connected;
+            }
+            if (accountSelect) {
+                accountSelect.disabled = !status.connected;
+            }
+            if (propertySelect) {
+                propertySelect.disabled = !status.connected;
+            }
+            if (streamSelect) {
+                streamSelect.disabled = !status.connected;
             }
         },
 
