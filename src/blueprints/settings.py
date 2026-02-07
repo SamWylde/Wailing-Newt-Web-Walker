@@ -32,6 +32,9 @@ def get_settings():
     try:
         settings_manager = get_session_settings()
         settings = settings_manager.get_settings()
+        # Never expose OAuth tokens in the generic settings response.
+        settings = dict(settings)
+        settings.pop('ga4OauthTokens', None)
         return jsonify({'success': True, 'settings': settings})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -71,3 +74,40 @@ def update_crawler_settings():
         return jsonify({'success': True, 'message': 'Crawler settings updated'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@settings_bp.route('/api/encrypt_auth', methods=['POST'])
+@login_required
+def encrypt_auth():
+    """Encrypt authentication data for secure export"""
+    try:
+        from src.core.credential_encryption import encrypt_auth_data
+        data = request.get_json()
+        
+        result = {
+            'authStandardsData': encrypt_auth_data(data.get('authStandardsData', [])),
+            'authFormsData': encrypt_auth_data(data.get('authFormsData', []))
+        }
+        
+        return jsonify({'success': True, 'data': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@settings_bp.route('/api/decrypt_auth', methods=['POST'])
+@login_required
+def decrypt_auth():
+    """Decrypt authentication data from imported profile"""
+    try:
+        from src.core.credential_encryption import decrypt_auth_data
+        data = request.get_json()
+        
+        result = {
+            'authStandardsData': decrypt_auth_data(data.get('authStandardsData', [])),
+            'authFormsData': decrypt_auth_data(data.get('authFormsData', []))
+        }
+        
+        return jsonify({'success': True, 'data': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+

@@ -30,26 +30,87 @@ class SettingsManager:
             # Crawler tab
             'maxDepth', 'maxUrls', 'crawlDelay', 'followRedirects', 'crawlExternalLinks',
             'maxThreads', 'limitUrlsPerSecond', 'maxUrlsPerSecond',
+            'maxFileSize', 'respectCrawlDelay', 'timeout', 'retries',
+            # Crawl Panel - Resource Links
+            'crawlImages', 'storeImages', 'crawlMedia', 'storeMedia',
+            'crawlCSS', 'storeCSS', 'crawlJS', 'storeJS', 'crawlSWF', 'storeSWF',
+            # Crawl Panel - Crawl Behaviour
+            'checkLinksOutside', 'crawlOutside', 'crawlSubdomains',
+            'followInternalNofollow', 'followExternalNofollow',
+            # Crawl Panel - Page Links
+            'crawlInternal', 'storeInternal', 'crawlExternal', 'storeExternal',
+            'crawlCanonicals', 'storeCanonicals', 'crawlPagination', 'storePagination',
+            'crawlHreflang', 'storeHreflang',
+            # Crawl Panel - XML Sitemaps
+            'crawlSitemaps', 'autoDiscoverSitemaps', 'crawlTheseSitemaps', 'sitemapUrls',
             # Export tab
             'exportFormat', 'exportFields',
             # Issues tab
-            'issueExclusionPatterns'
+            'issueExclusionPatterns',
+            # GA4 settings (available for all logged-in users)
+            'ga4Enabled', 'ga4Connected',
+            'ga4AccountId', 'ga4AccountName',
+            'ga4PropertyId', 'ga4PropertyName',
+            'ga4DataStreamId', 'ga4DataStreamName',
+            'ga4DateRangePreset', 'ga4DateStart', 'ga4DateEnd',
+            'ga4SelectedMetrics', 'ga4MetricDimensions',
+            'ga4FilterDimensionType', 'ga4FilterValue',
+            'ga4MatchTrailingSlash', 'ga4MatchCase',
+            'ga4LimitMaxResults', 'ga4MaxResults',
+            'ga4CrawlNewUrls', 'ga4OauthTokens',
+            'ga4LastSyncAt', 'ga4LastSyncStatus', 'ga4LastSyncError'
         ]
 
         # extra: all in user + Filters, Requests, Custom CSS, JavaScript tabs
-        # NOTE: Advanced tab settings (concurrency, memoryLimit, logLevel, saveSession,
-        #       enableProxy, proxyUrl, customHeaders) are ADMIN ONLY
         extra_settings = user_settings + [
             # Requests tab
             'userAgent', 'timeout', 'retries', 'acceptLanguage', 'respectRobotsTxt', 'allowCookies',
-            'discoverSitemaps', 'enablePageSpeed', 'googleApiKey',
+            'discoverSitemaps', 'enablePageSpeed', 'googleApiKey', 'robotsUserAgent',
+            # Robots.txt settings
+            'robotsMode', 'showInternalBlocked', 'showExternalBlocked',
             # Filters tab
             'includeExtensions', 'excludeExtensions', 'includePatterns', 'excludePatterns', 'maxFileSize',
+            # Extraction Panel
+            'extractPageTitle', 'extractMetaDescription', 'extractMetaKeywords',
+            'extractH1', 'extractH2', 'extractIndexability', 'extractWordCount',
+            'extractReadability', 'extractTextCodeRatio', 'extractHashValue',
+            'extractPageSize', 'extractForms', 'extractAccessibility',
+            'extractResponseTime', 'extractLastModified', 'extractHTTPHeaders',
+            'extractCookies', 'extractMetaRobots', 'extractXRobotsTag',
+            'extractJSONLD', 'extractMicrodata', 'extractRDFa',
+            'extractSchemaValidation', 'extractGoogleRichResult', 'extractCaseSensitive',
+            'extractStoreHTML', 'extractStoreRenderedHTML',
+            'extractStorePDF', 'extractPDFProperties', 'extractPDFLinkText',
+            # Limits Panel
+            'limitCrawlTotal', 'limitCrawlTotalValue',
+            'limitCrawlDepth', 'limitCrawlDepthValue',
+            'limitUrlsPerDepth', 'limitUrlsPerDepthValue',
+            'limitMaxFolderDepth', 'limitMaxFolderDepthValue',
+            'limitQueryStrings', 'limitQueryStringsValue',
+            'limitCrawlPerSubdomain', 'limitCrawlPerSubdomainValue',
+            'limitMaxRedirects', 'limitMaxUrlLength', 'limitMaxLinksPerUrl', 'limitMaxPageSize',
             # JavaScript tab
             'enableJavaScript', 'jsWaitTime', 'jsTimeout', 'jsBrowser', 'jsHeadless',
             'jsUserAgent', 'jsViewportWidth', 'jsViewportHeight', 'jsMaxConcurrentPages',
+            # Advanced Panel
+            'advCookieStorage', 'advIgnoreNonIndexable', 'advIgnorePaginated',
+            'advAlwaysFollowRedirects', 'advAlwaysFollowCanonicals',
+            'advRespectNoindex', 'advRespectCanonicals', 'advRespectNextPrev', 'advRespectHSTS',
+            'advRespectMetaRefresh', 'advExtractImagesSrcset', 'advCrawlFragments',
+            'advHTMLValidation', 'advGreenHosting', 'advAssumeHTML',
+            'advResponseTimeout', 'advResponseRetries',
+            # Preferences Panel
+            'prefTitlePixelsMin', 'prefTitlePixelsMax', 'prefTitleCharsMin', 'prefTitleCharsMax',
+            'prefMetaPixelsMin', 'prefMetaPixelsMax', 'prefMetaCharsMin', 'prefMetaCharsMax',
+            'prefHighExternalOutlinks', 'prefHighInternalOutlinks', 'prefHighCrawlDepth',
+            'prefNonDescriptiveAnchors', 'prefMaxUrlLength', 'prefMaxH1Length', 'prefMaxH2Length',
+            'prefMaxImageAltLength', 'prefMaxImageSizeKb', 'prefLowContentWordCount', 'prefSoft404Phrases',
             # Custom CSS tab
-            'customCSS'
+            'customCSS',
+            # HTTP Headers & Content Area
+            'httpHeaders', 'contentArea',
+            # Authentication settings
+            'authStandardsEnabled', 'authStandardsData', 'authFormsData'
         ]
 
         # admin: all settings including Advanced tab
@@ -178,7 +239,8 @@ class SettingsManager:
                 'jsViewportWidth': (800, 4000),
                 'jsViewportHeight': (600, 3000),
                 'jsMaxConcurrentPages': (1, 10),
-                'duplicationThreshold': (0.0, 1.0)
+                'duplicationThreshold': (0.0, 1.0),
+                'ga4MaxResults': (1, 1000000)
             }
 
             for key, (min_val, max_val) in numeric_validations.items():
@@ -235,8 +297,8 @@ class SettingsManager:
             'allow_cookies': settings['allowCookies'],
             'include_extensions': [ext.strip() for ext in settings['includeExtensions'].split(',') if ext.strip()],
             'exclude_extensions': [ext.strip() for ext in settings['excludeExtensions'].split(',') if ext.strip()],
-            'include_patterns': [p.strip() for p in settings['includePatterns'].split('\n') if p.strip()],
-            'exclude_patterns': [p.strip() for p in settings['excludePatterns'].split('\n') if p.strip()],
+            'include_patterns': [p.strip() for p in settings['includePatterns'].split('\n') if p.strip() and not p.strip().startswith('#')],
+            'exclude_patterns': [p.strip() for p in settings['excludePatterns'].split('\n') if p.strip() and not p.strip().startswith('#')],
             'max_file_size': settings['maxFileSize'] * 1024 * 1024,  # Convert MB to bytes
             'concurrency': (
                 settings.get('concurrency', settings.get('maxThreads', 5))
@@ -270,7 +332,175 @@ class SettingsManager:
                 'excludeTags': ['nav', 'footer'],
                 'excludeClasses': [],
                 'excludeIds': []
-            })
+            }),
+
+            # === NEW SETTINGS ===
+
+            # Crawl Panel - Resource Links
+            'crawl_images': settings.get('crawlImages', True),
+            'store_images': settings.get('storeImages', True),
+            'crawl_media': settings.get('crawlMedia', False),
+            'store_media': settings.get('storeMedia', False),
+            'crawl_css': settings.get('crawlCSS', True),
+            'store_css': settings.get('storeCSS', True),
+            'crawl_js': settings.get('crawlJS', True),
+            'store_js': settings.get('storeJS', True),
+            'crawl_swf': settings.get('crawlSWF', True),
+            'store_swf': settings.get('storeSWF', True),
+
+            # Crawl Panel - Crawl Behaviour
+            'check_links_outside': settings.get('checkLinksOutside', True),
+            'crawl_outside': settings.get('crawlOutside', True),
+            'crawl_subdomains': settings.get('crawlSubdomains', True),
+            'follow_internal_nofollow': settings.get('followInternalNofollow', False),
+            'follow_external_nofollow': settings.get('followExternalNofollow', False),
+
+            # Crawl Panel - Page Links
+            'crawl_internal': settings.get('crawlInternal', True),
+            'store_internal': settings.get('storeInternal', True),
+            'crawl_external_links': settings.get('crawlExternal', True),
+            'store_external': settings.get('storeExternal', True),
+            'crawl_canonicals': settings.get('crawlCanonicals', True),
+            'store_canonicals': settings.get('storeCanonicals', True),
+            'crawl_pagination': settings.get('crawlPagination', False),
+            'store_pagination': settings.get('storePagination', True),
+            'crawl_hreflang': settings.get('crawlHreflang', False),
+            'store_hreflang': settings.get('storeHreflang', True),
+
+            # Crawl Panel - XML Sitemaps
+            'crawl_sitemaps': settings.get('crawlSitemaps', True),
+            'auto_discover_sitemaps': settings.get('autoDiscoverSitemaps', False),
+            'crawl_these_sitemaps': settings.get('crawlTheseSitemaps', False),
+            'sitemap_urls': [u.strip() for u in settings.get('sitemapUrls', '').split('\n') if u.strip()],
+
+            # Extraction settings
+            'extract_page_title': settings.get('extractPageTitle', True),
+            'extract_meta_description': settings.get('extractMetaDescription', True),
+            'extract_meta_keywords': settings.get('extractMetaKeywords', True),
+            'extract_h1': settings.get('extractH1', True),
+            'extract_h2': settings.get('extractH2', True),
+            'extract_indexability': settings.get('extractIndexability', True),
+            'extract_word_count': settings.get('extractWordCount', True),
+            'extract_readability': settings.get('extractReadability', True),
+            'extract_text_code_ratio': settings.get('extractTextCodeRatio', True),
+            'extract_hash_value': settings.get('extractHashValue', True),
+            'extract_page_size': settings.get('extractPageSize', True),
+            'extract_forms': settings.get('extractForms', True),
+            'extract_accessibility': settings.get('extractAccessibility', False),
+            'extract_response_time': settings.get('extractResponseTime', True),
+            'extract_last_modified': settings.get('extractLastModified', True),
+            'extract_http_headers': settings.get('extractHTTPHeaders', False),
+            'extract_cookies': settings.get('extractCookies', False),
+            'extract_meta_robots': settings.get('extractMetaRobots', True),
+            'extract_x_robots_tag': settings.get('extractXRobotsTag', True),
+            'extract_json_ld': settings.get('extractJSONLD', False),
+            'extract_microdata': settings.get('extractMicrodata', False),
+            'extract_rdfa': settings.get('extractRDFa', False),
+            'extract_schema_validation': settings.get('extractSchemaValidation', False),
+            'extract_google_rich_result': settings.get('extractGoogleRichResult', False),
+            'extract_case_sensitive': settings.get('extractCaseSensitive', False),
+            'extract_store_html': settings.get('extractStoreHTML', False),
+            'extract_store_rendered_html': settings.get('extractStoreRenderedHTML', False),
+            'extract_store_pdf': settings.get('extractStorePDF', False),
+            'extract_pdf_properties': settings.get('extractPDFProperties', False),
+            'extract_pdf_link_text': settings.get('extractPDFLinkText', False),
+
+            # Limits settings
+            'limit_crawl_total': settings.get('limitCrawlTotal', True),
+            'limit_crawl_total_value': settings.get('limitCrawlTotalValue', 500),
+            'limit_crawl_depth': settings.get('limitCrawlDepth', True),
+            'limit_crawl_depth_value': settings.get('limitCrawlDepthValue', 0),
+            'limit_urls_per_depth': settings.get('limitUrlsPerDepth', False),
+            'limit_urls_per_depth_value': settings.get('limitUrlsPerDepthValue', 1000),
+            'limit_max_folder_depth': settings.get('limitMaxFolderDepth', False),
+            'limit_max_folder_depth_value': settings.get('limitMaxFolderDepthValue', 5),
+            'limit_query_strings': settings.get('limitQueryStrings', False),
+            'limit_query_strings_value': settings.get('limitQueryStringsValue', 5),
+            'limit_crawl_per_subdomain': settings.get('limitCrawlPerSubdomain', False),
+            'limit_crawl_per_subdomain_value': settings.get('limitCrawlPerSubdomainValue', 1000),
+            'limit_max_redirects': settings.get('limitMaxRedirects', 10),
+            'limit_max_url_length': settings.get('limitMaxUrlLength', 10000),
+            'limit_max_links_per_url': settings.get('limitMaxLinksPerUrl', 10000),
+            'limit_max_page_size': settings.get('limitMaxPageSize', 50000) * 1024,  # Convert KB to bytes
+
+            # Advanced settings
+            'adv_cookie_storage': settings.get('advCookieStorage', 'session'),
+            'adv_ignore_non_indexable': settings.get('advIgnoreNonIndexable', True),
+            'adv_ignore_paginated': settings.get('advIgnorePaginated', True),
+            'adv_always_follow_redirects': settings.get('advAlwaysFollowRedirects', False),
+            'adv_always_follow_canonicals': settings.get('advAlwaysFollowCanonicals', False),
+            'adv_respect_noindex': settings.get('advRespectNoindex', False),
+            'adv_respect_canonicals': settings.get('advRespectCanonicals', False),
+            'adv_respect_next_prev': settings.get('advRespectNextPrev', False),
+            'adv_respect_hsts': settings.get('advRespectHSTS', False),
+            'adv_respect_meta_refresh': settings.get('advRespectMetaRefresh', False),
+            'adv_extract_images_srcset': settings.get('advExtractImagesSrcset', False),
+            'adv_crawl_fragments': settings.get('advCrawlFragments', False),
+            'adv_html_validation': settings.get('advHTMLValidation', True),
+            'adv_green_hosting': settings.get('advGreenHosting', False),
+            'adv_assume_html': settings.get('advAssumeHTML', False),
+            'adv_response_timeout': settings.get('advResponseTimeout', 20),
+            'adv_response_retries': settings.get('advResponseRetries', 0),
+
+            # Preferences - SEO thresholds
+            'pref_title_pixels_min': settings.get('prefTitlePixelsMin', 200),
+            'pref_title_pixels_max': settings.get('prefTitlePixelsMax', 561),
+            'pref_title_chars_min': settings.get('prefTitleCharsMin', 30),
+            'pref_title_chars_max': settings.get('prefTitleCharsMax', 60),
+            'pref_meta_pixels_min': settings.get('prefMetaPixelsMin', 400),
+            'pref_meta_pixels_max': settings.get('prefMetaPixelsMax', 585),
+            'pref_meta_chars_min': settings.get('prefMetaCharsMin', 70),
+            'pref_meta_chars_max': settings.get('prefMetaCharsMax', 155),
+            'pref_high_external_outlinks': settings.get('prefHighExternalOutlinks', 10),
+            'pref_high_internal_outlinks': settings.get('prefHighInternalOutlinks', 1000),
+            'pref_high_crawl_depth': settings.get('prefHighCrawlDepth', 3),
+            'pref_non_descriptive_anchors': [a.strip() for a in settings.get('prefNonDescriptiveAnchors', '').split('\n') if a.strip()],
+            'pref_max_url_length': settings.get('prefMaxUrlLength', 115),
+            'pref_max_h1_length': settings.get('prefMaxH1Length', 70),
+            'pref_max_h2_length': settings.get('prefMaxH2Length', 70),
+            'pref_max_image_alt_length': settings.get('prefMaxImageAltLength', 100),
+            'pref_max_image_size_kb': settings.get('prefMaxImageSizeKb', 100),
+            'pref_low_content_word_count': settings.get('prefLowContentWordCount', 200),
+            'pref_soft_404_phrases': [p.strip() for p in settings.get('prefSoft404Phrases', '').split('\n') if p.strip()],
+
+            # Authentication settings
+            'auth_standards_enabled': settings.get('authStandardsEnabled', False),
+            'auth_standards_data': settings.get('authStandardsData', []),
+            'auth_forms_data': settings.get('authFormsData', []),
+
+            # Google Analytics 4 settings
+            'ga4_enabled': settings.get('ga4Enabled', False),
+            'ga4_connected': settings.get('ga4Connected', False),
+            'ga4_account_id': settings.get('ga4AccountId', ''),
+            'ga4_account_name': settings.get('ga4AccountName', ''),
+            'ga4_property_id': settings.get('ga4PropertyId', ''),
+            'ga4_property_name': settings.get('ga4PropertyName', ''),
+            'ga4_data_stream_id': settings.get('ga4DataStreamId', ''),
+            'ga4_data_stream_name': settings.get('ga4DataStreamName', ''),
+            'ga4_date_range_preset': settings.get('ga4DateRangePreset', 'last_30_days'),
+            'ga4_date_start': settings.get('ga4DateStart', ''),
+            'ga4_date_end': settings.get('ga4DateEnd', ''),
+            'ga4_selected_metrics': (
+                settings.get('ga4SelectedMetrics', [])
+                if isinstance(settings.get('ga4SelectedMetrics', []), list)
+                else []
+            ),
+            'ga4_metric_dimensions': (
+                settings.get('ga4MetricDimensions', {})
+                if isinstance(settings.get('ga4MetricDimensions', {}), dict)
+                else {}
+            ),
+            'ga4_filter_dimension_type': settings.get('ga4FilterDimensionType', ''),
+            'ga4_filter_value': settings.get('ga4FilterValue', ''),
+            'ga4_match_trailing_slash': settings.get('ga4MatchTrailingSlash', True),
+            'ga4_match_case': settings.get('ga4MatchCase', False),
+            'ga4_limit_max_results': settings.get('ga4LimitMaxResults', True),
+            'ga4_max_results': settings.get('ga4MaxResults', 100000),
+            'ga4_crawl_new_urls': settings.get('ga4CrawlNewUrls', False),
+            'ga4_oauth_tokens': settings.get('ga4OauthTokens', {}),
+            'ga4_last_sync_at': settings.get('ga4LastSyncAt', ''),
+            'ga4_last_sync_status': settings.get('ga4LastSyncStatus', ''),
+            'ga4_last_sync_error': settings.get('ga4LastSyncError', ''),
         }
 
     def _parse_custom_headers(self, headers_text):

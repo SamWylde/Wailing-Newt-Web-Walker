@@ -67,6 +67,24 @@ def get_crawler_for_session(session_id: str):
         return None
 
 
+def get_settings_for_session_id(session_id: str, user_id=None, tier='guest'):
+    """Get settings manager for a specific session ID (create if needed)."""
+    if not session_id:
+        return None
+
+    with instances_lock:
+        if session_id not in crawler_instances:
+            crawler_instances[session_id] = {
+                'crawler': WebCrawler(),
+                'settings': SettingsManager(session_id=session_id, user_id=user_id, tier=tier),
+                'last_accessed': datetime.now()
+            }
+        else:
+            crawler_instances[session_id]['last_accessed'] = datetime.now()
+
+        return crawler_instances[session_id]['settings']
+
+
 def cleanup_old_instances():
     """Remove crawler instances that haven't been accessed in 1 hour."""
     timeout = timedelta(hours=1)

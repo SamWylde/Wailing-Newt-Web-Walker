@@ -23,6 +23,7 @@ class IncrementalPoller {
         this.isRunningPagespeed = false;
         this.memory = null;
         this.memoryData = null;
+        this.fullRefresh = false;
     }
 
     /**
@@ -41,6 +42,7 @@ class IncrementalPoller {
         this.isRunningPagespeed = false;
         this.memory = null;
         this.memoryData = null;
+        this.fullRefresh = false;
     }
 
     /**
@@ -66,21 +68,31 @@ class IncrementalPoller {
             this.isRunningPagespeed = data.is_running_pagespeed || false;
             this.memory = data.memory || this.memory;
             this.memoryData = data.memory_data || this.memoryData;
+            this.fullRefresh = !!data.full_refresh;
 
-            // Accumulate new data
-            if (data.urls && data.urls.length > 0) {
-                this.allUrls.push(...data.urls);
+            if (this.fullRefresh) {
+                this.allUrls = Array.isArray(data.urls) ? data.urls.slice() : [];
+                this.allLinks = Array.isArray(data.links) ? data.links.slice() : [];
+                this.allIssues = Array.isArray(data.issues) ? data.issues.slice() : [];
                 this.lastUrlCount = this.allUrls.length;
-            }
-
-            if (data.links && data.links.length > 0) {
-                this.allLinks.push(...data.links);
                 this.lastLinkCount = this.allLinks.length;
-            }
-
-            if (data.issues && data.issues.length > 0) {
-                this.allIssues.push(...data.issues);
                 this.lastIssueCount = this.allIssues.length;
+            } else {
+                // Accumulate new data
+                if (data.urls && data.urls.length > 0) {
+                    this.allUrls.push(...data.urls);
+                    this.lastUrlCount = this.allUrls.length;
+                }
+
+                if (data.links && data.links.length > 0) {
+                    this.allLinks.push(...data.links);
+                    this.lastLinkCount = this.allLinks.length;
+                }
+
+                if (data.issues && data.issues.length > 0) {
+                    this.allIssues.push(...data.issues);
+                    this.lastIssueCount = this.allIssues.length;
+                }
             }
 
             // Return data in the same format as the old get_status
@@ -93,7 +105,8 @@ class IncrementalPoller {
                 progress: this.latestProgress,
                 is_running_pagespeed: this.isRunningPagespeed,
                 memory: this.memory,
-                memory_data: this.memoryData
+                memory_data: this.memoryData,
+                full_refresh: this.fullRefresh
             };
 
         } catch (error) {
@@ -116,7 +129,8 @@ class IncrementalPoller {
             progress: this.latestProgress,
             is_running_pagespeed: this.isRunningPagespeed,
             memory: this.memory,
-            memory_data: this.memoryData
+            memory_data: this.memoryData,
+            full_refresh: this.fullRefresh
         };
     }
 }

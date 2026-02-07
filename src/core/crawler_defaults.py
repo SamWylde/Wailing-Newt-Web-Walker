@@ -281,6 +281,184 @@ def get_default_settings():
 
         # Issue exclusion patterns
         'issueExclusionPatterns': DEFAULT_ISSUE_EXCLUSION_PATTERNS_TEXT,
+
+        # === NEW SETTINGS ===
+
+        # Crawl Panel - Resource Links
+        'crawlImages': True,
+        'storeImages': True,
+        'crawlMedia': False,
+        'storeMedia': False,
+        'crawlCSS': True,
+        'storeCSS': True,
+        'crawlJS': True,
+        'storeJS': True,
+        'crawlSWF': True,
+        'storeSWF': True,
+
+        # Crawl Panel - Crawl Behaviour
+        'checkLinksOutside': True,
+        'crawlOutside': True,
+        'crawlSubdomains': True,
+        'followInternalNofollow': False,
+        'followExternalNofollow': False,
+
+        # Crawl Panel - Page Links
+        'crawlInternal': True,
+        'storeInternal': True,
+        'crawlExternal': True,
+        'storeExternal': True,
+        'crawlCanonicals': True,
+        'storeCanonicals': True,
+        'crawlPagination': False,
+        'storePagination': True,
+        'crawlHreflang': False,
+        'storeHreflang': True,
+
+        # Crawl Panel - XML Sitemaps
+        'crawlSitemaps': True,
+        'autoDiscoverSitemaps': False,
+        'crawlTheseSitemaps': False,
+        'sitemapUrls': '',
+
+        # Extraction Panel
+        'extractPageTitle': True,
+        'extractMetaDescription': True,
+        'extractMetaKeywords': True,
+        'extractH1': True,
+        'extractH2': True,
+        'extractIndexability': True,
+        'extractWordCount': True,
+        'extractReadability': True,
+        'extractTextCodeRatio': True,
+        'extractHashValue': True,
+        'extractPageSize': True,
+        'extractForms': True,
+        'extractAccessibility': False,
+        'extractResponseTime': True,
+        'extractLastModified': True,
+        'extractHTTPHeaders': False,
+        'extractCookies': False,
+        'extractMetaRobots': True,
+        'extractXRobotsTag': True,
+        'extractJSONLD': False,
+        'extractMicrodata': False,
+        'extractRDFa': False,
+        'extractSchemaValidation': False,
+        'extractGoogleRichResult': False,
+        'extractCaseSensitive': False,
+        'extractStoreHTML': False,
+        'extractStoreRenderedHTML': False,
+        'extractStorePDF': False,
+        'extractPDFProperties': False,
+        'extractPDFLinkText': False,
+
+        # Limits Panel
+        'limitCrawlTotal': True,
+        'limitCrawlTotalValue': 500,
+        'limitCrawlDepth': True,
+        'limitCrawlDepthValue': 0,  # 0 means use maxDepth
+        'limitUrlsPerDepth': False,
+        'limitUrlsPerDepthValue': 1000,
+        'limitMaxFolderDepth': False,
+        'limitMaxFolderDepthValue': 5,
+        'limitQueryStrings': False,
+        'limitQueryStringsValue': 5,
+        'limitCrawlPerSubdomain': False,
+        'limitCrawlPerSubdomainValue': 1000,
+        'limitMaxRedirects': 10,
+        'limitMaxUrlLength': 10000,
+        'limitMaxLinksPerUrl': 10000,
+        'limitMaxPageSize': 50000,  # KB
+
+        # Advanced Panel
+        'advCookieStorage': 'session',
+        'advIgnoreNonIndexable': True,
+        'advIgnorePaginated': True,
+        'advAlwaysFollowRedirects': False,
+        'advAlwaysFollowCanonicals': False,
+        'advRespectNoindex': False,
+        'advRespectCanonicals': False,
+        'advRespectNextPrev': False,
+        'advRespectHSTS': False,
+        'advRespectMetaRefresh': False,
+        'advExtractImagesSrcset': False,
+        'advCrawlFragments': False,
+        'advHTMLValidation': True,
+        'advGreenHosting': False,
+        'advAssumeHTML': False,
+        'advResponseTimeout': 20,
+        'advResponseRetries': 0,
+
+        # Preferences Panel - SEO Thresholds
+        'prefTitlePixelsMin': 200,
+        'prefTitlePixelsMax': 561,
+        'prefTitleCharsMin': 30,
+        'prefTitleCharsMax': 60,
+        'prefMetaPixelsMin': 400,
+        'prefMetaPixelsMax': 585,
+        'prefMetaCharsMin': 70,
+        'prefMetaCharsMax': 155,
+        'prefHighExternalOutlinks': 10,
+        'prefHighInternalOutlinks': 1000,
+        'prefHighCrawlDepth': 3,
+        'prefNonDescriptiveAnchors': 'click here\nclick this\nfind out more\ngo\nhere\nlearn more\nmore\nover here\nread here\nread more\nright here\nstart\nthis\nthis page',
+        'prefMaxUrlLength': 115,
+        'prefMaxH1Length': 70,
+        'prefMaxH2Length': 70,
+        'prefMaxImageAltLength': 100,
+        'prefMaxImageSizeKb': 100,
+        'prefLowContentWordCount': 200,
+        'prefSoft404Phrases': '404 Not Found\n404 error\n410 Not Found\ncan\'t find the page\npage not found\nnot found\nerror 404',
+
+        # Google Analytics 4 (GA4)
+        'ga4Enabled': False,
+        'ga4Connected': False,
+        'ga4AccountId': '',
+        'ga4AccountName': '',
+        'ga4PropertyId': '',
+        'ga4PropertyName': '',
+        'ga4DataStreamId': '',
+        'ga4DataStreamName': '',
+        'ga4DateRangePreset': 'last_30_days',
+        'ga4DateStart': '',
+        'ga4DateEnd': '',
+        'ga4SelectedMetrics': [
+            'sessions',
+            'screenPageViews',
+            'engagedSessions',
+            'engagementRate',
+            'keyEvents',
+            'eventCount',
+            'totalRevenue'
+        ],
+        'ga4MetricDimensions': {
+            'sessions': 'landingPagePlusQueryString',
+            'screenPageViews': 'landingPagePlusQueryString',
+            'engagedSessions': 'landingPagePlusQueryString',
+            'engagementRate': 'landingPagePlusQueryString',
+            'keyEvents': 'landingPagePlusQueryString',
+            'eventCount': 'landingPagePlusQueryString',
+            'totalRevenue': 'landingPagePlusQueryString'
+        },
+        'ga4FilterDimensionType': '',
+        'ga4FilterValue': '',
+        'ga4MatchTrailingSlash': True,
+        'ga4MatchCase': False,
+        'ga4LimitMaxResults': True,
+        'ga4MaxResults': 100000,
+        'ga4CrawlNewUrls': False,
+        'ga4OauthTokens': {},
+        'ga4LastSyncAt': '',
+        'ga4LastSyncStatus': '',
+        'ga4LastSyncError': '',
+
+        # Authentication - Standards Based (HTTP Basic/Digest)
+        'authStandardsEnabled': False,
+        'authStandardsData': [],  # List of {url, username, password, type}
+
+        # Authentication - Forms Based
+        'authFormsData': [],  # List of {loginUrl, usernameField, passwordField, submitSelector}
     }
 
 

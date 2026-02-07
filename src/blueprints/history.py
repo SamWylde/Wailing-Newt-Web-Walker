@@ -131,9 +131,15 @@ def resume_crawl_endpoint(crawl_id):
     try:
         user_id = session.get('user_id')
         session_id = session.get('session_id')
+        tier = session.get('tier', 'guest')
 
         crawler = get_or_create_crawler()
-        success, message = crawler.resume_from_database(crawl_id, user_id=user_id, session_id=session_id)
+        success, message = crawler.resume_from_database(
+            crawl_id,
+            user_id=user_id,
+            session_id=session_id,
+            user_tier=tier
+        )
 
         if success:
             session['current_crawl_id'] = crawl_id

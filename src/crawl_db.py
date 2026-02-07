@@ -309,6 +309,39 @@ def save_url_batch(crawl_id, urls):
         traceback.print_exc()
         return False
 
+
+def update_url_analytics_batch(crawl_id, url_analytics_rows):
+    """Update analytics JSON for existing crawled URLs."""
+    if not url_analytics_rows:
+        return True
+
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            rows = []
+            for row in url_analytics_rows:
+                url = row.get('url')
+                if not url:
+                    continue
+                analytics_json = json.dumps(row.get('analytics', {}))
+                rows.append((analytics_json, crawl_id, url))
+
+            if not rows:
+                return True
+
+            cursor.executemany(
+                '''
+                UPDATE crawled_urls
+                SET analytics = ?
+                WHERE crawl_id = ? AND url = ?
+                ''',
+                rows
+            )
+            return True
+    except Exception as e:
+        print(f"Error updating URL analytics batch: {e}")
+        return False
+
 def save_links_batch(crawl_id, links):
     """Batch save links"""
     if not links:
@@ -499,14 +532,33 @@ def load_crawled_urls(crawl_id, limit=None, offset=0):
             for row in cursor.fetchall():
                 url_data = dict(row)
                 # Parse JSON fields
-                for field in ['h2', 'h3', 'meta_tags', 'og_tags', 'twitter_tags',
-                             'json_ld', 'analytics', 'images', 'hreflang',
-                             'schema_org', 'redirects', 'linked_from']:
-                    if url_data.get(field):
-                        try:
-                            url_data[field] = json.loads(url_data[field])
-                        except:
-                            url_data[field] = []
+                field_defaults = {
+                    'h2': [],
+                    'h3': [],
+                    'meta_tags': {},
+                    'og_tags': {},
+                    'twitter_tags': {},
+                    'json_ld': [],
+                    'analytics': {},
+                    'images': [],
+                    'hreflang': [],
+                    'schema_org': [],
+                    'redirects': [],
+                    'linked_from': [],
+                }
+                for field, default_value in field_defaults.items():
+                    raw = url_data.get(field)
+                    if not raw:
+                        url_data[field] = default_value
+                        continue
+                    try:
+                        url_data[field] = json.loads(raw)
+                    except Exception:
+                        url_data[field] = default_value
+
+                # Mirror GA4 block at top-level for easier consumers.
+                if isinstance(url_data.get('analytics'), dict):
+                    url_data['ga4'] = url_data['analytics'].get('ga4', {})
 
                 urls.append(url_data)
 

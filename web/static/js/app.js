@@ -27,6 +27,7 @@ let crawlState = {
         }
     }
 };
+window.crawlState = crawlState;
 
 // Incremental polling instance
 let incrementalPoller = null;
@@ -41,6 +42,272 @@ let virtualScrollers = {
     issues: null
 };
 
+// Tab Configuration System
+const TAB_DEFINITIONS = [
+    { id: 'overview', label: 'Overview', defaultVisible: true },
+    { id: 'internal', label: 'Internal', defaultVisible: true },
+    { id: 'external', label: 'External', defaultVisible: true },
+    { id: 'security', label: 'Security', defaultVisible: false },
+    { id: 'status-codes', label: 'Response Codes', defaultVisible: true },
+    { id: 'url', label: 'URL', defaultVisible: false },
+    { id: 'page-titles', label: 'Page Titles', defaultVisible: false },
+    { id: 'meta-description', label: 'Meta Description', defaultVisible: false },
+    { id: 'meta-keywords', label: 'Meta Keywords', defaultVisible: false },
+    { id: 'h1', label: 'H1', defaultVisible: false },
+    { id: 'h2', label: 'H2', defaultVisible: false },
+    { id: 'content', label: 'Content', defaultVisible: false },
+    { id: 'images', label: 'Images', defaultVisible: false },
+    { id: 'canonicals', label: 'Canonicals', defaultVisible: false },
+    { id: 'pagination', label: 'Pagination', defaultVisible: false },
+    { id: 'directives', label: 'Directives', defaultVisible: false },
+    { id: 'hreflang', label: 'Hreflang', defaultVisible: false },
+    { id: 'javascript', label: 'JavaScript', defaultVisible: false },
+    { id: 'links', label: 'Links', defaultVisible: true },
+    { id: 'amp', label: 'AMP', defaultVisible: false },
+    { id: 'structured-data', label: 'Structured Data', defaultVisible: false },
+    { id: 'sitemaps', label: 'Sitemaps', defaultVisible: false },
+    { id: 'issues', label: 'Issues', defaultVisible: true },
+    { id: 'content-analysis', label: 'Content Analysis', defaultVisible: true },
+    { id: 'link-health', label: 'Link Health', defaultVisible: true },
+    { id: 'core-web-vitals', label: 'Core Web Vitals', defaultVisible: true },
+    { id: 'pagespeed', label: 'PageSpeed', defaultVisible: true },
+    { id: 'mobile', label: 'Mobile', defaultVisible: false },
+    { id: 'accessibility', label: 'Accessibility', defaultVisible: false },
+    { id: 'custom-search', label: 'Custom Search', defaultVisible: false },
+    { id: 'custom-extraction', label: 'Custom Extraction', defaultVisible: false },
+    { id: 'custom-javascript', label: 'Custom JavaScript', defaultVisible: false },
+    { id: 'analytics', label: 'Analytics', defaultVisible: false },
+    { id: 'search-console', label: 'Search Console', defaultVisible: false },
+    { id: 'validation', label: 'Validation', defaultVisible: false },
+    { id: 'link-metrics', label: 'Link Metrics', defaultVisible: false },
+    { id: 'ai', label: 'AI', defaultVisible: false },
+    { id: 'visualization', label: 'Visualization', defaultVisible: true },
+    { id: 'reports', label: 'Reports', defaultVisible: true }
+];
+
+// Tab visibility state (loaded from localStorage)
+let tabVisibility = {};
+
+// Initialize tab visibility from localStorage or defaults
+function initTabConfiguration() {
+    const stored = localStorage.getItem('wailingNewt_tabVisibility');
+    if (stored) {
+        try {
+            tabVisibility = JSON.parse(stored);
+            // Ensure all tabs have a visibility setting
+            TAB_DEFINITIONS.forEach(tab => {
+                if (tabVisibility[tab.id] === undefined) {
+                    tabVisibility[tab.id] = tab.defaultVisible;
+                }
+            });
+        } catch (e) {
+            console.error('Error loading tab visibility config:', e);
+            resetTabsToDefault();
+        }
+    } else {
+        resetTabsToDefault();
+    }
+    renderTabButtons();
+    renderTabConfigureDropdown();
+}
+
+// Reset all tabs to default visibility
+function resetTabsToDefault() {
+    tabVisibility = {};
+    TAB_DEFINITIONS.forEach(tab => {
+        tabVisibility[tab.id] = tab.defaultVisible;
+    });
+    saveTabConfiguration();
+}
+
+// Save tab visibility to localStorage
+function saveTabConfiguration() {
+    localStorage.setItem('wailingNewt_tabVisibility', JSON.stringify(tabVisibility));
+}
+
+// Render tab buttons based on visibility
+function renderTabButtons() {
+    const tabHeader = document.getElementById('tab-header-container');
+    if (!tabHeader) return;
+
+    // Clear and re-render all tab buttons
+    tabHeader.innerHTML = '';
+
+    // Add compact configure button first (dropdown toggle)
+    const newConfigBtn = document.createElement('button');
+    newConfigBtn.className = 'tab-configure-btn';
+    newConfigBtn.onclick = toggleConfigureDropdown;
+    newConfigBtn.title = 'Configure Tabs';
+    newConfigBtn.setAttribute('aria-label', 'Configure Tabs');
+    newConfigBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M7 10l5 5 5-5z"></path>
+    </svg>`;
+    tabHeader.appendChild(newConfigBtn);
+
+    // Add visible tabs
+    TAB_DEFINITIONS.forEach(tab => {
+        if (tabVisibility[tab.id]) {
+            const btn = document.createElement('button');
+            btn.className = 'tab-btn';
+            btn.setAttribute('data-tab-id', tab.id);
+            btn.onclick = () => switchTab(tab.id);
+            btn.textContent = tab.label;
+
+            // Set first visible tab as active
+            if (!tabHeader.querySelector('.tab-btn.active') && tabVisibility[tab.id]) {
+                btn.classList.add('active');
+                // Also show the corresponding pane
+                const pane = document.getElementById(tab.id + '-tab');
+                if (pane) pane.classList.add('active');
+            }
+
+            tabHeader.appendChild(btn);
+        }
+    });
+}
+// Render the tab configure dropdown with checkboxes
+function renderTabConfigureDropdown() {
+    let dropdown = document.getElementById('tab-configure-dropdown');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.id = 'tab-configure-dropdown';
+        dropdown.className = 'tab-configure-dropdown';
+        // Stop clicks inside from bubbling to the document-level closer
+        dropdown.onclick = (e) => e.stopPropagation();
+        document.querySelector('.toolbar-row--tabs').appendChild(dropdown);
+    }
+
+    // Capture the current scroll position if list exists
+    const list = dropdown.querySelector('.tab-configure-list');
+    const scrollPos = list ? list.scrollTop : 0;
+
+    dropdown.innerHTML = `
+        <div class="tab-configure-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Configure Tabs
+        </div>
+        <button class="tab-configure-reset" onclick="handleResetTabs()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+            </svg>
+            Reset Tabs
+        </button>
+        <div class="tab-configure-list">
+            ${TAB_DEFINITIONS.map(tab => `
+                <label class="tab-configure-item">
+                    <input type="checkbox" 
+                           data-tab-checkbox="${tab.id}"
+                           ${tabVisibility[tab.id] ? 'checked' : ''} 
+                           onchange="handleTabVisibilityChange('${tab.id}', this.checked)">
+                    <span class="tab-configure-checkbox"></span>
+                    <span class="tab-configure-label">${tab.label}</span>
+                </label>
+            `).join('')}
+        </div>
+    `;
+
+    // Restore scroll position
+    if (scrollPos) {
+        const newList = dropdown.querySelector('.tab-configure-list');
+        if (newList) newList.scrollTop = scrollPos;
+    }
+}
+
+// Position the dropdown below the gear button
+function positionTabConfigureDropdown() {
+    const dropdown = document.getElementById('tab-configure-dropdown');
+    const configBtn = document.querySelector('.tab-configure-btn');
+    if (dropdown && configBtn) {
+        const btnRect = configBtn.getBoundingClientRect();
+        dropdown.style.top = (btnRect.bottom + 4) + 'px';
+        dropdown.style.left = Math.max(8, btnRect.right - 220) + 'px'; // Align right edge with button, shift if off-screen
+    }
+}
+
+// Toggle configure dropdown visibility
+function toggleConfigureDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('tab-configure-dropdown');
+
+    if (dropdown) {
+        const isShowing = dropdown.classList.toggle('show');
+
+        if (isShowing) {
+            positionTabConfigureDropdown();
+
+            // Close on outside click
+            setTimeout(() => {
+                document.addEventListener('click', closeConfigureDropdown);
+            }, 0);
+        }
+    }
+}
+
+// Close the dropdown and apply pending tab changes
+function closeConfigureDropdown(event) {
+    const dropdown = document.getElementById('tab-configure-dropdown');
+    const configBtn = document.querySelector('.tab-configure-btn');
+
+    // Only close if clicking outside dropdown and button
+    if (dropdown && event && !dropdown.contains(event.target) && configBtn && !configBtn.contains(event.target)) {
+        applyTabChangesAndClose();
+    }
+}
+
+// Handle checkbox change for a tab - only updates state, not UI
+function handleTabVisibilityChange(tabId, isVisible) {
+    tabVisibility[tabId] = isVisible;
+    saveTabConfiguration();
+    // UI update is deferred until dropdown closes
+}
+
+// Apply tab changes and close dropdown
+function applyTabChangesAndClose() {
+    const dropdown = document.getElementById('tab-configure-dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+    document.removeEventListener('click', closeConfigureDropdown);
+
+    // Now update the UI with all pending changes
+    renderTabButtons();
+
+    // If the currently active tab was hidden, switch to first visible
+    const activeTabId = document.querySelector('.tab-btn.active')?.getAttribute('data-tab-id');
+    if (!activeTabId || !tabVisibility[activeTabId]) {
+        const firstVisibleTab = TAB_DEFINITIONS.find(t => tabVisibility[t.id]);
+        if (firstVisibleTab) {
+            switchTab(firstVisibleTab.id);
+        }
+    }
+}
+
+// Handle reset tabs button
+function handleResetTabs() {
+    resetTabsToDefault();
+    renderTabButtons();
+    renderTabConfigureDropdown();
+
+    // Switch to Overview tab
+    document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    const overviewPane = document.getElementById('overview-tab');
+    const overviewBtn = document.querySelector('[data-tab-id="overview"]');
+    if (overviewPane) overviewPane.classList.add('active');
+    if (overviewBtn) overviewBtn.classList.add('active');
+
+    // Re-position because tab bar shifted
+    positionTabConfigureDropdown();
+    // Keep dropdown open
+    const dropdown = document.getElementById('tab-configure-dropdown');
+    if (dropdown) dropdown.classList.add('show');
+}
+
 // Initialize application
 document.addEventListener('DOMContentLoaded', async function () {
     await initializeApp();
@@ -53,11 +320,17 @@ async function initializeApp() {
         window.WailingNewtPlugin.loader.initializePlugins();
     }
 
+    // Initialize tab configuration (show/hide tabs based on user preferences)
+    initTabConfiguration();
+
     // Setup event listeners
     setupEventListeners();
 
     // Initialize tables
     initializeTables();
+
+    // Initialize table sub-navigation and columns
+    initTableConfigUI();
 
     // Load user info
     loadUserInfo();
@@ -142,6 +415,9 @@ async function initializeApp() {
             updateFilterCounts();
             updateStatusCodesTable();
             updateCrawlButtons();
+            if (window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
+                window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
+            }
 
             // Check if the crawl is currently running (resumed from dashboard)
             if (data.status === 'running') {
@@ -328,6 +604,10 @@ function clearCrawlData() {
         window.clearVisualization();
     }
 
+    if (window.GA4Config && typeof window.GA4Config.clearAnalyticsTab === 'function') {
+        window.GA4Config.clearAnalyticsTab();
+    }
+
     // Notify plugins of data clear (send empty data)
     if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
         window.WailingNewtPlugin.loader.notifyDataUpdate({
@@ -369,6 +649,9 @@ function startPythonCrawl(url) {
         .then(data => {
             if (data.success) {
                 updateStatus('Crawling in progress...');
+                if (data.ga4_discovery && data.ga4_discovery.urls_added > 0) {
+                    showNotification(`GA4 added ${data.ga4_discovery.urls_added} URLs before crawl start`, 'info');
+                }
                 // Refresh user info to update crawl count
                 loadUserInfo();
                 // Start polling for updates
@@ -453,6 +736,15 @@ function pollCrawlProgress() {
 }
 
 function updateCrawlData(data) {
+    if (data.full_refresh) {
+        clearAllTables();
+        crawlState.urls = [];
+        crawlState.links = [];
+        crawlState.issues = [];
+        crawlState.pendingLinks = null;
+        crawlState.pendingIssues = null;
+    }
+
     // Update statistics
     crawlState.stats = data.stats || crawlState.stats;
     updateStatsDisplay();
@@ -534,28 +826,31 @@ function updateCrawlData(data) {
             stats: crawlState.stats
         });
     }
+
+    if (window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
+        window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
+    }
 }
 
 function updateProgressText(data) {
-    const progressText = document.getElementById('progressText');
-    if (!progressText) return;
+    const statusText = document.getElementById('statusText');
+    if (!statusText) return;
 
     if (data.is_running_pagespeed) {
-        progressText.textContent = 'Running PageSpeed analysis...';
+        statusText.textContent = 'Running PageSpeed analysis...';
     } else if (data.status === 'completed') {
-        progressText.textContent = 'Crawl completed';
+        statusText.textContent = 'Crawl completed';
     } else if (data.status === 'running') {
         const stats = data.stats || crawlState.stats;
         if (stats.crawled === 0) {
-            progressText.textContent = 'Starting crawl...';
+            statusText.textContent = 'Starting crawl...';
         } else if (stats.discovered > stats.crawled) {
-            progressText.textContent = `Crawling... (${stats.crawled}/${stats.discovered} URLs)`;
+            statusText.textContent = `Crawling in progress... (${stats.crawled}/${stats.discovered} URLs)`;
         } else {
-            progressText.textContent = `Finishing up... (${stats.crawled} URLs crawled)`;
+            statusText.textContent = `Finishing up... (${stats.crawled} URLs crawled)`;
         }
-    } else {
-        progressText.textContent = 'Initializing...';
     }
+    // Don't update statusText when not running - let updateStatus handle that
 }
 
 function updateStatsDisplay() {
@@ -675,6 +970,204 @@ function initializeTables() {
             initializeColumnResizers();
         }
     }, 100);
+}
+
+/**
+ * Initialize Table Configuration UI (Sub-tabs and Configure dropdown)
+ */
+function initTableConfigUI() {
+    const subNav = document.getElementById('internalSubNav');
+    const dropdown = document.getElementById('configureTabsDropdown');
+    const resetButton = document.getElementById('resetTabsBtn');
+
+    if (!subNav || !dropdown) return;
+
+    // 1. Populate Sub-navigation Tabs
+    renderTableTabs();
+
+    // 2. Populate Configure Tabs Dropdown
+    renderConfigureDropdown();
+
+    // 3. Configure Button Click
+    const configBtn = document.getElementById('configureTabsBtn');
+    if (configBtn) {
+        configBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('show');
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+        dropdown.classList.remove('show');
+    });
+
+    // 4. Reset Button
+    if (resetButton) {
+        resetButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            TableConfig.resetToDefaults();
+            renderTableTabs();
+            renderConfigureDropdown();
+            updateInternalTableHeaders();
+            if (virtualScrollers.internal) virtualScrollers.internal.refresh();
+        });
+    }
+
+    // 4. Initial Header Setup
+    updateInternalTableHeaders();
+}
+
+/**
+ * Render the sub-navigation tabs for the Internal view
+ */
+function renderTableTabs() {
+    const subNav = document.getElementById('internalSubNav');
+    if (!subNav) return;
+
+    // Clear existing tabs (except potentially the configure dropdown which is inside but we handled it in HTML)
+    // Actually in index.html, the configure-tabs-container is AFTER the tabs usually?
+    // Let's check index.html structure first to be sure.
+
+    // For now, let's just find the tabs container or clear specific ones.
+    const container = subNav.querySelector('.sub-nav-tabs');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    TableConfig.groups.forEach(group => {
+        if (!TableConfig.visibility.groups[group.id]) return;
+
+        const tab = document.createElement('button');
+        tab.className = `sub-nav-btn ${TableConfig.visibility.activeGroup === group.id ? 'active' : ''}`;
+        tab.textContent = group.label;
+        tab.dataset.groupId = group.id;
+
+        tab.addEventListener('click', () => {
+            // Update active state in UI
+            container.querySelectorAll('.sub-nav-btn').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Update TableConfig
+            TableConfig.updateActiveColumns(group.id);
+
+            // Update Table Headers and refresh scroller
+            updateInternalTableHeaders();
+            if (virtualScrollers.internal) {
+                virtualScrollers.internal.refresh();
+            }
+        });
+
+        container.appendChild(tab);
+    });
+}
+
+/**
+ * Render the items in the Configure Tabs dropdown
+ */
+function renderConfigureDropdown() {
+    const dropdown = document.getElementById('configureTabsDropdown');
+    if (!dropdown) return;
+
+    dropdown.innerHTML = '';
+
+    TableConfig.groups.forEach(group => {
+        const item = document.createElement('div');
+        item.className = 'configure-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = !!TableConfig.visibility.groups[group.id];
+        checkbox.id = `view-group-${group.id}`;
+
+        const label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.textContent = group.label;
+
+        item.appendChild(checkbox);
+        item.appendChild(label);
+
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            checkbox.checked = !checkbox.checked;
+            TableConfig.toggleGroup(group.id);
+            renderTableTabs();
+        });
+
+        checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Don't toggle twice if clicking checkbox directly
+        });
+
+        dropdown.appendChild(item);
+    });
+}
+
+/**
+ * Update the Internal table headers based on active columns
+ */
+function updateInternalTableHeaders() {
+    const thead = document.querySelector('#internal-tab table thead tr');
+    if (!thead) return;
+
+    const columns = TableConfig.getActiveColumns();
+    thead.innerHTML = columns.map(col => `<th data-column="${col.id}">${col.label}</th>`).join('');
+
+    // Re-initialize resizers if needed
+    if (window.initializeColumnResizers) {
+        initializeColumnResizers();
+    }
+}
+
+/**
+ * Helper to get value from urlData based on column ID
+ */
+function getColumnValue(urlData, columnId) {
+    switch (columnId) {
+        case 'url': return urlData.url;
+        case 'status_code': return urlData.status_code;
+        case 'content_type': return urlData.content_type || 'N/A';
+        case 'size': return formatBytes(urlData.size || 0);
+        case 'title': return urlData.title || '';
+        case 'status_text': return getStatusCodeDescription(urlData.status_code);
+        case 'redirect_url': return urlData.redirect_url || '-';
+        case 'redirect_type': return urlData.redirect_type || '-';
+        case 'depth': return urlData.depth || 0;
+        case 'word_count': return urlData.word_count || 0;
+        case 'h1': return urlData.h1 || '';
+        case 'h1_count': return urlData.h1 ? 1 : 0; // Simplified
+        case 'h2': return Array.isArray(urlData.h2) ? urlData.h2[0] || '' : (urlData.h2 || '');
+        case 'h2_count': return Array.isArray(urlData.h2) ? urlData.h2.length : 0;
+        case 'meta_description': return urlData.meta_description || '';
+        case 'title_length': return urlData.title ? urlData.title.length : 0;
+        case 'meta_description_length': return urlData.meta_description ? urlData.meta_description.length : 0;
+        case 'canonical_url': return urlData.canonical_url || '';
+        case 'meta_robots': return urlData.robots || '';
+        case 'internal_links_count': return urlData.internal_links || 0;
+        case 'external_links_count': return urlData.external_links || 0;
+        case 'total_links_count': return (urlData.internal_links || 0) + (urlData.external_links || 0);
+        case 'images_count': return Array.isArray(urlData.images) ? urlData.images.length : 0;
+        case 'performance_score': return urlData.pagespeed?.performance || '-';
+        case 'lcp': return urlData.pagespeed?.metrics?.largest_contentful_paint || '-';
+        case 'fid': return urlData.pagespeed?.metrics?.first_input_delay || '-';
+        case 'cls': return urlData.pagespeed?.metrics?.cumulative_layout_shift || '-';
+        case 'ga_id': return urlData.analytics?.ga_id || urlData.analytics?.ga4_id || '-';
+        case 'gtm_id': return urlData.analytics?.gtm_id || '-';
+        case 'fb_pixel': return urlData.analytics?.facebook_pixel || '-';
+        case 'ga4_sessions': return urlData.analytics?.ga4_sessions ?? urlData.analytics?.ga4?.metrics?.sessions ?? '-';
+        case 'ga4_screen_page_views': return urlData.analytics?.ga4_screen_page_views ?? urlData.analytics?.ga4?.metrics?.screenPageViews ?? '-';
+        case 'ga4_engaged_sessions': return urlData.analytics?.ga4_engaged_sessions ?? urlData.analytics?.ga4?.metrics?.engagedSessions ?? '-';
+        case 'ga4_engagement_rate': return urlData.analytics?.ga4_engagement_rate ?? urlData.analytics?.ga4?.metrics?.engagementRate ?? '-';
+        case 'ga4_key_events': return urlData.analytics?.ga4_key_events ?? urlData.analytics?.ga4?.metrics?.keyEvents ?? '-';
+        case 'ga4_event_count': return urlData.analytics?.ga4_event_count ?? urlData.analytics?.ga4?.metrics?.eventCount ?? '-';
+        case 'ga4_total_revenue': return urlData.analytics?.ga4_total_revenue ?? urlData.analytics?.ga4?.metrics?.totalRevenue ?? '-';
+        case 'json_ld_count': return Array.isArray(urlData.json_ld) ? urlData.json_ld.length : 0;
+        case 'in_sitemap': return urlData.in_sitemap ? 'Yes' : 'No';
+        default:
+            // Generic fallback for flat objects or deeper nesting
+            if (urlData[columnId] !== undefined) return urlData[columnId];
+            return '-';
+    }
 }
 
 function initializeVirtualScrollers() {
@@ -1061,9 +1554,12 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
 
-    // Add active class to selected tab and pane
-    event.target.classList.add('active');
-    document.getElementById(tabName + '-tab').classList.add('active');
+    // Add active class to selected tab button and pane
+    const tabBtn = document.querySelector(`[data-tab-id="${tabName}"]`);
+    if (tabBtn) tabBtn.classList.add('active');
+
+    const tabPane = document.getElementById(tabName + '-tab');
+    if (tabPane) tabPane.classList.add('active');
 
     // Load pending links data if switching to Links tab
     if (tabName === 'links' && crawlState.pendingLinks) {
@@ -1077,12 +1573,22 @@ function switchTab(tabName) {
         crawlState.pendingIssues = null; // Clear pending data
     }
 
+    if (tabName === 'analytics' && window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
+        window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
+    }
+
     // Initialize visualization if switching to Visualization tab
     if (tabName === 'visualization' && typeof initVisualization === 'function') {
         // Small delay to ensure the tab is visible before initializing
         setTimeout(() => {
             initVisualization();
         }, 100);
+    }
+
+    // Initialize SEO Reports if switching to Reports tab
+    if (tabName === 'reports' && typeof ReportsModule !== 'undefined') {
+        ReportsModule.init();
+        ReportsModule.refresh();
     }
 
     // Handle plugin tabs
@@ -2319,17 +2825,18 @@ function renderOverviewRow(row, urlData, index) {
 }
 
 function renderInternalRow(row, urlData, index) {
-    const cells = [
-        urlData.url,
-        urlData.status_code,
-        urlData.content_type || '',
-        urlData.size || 0,
-        urlData.title || ''
-    ];
+    const activeColumns = TableConfig.getActiveColumns();
 
-    cells.forEach(cellData => {
+    activeColumns.forEach(column => {
         const cell = document.createElement('td');
-        cell.textContent = cellData;
+        const value = getColumnValue(urlData, column.id);
+
+        // Handle potential HTML content or special formatting
+        if (column.id === 'url') {
+            cell.style.wordBreak = 'break-all';
+        }
+
+        cell.textContent = value;
         row.appendChild(cell);
     });
 
@@ -2681,11 +3188,11 @@ function openFileUpload() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.txt,.csv,.xml';
-    fileInput.onchange = function(e) {
+    fileInput.onchange = function (e) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const content = e.target.result;
                 // Open bulk input modal with file content
                 document.getElementById('bulkInputModal').style.display = 'flex';
@@ -2870,6 +3377,9 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
         .then(data => {
             if (data.success) {
                 updateStatus('Crawling in progress...');
+                if (data.ga4_discovery && data.ga4_discovery.urls_added > 0) {
+                    showNotification(`GA4 added ${data.ga4_discovery.urls_added} URLs before crawl start`, 'info');
+                }
                 loadUserInfo();
                 pollCrawlProgress();
             } else {
@@ -2958,11 +3468,11 @@ function showConfigPanel(panelId) {
         'extraction': 'Configure which data to extract from pages during crawling and issues for them.',
         'limits': 'Limit the size and scope of the crawl. This may help focus on key areas and reduce the time it takes to complete a crawl.',
         'rendering': 'Configure JavaScript rendering options for crawling dynamic content.',
-        'advanced': 'Adjust a variety of advanced crawler settings for the SEO Spider. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.',
-        'preferences': 'Modify parameters used by the SEO Spider to flag potential issues and populate filters. For example, page title length for the \'Over X Characters\' filter in the Page Titles tab.',
-        'speed': 'Control the speed of requests made by the SEO Spider.',
-        'user-agent': 'Adjust the user-agent used by the SEO Spider in crawling.',
-        'robots': 'Modify how the SEO Spider interprets robots.txt. By default, robots.txt is respected, which means URLs won\'t be crawled if disallowed.',
+        'advanced': 'Adjust a variety of advanced crawler settings. These settings can be used to guide the crawl and can impact the number of URLs discovered, crawled and reported.',
+        'preferences': 'Modify parameters used to flag potential issues and populate filters. For example, page title length for the \'Over X Characters\' filter in the Page Titles tab.',
+        'speed': 'Control the speed of requests made by the crawler.',
+        'user-agent': 'Adjust the user-agent used in crawling.',
+        'robots': 'Modify how the crawler interprets robots.txt. By default, robots.txt is respected, which means URLs won\'t be crawled if disallowed.',
         'content-area': 'Configure content area analysis settings.',
         'duplicates': 'Configure duplicate content detection settings.',
         'spelling': 'Configure spelling and grammar checking settings.',
@@ -2977,7 +3487,10 @@ function showConfigPanel(panelId) {
         'google-analytics': 'Connect Google Analytics for traffic data.',
         'search-console': 'Connect Google Search Console for search data.',
         'pagespeed': 'Connect PageSpeed Insights for performance metrics.',
-        'authentication': 'Configure authentication for crawling protected pages.',
+        'authentication': 'Login to access and crawl a staging site or logged in area using standards based or web forms based authentication.',
+        'auth-standards': 'Configure HTTP Basic or Digest authentication for crawling password-protected pages.',
+        'auth-forms': 'Configure web form-based login to access and crawl authenticated areas of a website.',
+        'auth-profiles': 'Export and import authentication configurations for scheduled crawls or command line usage.',
         'crawl-analysis': 'Configure crawl analysis and reporting options.'
     };
     const descEl = document.getElementById('configDescription');
@@ -2986,7 +3499,16 @@ function showConfigPanel(panelId) {
     }
 
     // Add active class to clicked item
-    event.target.classList.add('active');
+    if (typeof event !== 'undefined' && event?.target) {
+        const activeItem = event.target.closest('.config-item, .config-item-single');
+        if (activeItem) {
+            activeItem.classList.add('active');
+        }
+    }
+
+    if (panelId === 'google-analytics' && window.GA4Config && typeof window.GA4Config.onPanelVisible === 'function') {
+        window.GA4Config.onPanelVisible();
+    }
 }
 
 function filterConfigItems() {
@@ -3006,6 +3528,17 @@ function filterConfigItems() {
 function loadCrawlConfigValues() {
     // Load values from current settings if available
     if (typeof currentSettings !== 'undefined') {
+        // Helper functions for setting values
+        const setCheckbox = (id, key, defaultVal = false) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = currentSettings[key] !== undefined ? currentSettings[key] : defaultVal;
+        };
+        const setValue = (id, key, defaultVal = '') => {
+            const el = document.getElementById(id);
+            if (el && currentSettings[key] !== undefined) el.value = currentSettings[key];
+            else if (el && defaultVal) el.value = defaultVal;
+        };
+
         // Speed settings - load from concurrency or maxThreads (concurrency takes precedence)
         const maxThreads = document.getElementById('configMaxThreads');
         if (maxThreads) {
@@ -3013,131 +3546,208 @@ function loadCrawlConfigValues() {
             maxThreads.value = threadValue;
         }
 
-        const limitUrls = document.getElementById('configLimitUrls');
-        if (limitUrls && currentSettings.limitUrlsPerSecond !== undefined) {
-            limitUrls.checked = currentSettings.limitUrlsPerSecond;
-        }
-
-        const maxUrlsPerSec = document.getElementById('configMaxUrlsPerSec');
-        if (maxUrlsPerSec && currentSettings.maxUrlsPerSecond) {
-            maxUrlsPerSec.value = currentSettings.maxUrlsPerSecond;
-        }
-
-        // Crawl Delay settings
-        const crawlDelay = document.getElementById('configCrawlDelay');
-        if (crawlDelay && currentSettings.crawlDelay !== undefined) {
-            crawlDelay.value = currentSettings.crawlDelay;
-        }
-
-        const respectCrawlDelay = document.getElementById('configRespectCrawlDelay');
-        if (respectCrawlDelay && currentSettings.respectCrawlDelay !== undefined) {
-            respectCrawlDelay.checked = currentSettings.respectCrawlDelay;
-        }
-
-        // Timeout settings
-        const timeout = document.getElementById('configTimeout');
-        if (timeout && currentSettings.timeout) {
-            timeout.value = currentSettings.timeout;
-        }
-
-        const retries = document.getElementById('configRetries');
-        if (retries && currentSettings.retries !== undefined) {
-            retries.value = currentSettings.retries;
-        }
-
-        // Crawl Behaviour settings
-        const followRedirects = document.getElementById('configFollowRedirects');
-        if (followRedirects && currentSettings.followRedirects !== undefined) {
-            followRedirects.checked = currentSettings.followRedirects;
-        }
-
-        const crawlExternalLinks = document.getElementById('configCrawlExternalLinks');
-        if (crawlExternalLinks && currentSettings.crawlExternalLinks !== undefined) {
-            crawlExternalLinks.checked = currentSettings.crawlExternalLinks;
-        }
-
-        // Limits settings
-        const maxDepth = document.getElementById('configMaxDepth');
-        if (maxDepth && currentSettings.maxDepth) {
-            maxDepth.value = currentSettings.maxDepth;
-        }
-
-        const maxUrls = document.getElementById('configMaxUrls');
-        if (maxUrls && currentSettings.maxUrls) {
-            maxUrls.value = currentSettings.maxUrls;
-        }
-
-        // User-Agent settings
-        const httpUA = document.getElementById('configHttpUA');
-        if (httpUA && currentSettings.userAgent) {
-            httpUA.value = currentSettings.userAgent;
-        }
-
-        const robotsUA = document.getElementById('configRobotsUA');
-        if (robotsUA && currentSettings.robotsUserAgent) {
-            robotsUA.value = currentSettings.robotsUserAgent;
-        }
-
-        // Robots.txt settings
-        const robotsMode = document.getElementById('robotsMode');
-        if (robotsMode && currentSettings.robotsMode) {
-            robotsMode.value = currentSettings.robotsMode;
-        }
-
-        const showInternalBlocked = document.getElementById('showInternalBlocked');
-        if (showInternalBlocked && currentSettings.showInternalBlocked !== undefined) {
-            showInternalBlocked.checked = currentSettings.showInternalBlocked;
-        }
-
-        const showExternalBlocked = document.getElementById('showExternalBlocked');
-        if (showExternalBlocked && currentSettings.showExternalBlocked !== undefined) {
-            showExternalBlocked.checked = currentSettings.showExternalBlocked;
-        }
+        setCheckbox('configLimitUrls', 'limitUrlsPerSecond');
+        setValue('configMaxUrlsPerSec', 'maxUrlsPerSecond', '2');
+        setValue('configCrawlDelay', 'crawlDelay', '0.5');
+        setCheckbox('configRespectCrawlDelay', 'respectCrawlDelay', true);
+        setValue('configTimeout', 'timeout', '10');
+        setValue('configRetries', 'retries', '3');
+        setCheckbox('configFollowRedirects', 'followRedirects', true);
+        setCheckbox('configCrawlExternalLinks', 'crawlExternalLinks');
+        setValue('configMaxDepth', 'maxDepth', '3');
+        setValue('configMaxUrls', 'maxUrls', '5000000');
+        setValue('configMaxFileSize', 'maxFileSize', '50');
+        setValue('configHttpUA', 'userAgent');
+        setValue('configRobotsUA', 'robotsUserAgent');
+        setValue('robotsMode', 'robotsMode');
+        setCheckbox('showInternalBlocked', 'showInternalBlocked', true);
+        setCheckbox('showExternalBlocked', 'showExternalBlocked', true);
 
         // JavaScript Rendering settings
-        const enableJS = document.getElementById('enableJavaScript');
-        if (enableJS && currentSettings.enableJavaScript !== undefined) {
-            enableJS.checked = currentSettings.enableJavaScript;
+        setCheckbox('enableJavaScript', 'enableJavaScript');
+        setValue('jsWaitTime', 'jsWaitTime', '3');
+        setValue('jsTimeout', 'jsTimeout', '30');
+        setValue('jsBrowser', 'jsBrowser');
+        setCheckbox('jsHeadless', 'jsHeadless', true);
+        setValue('jsUserAgent', 'jsUserAgent');
+        setValue('jsViewportWidth', 'jsViewportWidth', '1920');
+        setValue('jsViewportHeight', 'jsViewportHeight', '1080');
+        setValue('jsMaxConcurrentPages', 'jsMaxConcurrentPages', '3');
+
+        // Crawl Panel - Resource Links
+        setCheckbox('crawlImages', 'crawlImages', true);
+        setCheckbox('storeImages', 'storeImages', true);
+        setCheckbox('crawlMedia', 'crawlMedia');
+        setCheckbox('storeMedia', 'storeMedia');
+        setCheckbox('crawlCSS', 'crawlCSS', true);
+        setCheckbox('storeCSS', 'storeCSS', true);
+        setCheckbox('crawlJS', 'crawlJS', true);
+        setCheckbox('storeJS', 'storeJS', true);
+        setCheckbox('crawlSWF', 'crawlSWF', true);
+        setCheckbox('storeSWF', 'storeSWF', true);
+
+        // Crawl Panel - Crawl Behaviour
+        setCheckbox('checkLinksOutside', 'checkLinksOutside', true);
+        setCheckbox('crawlOutside', 'crawlOutside', true);
+        setCheckbox('crawlSubdomains', 'crawlSubdomains', true);
+        setCheckbox('followInternalNofollow', 'followInternalNofollow');
+        setCheckbox('followExternalNofollow', 'followExternalNofollow');
+
+        // Crawl Panel - Page Links
+        setCheckbox('crawlInternal', 'crawlInternal', true);
+        setCheckbox('storeInternal', 'storeInternal', true);
+        setCheckbox('crawlExternal', 'crawlExternal', true);
+        setCheckbox('storeExternal', 'storeExternal', true);
+        setCheckbox('crawlCanonicals', 'crawlCanonicals', true);
+        setCheckbox('storeCanonicals', 'storeCanonicals', true);
+        setCheckbox('crawlPagination', 'crawlPagination');
+        setCheckbox('storePagination', 'storePagination', true);
+        setCheckbox('crawlHreflang', 'crawlHreflang');
+        setCheckbox('storeHreflang', 'storeHreflang', true);
+
+        // Crawl Panel - XML Sitemaps
+        setCheckbox('crawlSitemaps', 'crawlSitemaps', true);
+        setCheckbox('autoDiscoverSitemaps', 'autoDiscoverSitemaps');
+        setCheckbox('crawlTheseSitemaps', 'crawlTheseSitemaps');
+        setValue('sitemapUrls', 'sitemapUrls');
+
+        // Extraction Panel
+        setCheckbox('extractPageTitle', 'extractPageTitle', true);
+        setCheckbox('extractMetaDescription', 'extractMetaDescription', true);
+        setCheckbox('extractMetaKeywords', 'extractMetaKeywords', true);
+        setCheckbox('extractH1', 'extractH1', true);
+        setCheckbox('extractH2', 'extractH2', true);
+        setCheckbox('extractIndexability', 'extractIndexability', true);
+        setCheckbox('extractWordCount', 'extractWordCount', true);
+        setCheckbox('extractReadability', 'extractReadability', true);
+        setCheckbox('extractTextCodeRatio', 'extractTextCodeRatio', true);
+        setCheckbox('extractHashValue', 'extractHashValue', true);
+        setCheckbox('extractPageSize', 'extractPageSize', true);
+        setCheckbox('extractForms', 'extractForms', true);
+        setCheckbox('extractAccessibility', 'extractAccessibility');
+        setCheckbox('extractResponseTime', 'extractResponseTime', true);
+        setCheckbox('extractLastModified', 'extractLastModified', true);
+        setCheckbox('extractHTTPHeaders', 'extractHTTPHeaders');
+        setCheckbox('extractCookies', 'extractCookies');
+        setCheckbox('extractMetaRobots', 'extractMetaRobots', true);
+        setCheckbox('extractXRobotsTag', 'extractXRobotsTag', true);
+        setCheckbox('extractJSONLD', 'extractJSONLD');
+        setCheckbox('extractMicrodata', 'extractMicrodata');
+        setCheckbox('extractRDFa', 'extractRDFa');
+        setCheckbox('extractSchemaValidation', 'extractSchemaValidation');
+        setCheckbox('extractGoogleRichResult', 'extractGoogleRichResult');
+        setCheckbox('extractCaseSensitive', 'extractCaseSensitive');
+        setCheckbox('extractStoreHTML', 'extractStoreHTML');
+        setCheckbox('extractStoreRenderedHTML', 'extractStoreRenderedHTML');
+        setCheckbox('extractStorePDF', 'extractStorePDF');
+        setCheckbox('extractPDFProperties', 'extractPDFProperties');
+        setCheckbox('extractPDFLinkText', 'extractPDFLinkText');
+
+        // Limits Panel
+        setCheckbox('limitCrawlTotal', 'limitCrawlTotal', true);
+        setValue('limitCrawlTotalValue', 'limitCrawlTotalValue', '500');
+        setCheckbox('limitCrawlDepth', 'limitCrawlDepth', true);
+        setValue('limitCrawlDepthValue', 'limitCrawlDepthValue', '0');
+        setCheckbox('limitUrlsPerDepth', 'limitUrlsPerDepth');
+        setValue('limitUrlsPerDepthValue', 'limitUrlsPerDepthValue', '1000');
+        setCheckbox('limitMaxFolderDepth', 'limitMaxFolderDepth');
+        setValue('limitMaxFolderDepthValue', 'limitMaxFolderDepthValue', '5');
+        setCheckbox('limitQueryStrings', 'limitQueryStrings');
+        setValue('limitQueryStringsValue', 'limitQueryStringsValue', '5');
+        setCheckbox('limitCrawlPerSubdomain', 'limitCrawlPerSubdomain');
+        setValue('limitCrawlPerSubdomainValue', 'limitCrawlPerSubdomainValue', '1000');
+        setValue('limitMaxRedirects', 'limitMaxRedirects', '10');
+        setValue('limitMaxUrlLength', 'limitMaxUrlLength', '10000');
+        setValue('limitMaxLinksPerUrl', 'limitMaxLinksPerUrl', '10000');
+        setValue('limitMaxPageSize', 'limitMaxPageSize', '50000');
+
+        // Advanced Panel
+        setValue('advCookieStorage', 'advCookieStorage');
+        setCheckbox('advIgnoreNonIndexable', 'advIgnoreNonIndexable', true);
+        setCheckbox('advIgnorePaginated', 'advIgnorePaginated', true);
+        setCheckbox('advAlwaysFollowRedirects', 'advAlwaysFollowRedirects');
+        setCheckbox('advAlwaysFollowCanonicals', 'advAlwaysFollowCanonicals');
+        setCheckbox('advRespectNoindex', 'advRespectNoindex');
+        setCheckbox('advRespectCanonicals', 'advRespectCanonicals');
+        setCheckbox('advRespectNextPrev', 'advRespectNextPrev');
+        setCheckbox('advRespectHSTS', 'advRespectHSTS');
+        setCheckbox('advRespectMetaRefresh', 'advRespectMetaRefresh');
+        setCheckbox('advExtractImagesSrcset', 'advExtractImagesSrcset');
+        setCheckbox('advCrawlFragments', 'advCrawlFragments');
+        setCheckbox('advHTMLValidation', 'advHTMLValidation', true);
+        setCheckbox('advGreenHosting', 'advGreenHosting');
+        setCheckbox('advAssumeHTML', 'advAssumeHTML');
+        setValue('advResponseTimeout', 'advResponseTimeout', '20');
+        setValue('advResponseRetries', 'advResponseRetries', '0');
+
+        // Preferences Panel
+        setValue('prefTitlePixelsMin', 'prefTitlePixelsMin', '200');
+        setValue('prefTitlePixelsMax', 'prefTitlePixelsMax', '561');
+        setValue('prefTitleCharsMin', 'prefTitleCharsMin', '30');
+        setValue('prefTitleCharsMax', 'prefTitleCharsMax', '60');
+        setValue('prefMetaPixelsMin', 'prefMetaPixelsMin', '400');
+        setValue('prefMetaPixelsMax', 'prefMetaPixelsMax', '585');
+        setValue('prefMetaCharsMin', 'prefMetaCharsMin', '70');
+        setValue('prefMetaCharsMax', 'prefMetaCharsMax', '155');
+        setValue('prefHighExternalOutlinks', 'prefHighExternalOutlinks', '10');
+        setValue('prefHighInternalOutlinks', 'prefHighInternalOutlinks', '1000');
+        setValue('prefHighCrawlDepth', 'prefHighCrawlDepth', '3');
+        setValue('prefNonDescriptiveAnchors', 'prefNonDescriptiveAnchors');
+        setValue('prefMaxUrlLength', 'prefMaxUrlLength', '115');
+        setValue('prefMaxH1Length', 'prefMaxH1Length', '70');
+        setValue('prefMaxH2Length', 'prefMaxH2Length', '70');
+        setValue('prefMaxImageAltLength', 'prefMaxImageAltLength', '100');
+        setValue('prefMaxImageSizeKb', 'prefMaxImageSizeKb', '100');
+        setValue('prefLowContentWordCount', 'prefLowContentWordCount', '200');
+        setValue('prefSoft404Phrases', 'prefSoft404Phrases');
+
+        // Authentication settings
+        setCheckbox('authStandardsEnabled', 'authStandardsEnabled', false);
+
+        // Load auth standards data
+        const standardsTbody = document.getElementById('authStandardsTableBody');
+        if (standardsTbody && currentSettings.authStandardsData && Array.isArray(currentSettings.authStandardsData)) {
+            standardsTbody.innerHTML = '';
+            currentSettings.authStandardsData.forEach(entry => {
+                addAuthStandardsEntry();
+                const rows = standardsTbody.querySelectorAll('tr');
+                const lastRow = rows[rows.length - 1];
+                if (lastRow) {
+                    lastRow.querySelector('.auth-url').value = entry.url || '';
+                    lastRow.querySelector('.auth-username').value = entry.username || '';
+                    lastRow.querySelector('.auth-password').value = entry.password || '';
+                    lastRow.querySelector('.auth-type').value = entry.type || 'basic';
+                }
+            });
+            updateAuthStandardsEmptyState();
         }
 
-        const jsWaitTime = document.getElementById('jsWaitTime');
-        if (jsWaitTime && currentSettings.jsWaitTime !== undefined) {
-            jsWaitTime.value = currentSettings.jsWaitTime;
+        // Load auth forms data
+        const formsTbody = document.getElementById('authFormsTableBody');
+        if (formsTbody && currentSettings.authFormsData && Array.isArray(currentSettings.authFormsData)) {
+            formsTbody.innerHTML = '';
+            currentSettings.authFormsData.forEach(entry => {
+                addAuthFormsEntry();
+                const rows = formsTbody.querySelectorAll('tr');
+                const lastRow = rows[rows.length - 1];
+                if (lastRow) {
+                    lastRow.querySelector('.auth-login-url').value = entry.loginUrl || '';
+                    lastRow.querySelector('.auth-form-username').value = entry.username || '';
+                    lastRow.querySelector('.auth-form-password').value = entry.password || '';
+                    lastRow.querySelector('.auth-username-field').value = entry.usernameField || '';
+                    lastRow.querySelector('.auth-password-field').value = entry.passwordField || '';
+                    lastRow.querySelector('.auth-submit-selector').value = entry.submitSelector || '';
+                }
+            });
+            updateAuthFormsEmptyState();
         }
 
-        const jsTimeout = document.getElementById('jsTimeout');
-        if (jsTimeout && currentSettings.jsTimeout !== undefined) {
-            jsTimeout.value = currentSettings.jsTimeout;
-        }
+        // Include/Exclude patterns
+        setValue('includePatterns', 'includePatterns');
+        setValue('excludePatterns', 'excludePatterns');
 
-        const jsBrowser = document.getElementById('jsBrowser');
-        if (jsBrowser && currentSettings.jsBrowser) {
-            jsBrowser.value = currentSettings.jsBrowser;
-        }
-
-        const jsHeadless = document.getElementById('jsHeadless');
-        if (jsHeadless && currentSettings.jsHeadless !== undefined) {
-            jsHeadless.checked = currentSettings.jsHeadless;
-        }
-
-        const jsUserAgent = document.getElementById('jsUserAgent');
-        if (jsUserAgent && currentSettings.jsUserAgent) {
-            jsUserAgent.value = currentSettings.jsUserAgent;
-        }
-
-        const jsViewportWidth = document.getElementById('jsViewportWidth');
-        if (jsViewportWidth && currentSettings.jsViewportWidth) {
-            jsViewportWidth.value = currentSettings.jsViewportWidth;
-        }
-
-        const jsViewportHeight = document.getElementById('jsViewportHeight');
-        if (jsViewportHeight && currentSettings.jsViewportHeight) {
-            jsViewportHeight.value = currentSettings.jsViewportHeight;
-        }
-
-        const jsMaxPages = document.getElementById('jsMaxConcurrentPages');
-        if (jsMaxPages && currentSettings.jsMaxConcurrentPages) {
-            jsMaxPages.value = currentSettings.jsMaxConcurrentPages;
+        if (window.GA4Config && typeof window.GA4Config.loadFromSettings === 'function') {
+            window.GA4Config.loadFromSettings(currentSettings);
         }
     }
 }
@@ -3175,6 +3785,137 @@ function saveCrawlConfig() {
     const jsViewportWidth = parseInt(document.getElementById('jsViewportWidth')?.value) || 1920;
     const jsViewportHeight = parseInt(document.getElementById('jsViewportHeight')?.value) || 1080;
     const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
+
+    // Crawl Panel - Resource Links
+    const crawlImages = document.getElementById('crawlImages')?.checked !== false;
+    const storeImages = document.getElementById('storeImages')?.checked !== false;
+    const crawlMedia = document.getElementById('crawlMedia')?.checked || false;
+    const storeMedia = document.getElementById('storeMedia')?.checked || false;
+    const crawlCSS = document.getElementById('crawlCSS')?.checked !== false;
+    const storeCSS = document.getElementById('storeCSS')?.checked !== false;
+    const crawlJS = document.getElementById('crawlJS')?.checked !== false;
+    const storeJS = document.getElementById('storeJS')?.checked !== false;
+    const crawlSWF = document.getElementById('crawlSWF')?.checked !== false;
+    const storeSWF = document.getElementById('storeSWF')?.checked !== false;
+
+    // Crawl Panel - Crawl Behaviour
+    const checkLinksOutside = document.getElementById('checkLinksOutside')?.checked !== false;
+    const crawlOutside = document.getElementById('crawlOutside')?.checked !== false;
+    const crawlSubdomains = document.getElementById('crawlSubdomains')?.checked !== false;
+    const followInternalNofollow = document.getElementById('followInternalNofollow')?.checked || false;
+    const followExternalNofollow = document.getElementById('followExternalNofollow')?.checked || false;
+
+    // Crawl Panel - Page Links
+    const crawlInternal = document.getElementById('crawlInternal')?.checked !== false;
+    const storeInternal = document.getElementById('storeInternal')?.checked !== false;
+    const crawlExternal = document.getElementById('crawlExternal')?.checked !== false;
+    const storeExternal = document.getElementById('storeExternal')?.checked !== false;
+    const crawlCanonicals = document.getElementById('crawlCanonicals')?.checked !== false;
+    const storeCanonicals = document.getElementById('storeCanonicals')?.checked !== false;
+    const crawlPagination = document.getElementById('crawlPagination')?.checked || false;
+    const storePagination = document.getElementById('storePagination')?.checked !== false;
+    const crawlHreflang = document.getElementById('crawlHreflang')?.checked || false;
+    const storeHreflang = document.getElementById('storeHreflang')?.checked !== false;
+
+    // Crawl Panel - XML Sitemaps
+    const crawlSitemaps = document.getElementById('crawlSitemaps')?.checked !== false;
+    const autoDiscoverSitemaps = document.getElementById('autoDiscoverSitemaps')?.checked || false;
+    const crawlTheseSitemaps = document.getElementById('crawlTheseSitemaps')?.checked || false;
+    const sitemapUrls = document.getElementById('sitemapUrls')?.value || '';
+
+    // Extraction Panel
+    const extractPageTitle = document.getElementById('extractPageTitle')?.checked !== false;
+    const extractMetaDescription = document.getElementById('extractMetaDescription')?.checked !== false;
+    const extractMetaKeywords = document.getElementById('extractMetaKeywords')?.checked !== false;
+    const extractH1 = document.getElementById('extractH1')?.checked !== false;
+    const extractH2 = document.getElementById('extractH2')?.checked !== false;
+    const extractIndexability = document.getElementById('extractIndexability')?.checked !== false;
+    const extractWordCount = document.getElementById('extractWordCount')?.checked !== false;
+    const extractReadability = document.getElementById('extractReadability')?.checked !== false;
+    const extractTextCodeRatio = document.getElementById('extractTextCodeRatio')?.checked !== false;
+    const extractHashValue = document.getElementById('extractHashValue')?.checked !== false;
+    const extractPageSize = document.getElementById('extractPageSize')?.checked !== false;
+    const extractForms = document.getElementById('extractForms')?.checked !== false;
+    const extractAccessibility = document.getElementById('extractAccessibility')?.checked || false;
+    const extractResponseTime = document.getElementById('extractResponseTime')?.checked !== false;
+    const extractLastModified = document.getElementById('extractLastModified')?.checked !== false;
+    const extractHTTPHeaders = document.getElementById('extractHTTPHeaders')?.checked || false;
+    const extractCookies = document.getElementById('extractCookies')?.checked || false;
+    const extractMetaRobots = document.getElementById('extractMetaRobots')?.checked !== false;
+    const extractXRobotsTag = document.getElementById('extractXRobotsTag')?.checked !== false;
+    const extractJSONLD = document.getElementById('extractJSONLD')?.checked || false;
+    const extractMicrodata = document.getElementById('extractMicrodata')?.checked || false;
+    const extractRDFa = document.getElementById('extractRDFa')?.checked || false;
+    const extractSchemaValidation = document.getElementById('extractSchemaValidation')?.checked || false;
+    const extractGoogleRichResult = document.getElementById('extractGoogleRichResult')?.checked || false;
+    const extractCaseSensitive = document.getElementById('extractCaseSensitive')?.checked || false;
+    const extractStoreHTML = document.getElementById('extractStoreHTML')?.checked || false;
+    const extractStoreRenderedHTML = document.getElementById('extractStoreRenderedHTML')?.checked || false;
+    const extractStorePDF = document.getElementById('extractStorePDF')?.checked || false;
+    const extractPDFProperties = document.getElementById('extractPDFProperties')?.checked || false;
+    const extractPDFLinkText = document.getElementById('extractPDFLinkText')?.checked || false;
+
+    // Limits Panel
+    const limitCrawlTotal = document.getElementById('limitCrawlTotal')?.checked !== false;
+    const limitCrawlTotalValue = parseInt(document.getElementById('limitCrawlTotalValue')?.value) || 500;
+    const limitCrawlDepth = document.getElementById('limitCrawlDepth')?.checked !== false;
+    const limitCrawlDepthValue = parseInt(document.getElementById('limitCrawlDepthValue')?.value) || 0;
+    const limitUrlsPerDepth = document.getElementById('limitUrlsPerDepth')?.checked || false;
+    const limitUrlsPerDepthValue = parseInt(document.getElementById('limitUrlsPerDepthValue')?.value) || 1000;
+    const limitMaxFolderDepth = document.getElementById('limitMaxFolderDepth')?.checked || false;
+    const limitMaxFolderDepthValue = parseInt(document.getElementById('limitMaxFolderDepthValue')?.value) || 5;
+    const limitQueryStrings = document.getElementById('limitQueryStrings')?.checked || false;
+    const limitQueryStringsValue = parseInt(document.getElementById('limitQueryStringsValue')?.value) || 5;
+    const limitCrawlPerSubdomain = document.getElementById('limitCrawlPerSubdomain')?.checked || false;
+    const limitCrawlPerSubdomainValue = parseInt(document.getElementById('limitCrawlPerSubdomainValue')?.value) || 1000;
+    const limitMaxRedirects = parseInt(document.getElementById('limitMaxRedirects')?.value) || 10;
+    const limitMaxUrlLength = parseInt(document.getElementById('limitMaxUrlLength')?.value) || 10000;
+    const limitMaxLinksPerUrl = parseInt(document.getElementById('limitMaxLinksPerUrl')?.value) || 10000;
+    const limitMaxPageSize = parseInt(document.getElementById('limitMaxPageSize')?.value) || 50000;
+
+    // Advanced Panel
+    const advCookieStorage = document.getElementById('advCookieStorage')?.value || 'session';
+    const advIgnoreNonIndexable = document.getElementById('advIgnoreNonIndexable')?.checked !== false;
+    const advIgnorePaginated = document.getElementById('advIgnorePaginated')?.checked !== false;
+    const advAlwaysFollowRedirects = document.getElementById('advAlwaysFollowRedirects')?.checked || false;
+    const advAlwaysFollowCanonicals = document.getElementById('advAlwaysFollowCanonicals')?.checked || false;
+    const advRespectNoindex = document.getElementById('advRespectNoindex')?.checked || false;
+    const advRespectCanonicals = document.getElementById('advRespectCanonicals')?.checked || false;
+    const advRespectNextPrev = document.getElementById('advRespectNextPrev')?.checked || false;
+    const advRespectHSTS = document.getElementById('advRespectHSTS')?.checked || false;
+    const advRespectMetaRefresh = document.getElementById('advRespectMetaRefresh')?.checked || false;
+    const advExtractImagesSrcset = document.getElementById('advExtractImagesSrcset')?.checked || false;
+    const advCrawlFragments = document.getElementById('advCrawlFragments')?.checked || false;
+    const advHTMLValidation = document.getElementById('advHTMLValidation')?.checked !== false;
+    const advGreenHosting = document.getElementById('advGreenHosting')?.checked || false;
+    const advAssumeHTML = document.getElementById('advAssumeHTML')?.checked || false;
+    const advResponseTimeout = parseInt(document.getElementById('advResponseTimeout')?.value) || 20;
+    const advResponseRetries = parseInt(document.getElementById('advResponseRetries')?.value) || 0;
+
+    // Preferences Panel
+    const prefTitlePixelsMin = parseInt(document.getElementById('prefTitlePixelsMin')?.value) || 200;
+    const prefTitlePixelsMax = parseInt(document.getElementById('prefTitlePixelsMax')?.value) || 561;
+    const prefTitleCharsMin = parseInt(document.getElementById('prefTitleCharsMin')?.value) || 30;
+    const prefTitleCharsMax = parseInt(document.getElementById('prefTitleCharsMax')?.value) || 60;
+    const prefMetaPixelsMin = parseInt(document.getElementById('prefMetaPixelsMin')?.value) || 400;
+    const prefMetaPixelsMax = parseInt(document.getElementById('prefMetaPixelsMax')?.value) || 585;
+    const prefMetaCharsMin = parseInt(document.getElementById('prefMetaCharsMin')?.value) || 70;
+    const prefMetaCharsMax = parseInt(document.getElementById('prefMetaCharsMax')?.value) || 155;
+    const prefHighExternalOutlinks = parseInt(document.getElementById('prefHighExternalOutlinks')?.value) || 10;
+    const prefHighInternalOutlinks = parseInt(document.getElementById('prefHighInternalOutlinks')?.value) || 1000;
+    const prefHighCrawlDepth = parseInt(document.getElementById('prefHighCrawlDepth')?.value) || 3;
+    const prefNonDescriptiveAnchors = document.getElementById('prefNonDescriptiveAnchors')?.value || '';
+    const prefMaxUrlLength = parseInt(document.getElementById('prefMaxUrlLength')?.value) || 115;
+    const prefMaxH1Length = parseInt(document.getElementById('prefMaxH1Length')?.value) || 70;
+    const prefMaxH2Length = parseInt(document.getElementById('prefMaxH2Length')?.value) || 70;
+    const prefMaxImageAltLength = parseInt(document.getElementById('prefMaxImageAltLength')?.value) || 100;
+    const prefMaxImageSizeKb = parseInt(document.getElementById('prefMaxImageSizeKb')?.value) || 100;
+    const prefLowContentWordCount = parseInt(document.getElementById('prefLowContentWordCount')?.value) || 200;
+    const prefSoft404Phrases = document.getElementById('prefSoft404Phrases')?.value || '';
+
+    const ga4Settings = (window.GA4Config && typeof window.GA4Config.collectSettings === 'function')
+        ? window.GA4Config.collectSettings()
+        : {};
 
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
@@ -3216,11 +3957,75 @@ function saveCrawlConfig() {
         jsViewportHeight: jsViewportHeight,
         jsMaxConcurrentPages: jsMaxConcurrentPages,
 
+        // Crawl Panel - Resource Links
+        crawlImages, storeImages, crawlMedia, storeMedia,
+        crawlCSS, storeCSS, crawlJS, storeJS, crawlSWF, storeSWF,
+
+        // Crawl Panel - Crawl Behaviour
+        checkLinksOutside, crawlOutside, crawlSubdomains,
+        followInternalNofollow, followExternalNofollow,
+
+        // Crawl Panel - Page Links
+        crawlInternal, storeInternal, crawlExternal, storeExternal,
+        crawlCanonicals, storeCanonicals, crawlPagination, storePagination,
+        crawlHreflang, storeHreflang,
+
+        // Crawl Panel - XML Sitemaps
+        crawlSitemaps, autoDiscoverSitemaps, crawlTheseSitemaps, sitemapUrls,
+
+        // Extraction settings
+        extractPageTitle, extractMetaDescription, extractMetaKeywords,
+        extractH1, extractH2, extractIndexability, extractWordCount,
+        extractReadability, extractTextCodeRatio, extractHashValue,
+        extractPageSize, extractForms, extractAccessibility,
+        extractResponseTime, extractLastModified, extractHTTPHeaders,
+        extractCookies, extractMetaRobots, extractXRobotsTag,
+        extractJSONLD, extractMicrodata, extractRDFa,
+        extractSchemaValidation, extractGoogleRichResult, extractCaseSensitive,
+        extractStoreHTML, extractStoreRenderedHTML,
+        extractStorePDF, extractPDFProperties, extractPDFLinkText,
+
+        // Limits settings
+        limitCrawlTotal, limitCrawlTotalValue,
+        limitCrawlDepth, limitCrawlDepthValue,
+        limitUrlsPerDepth, limitUrlsPerDepthValue,
+        limitMaxFolderDepth, limitMaxFolderDepthValue,
+        limitQueryStrings, limitQueryStringsValue,
+        limitCrawlPerSubdomain, limitCrawlPerSubdomainValue,
+        limitMaxRedirects, limitMaxUrlLength, limitMaxLinksPerUrl, limitMaxPageSize,
+
+        // Advanced settings
+        advCookieStorage, advIgnoreNonIndexable, advIgnorePaginated,
+        advAlwaysFollowRedirects, advAlwaysFollowCanonicals,
+        advRespectNoindex, advRespectCanonicals, advRespectNextPrev, advRespectHSTS,
+        advRespectMetaRefresh, advExtractImagesSrcset, advCrawlFragments,
+        advHTMLValidation, advGreenHosting, advAssumeHTML,
+        advResponseTimeout, advResponseRetries,
+
+        // Preferences settings
+        prefTitlePixelsMin, prefTitlePixelsMax, prefTitleCharsMin, prefTitleCharsMax,
+        prefMetaPixelsMin, prefMetaPixelsMax, prefMetaCharsMin, prefMetaCharsMax,
+        prefHighExternalOutlinks, prefHighInternalOutlinks, prefHighCrawlDepth,
+        prefNonDescriptiveAnchors, prefMaxUrlLength, prefMaxH1Length, prefMaxH2Length,
+        prefMaxImageAltLength, prefMaxImageSizeKb, prefLowContentWordCount, prefSoft404Phrases,
+
         // HTTP Headers
         httpHeaders: getEnabledHttpHeaders(),
 
         // Content Area settings
-        contentArea: getContentAreaConfig()
+        contentArea: getContentAreaConfig(),
+
+        // Authentication settings
+        authStandardsEnabled: document.getElementById('authStandardsEnabled')?.checked || false,
+        authStandardsData: collectAuthStandardsData(),
+        authFormsData: collectAuthFormsData(),
+
+        // Include/Exclude patterns
+        includePatterns: document.getElementById('includePatterns')?.value || '',
+        excludePatterns: document.getElementById('excludePatterns')?.value || '',
+
+        // GA4 settings
+        ...ga4Settings
     };
 
     // Save HTTP headers and content area separately
@@ -3228,32 +4033,14 @@ function saveCrawlConfig() {
     saveContentAreaConfig();
 
     // Also keep in currentSettings for UI consistency
-    const configValues = {
-        maxThreads: maxThreads,
-        limitUrlsPerSecond: limitUrlsPerSecond,
-        maxUrlsPerSecond: maxUrlsPerSec,
-        maxDepth: maxDepth,
-        maxUrls: maxUrls,
-        maxFileSize: maxFileSize,
-        userAgent: userAgent,
-        robotsUserAgent: robotsUserAgent,
-        // Also update the backend field names in currentSettings
-        concurrency: maxThreads,
-        crawlDelay: crawlDelay,
-        // JavaScript settings
-        enableJavaScript: enableJavaScript,
-        jsWaitTime: jsWaitTime,
-        jsTimeout: jsTimeout,
-        jsBrowser: jsBrowser,
-        jsHeadless: jsHeadless,
-        jsUserAgent: jsUserAgent,
-        jsViewportWidth: jsViewportWidth,
-        jsViewportHeight: jsViewportHeight,
-        jsMaxConcurrentPages: jsMaxConcurrentPages
-    };
-
     // Update currentSettings if it exists
     if (typeof currentSettings !== 'undefined') {
+        // Map UI names to internal names if necessary
+        const configValues = {
+            ...backendSettings,
+            maxThreads: maxThreads // Ensure UI name is preserved
+        };
+
         Object.assign(currentSettings, configValues);
 
         // Save to localStorage
@@ -3270,15 +4057,15 @@ function saveCrawlConfig() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backendSettings)
     }).then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Crawl config saved', 'success');
-        } else {
-            console.error('Failed to save config:', data.message || data.error);
-        }
-    }).catch(err => {
-        console.error('Failed to save config:', err);
-    });
+        .then(data => {
+            if (data.success) {
+                showNotification('Crawl config saved', 'success');
+            } else {
+                console.error('Failed to save config:', data.message || data.error);
+            }
+        }).catch(err => {
+            console.error('Failed to save config:', err);
+        });
 
     closeCrawlConfig();
 }
@@ -3351,9 +4138,9 @@ function renderHttpHeaders() {
             </div>
             <div class="http-header-actions">
                 ${header.linked
-                    ? '<button class="btn-icon" title="Linked to User-Agent config" disabled>&#x1F517;</button>'
-                    : `<button class="btn-icon btn-delete" onclick="deleteHttpHeader(${index})" title="Delete">&#x1F5D1;</button>`
-                }
+            ? '<button class="btn-icon" title="Linked to User-Agent config" disabled>&#x1F517;</button>'
+            : `<button class="btn-icon btn-delete" onclick="deleteHttpHeader(${index})" title="Delete">&#x1F5D1;</button>`
+        }
             </div>
         </div>
     `).join('');
@@ -3481,7 +4268,7 @@ function saveContentAreaConfig() {
 }
 
 // Initialize when DOM loads
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initHttpHeaders();
     loadContentAreaConfig();
 });
@@ -3495,7 +4282,7 @@ let selectedRobotsSubdomain = null;
 let robotsSubdomains = [];
 
 // Initialize robots.txt editor event listeners
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const robotsEditor = document.getElementById('robotsEditorContent');
     if (robotsEditor) {
         // Update line numbers when content changes
@@ -3724,18 +4511,18 @@ function selectRobotsSubdomain(subdomain) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subdomain })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const editor = document.getElementById('robotsEditorContent');
-            if (editor) {
-                editor.value = data.content || '';
-                updateRobotsLineNumbers();
-                parseRobotsContent();
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const editor = document.getElementById('robotsEditorContent');
+                if (editor) {
+                    editor.value = data.content || '';
+                    updateRobotsLineNumbers();
+                    parseRobotsContent();
+                }
             }
-        }
-    })
-    .catch(err => console.error('Failed to load robots content:', err));
+        })
+        .catch(err => console.error('Failed to load robots content:', err));
 }
 
 function addRobotsSubdomain() {
@@ -3754,32 +4541,32 @@ function addRobotsSubdomain() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subdomain, content: '' })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            robotsSubdomains.push(subdomain);
-            selectedRobotsSubdomain = subdomain;
-            renderRobotsSubdomainsList();
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                robotsSubdomains.push(subdomain);
+                selectedRobotsSubdomain = subdomain;
+                renderRobotsSubdomainsList();
 
-            // Clear editor for new subdomain
-            const editor = document.getElementById('robotsEditorContent');
-            if (editor) {
-                editor.value = '';
-                updateRobotsLineNumbers();
+                // Clear editor for new subdomain
+                const editor = document.getElementById('robotsEditorContent');
+                if (editor) {
+                    editor.value = '';
+                    updateRobotsLineNumbers();
+                }
+
+                document.getElementById('robotsDeleteBtn').disabled = false;
+                document.getElementById('robotsEditBtn').disabled = false;
+
+                showNotification(`Added ${subdomain}`, 'success');
+            } else {
+                showNotification(data.error || 'Failed to add subdomain', 'error');
             }
-
-            document.getElementById('robotsDeleteBtn').disabled = false;
-            document.getElementById('robotsEditBtn').disabled = false;
-
-            showNotification(`Added ${subdomain}`, 'success');
-        } else {
-            showNotification(data.error || 'Failed to add subdomain', 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to add subdomain:', err);
-        showNotification('Failed to add subdomain', 'error');
-    });
+        })
+        .catch(err => {
+            console.error('Failed to add subdomain:', err);
+            showNotification('Failed to add subdomain', 'error');
+        });
 }
 
 function editRobotsSubdomain() {
@@ -3797,26 +4584,26 @@ function editRobotsSubdomain() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subdomain: selectedRobotsSubdomain })
     })
-    .then(() => {
-        return fetch('/api/robots/custom/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subdomain: newSubdomain, content })
-        });
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const index = robotsSubdomains.indexOf(selectedRobotsSubdomain);
-            if (index > -1) {
-                robotsSubdomains[index] = newSubdomain;
+        .then(() => {
+            return fetch('/api/robots/custom/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subdomain: newSubdomain, content })
+            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const index = robotsSubdomains.indexOf(selectedRobotsSubdomain);
+                if (index > -1) {
+                    robotsSubdomains[index] = newSubdomain;
+                }
+                selectedRobotsSubdomain = newSubdomain;
+                renderRobotsSubdomainsList();
+                showNotification('Subdomain updated', 'success');
             }
-            selectedRobotsSubdomain = newSubdomain;
-            renderRobotsSubdomainsList();
-            showNotification('Subdomain updated', 'success');
-        }
-    })
-    .catch(err => console.error('Failed to edit subdomain:', err));
+        })
+        .catch(err => console.error('Failed to edit subdomain:', err));
 }
 
 function deleteRobotsSubdomain() {
@@ -3829,33 +4616,33 @@ function deleteRobotsSubdomain() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subdomain: selectedRobotsSubdomain })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            robotsSubdomains = robotsSubdomains.filter(s => s !== selectedRobotsSubdomain);
-            selectedRobotsSubdomain = null;
-            renderRobotsSubdomainsList();
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                robotsSubdomains = robotsSubdomains.filter(s => s !== selectedRobotsSubdomain);
+                selectedRobotsSubdomain = null;
+                renderRobotsSubdomainsList();
 
-            // Clear editor
-            const editor = document.getElementById('robotsEditorContent');
-            if (editor) {
-                editor.value = '';
-                updateRobotsLineNumbers();
+                // Clear editor
+                const editor = document.getElementById('robotsEditorContent');
+                if (editor) {
+                    editor.value = '';
+                    updateRobotsLineNumbers();
+                }
+
+                // Clear analysis
+                const analysisContent = document.getElementById('robotsAnalysisContent');
+                if (analysisContent) {
+                    analysisContent.innerHTML = '<p class="robots-analysis-placeholder">Select a subdomain or add content to see analysis</p>';
+                }
+
+                document.getElementById('robotsDeleteBtn').disabled = true;
+                document.getElementById('robotsEditBtn').disabled = true;
+
+                showNotification('Subdomain deleted', 'success');
             }
-
-            // Clear analysis
-            const analysisContent = document.getElementById('robotsAnalysisContent');
-            if (analysisContent) {
-                analysisContent.innerHTML = '<p class="robots-analysis-placeholder">Select a subdomain or add content to see analysis</p>';
-            }
-
-            document.getElementById('robotsDeleteBtn').disabled = true;
-            document.getElementById('robotsEditBtn').disabled = true;
-
-            showNotification('Subdomain deleted', 'success');
-        }
-    })
-    .catch(err => console.error('Failed to delete subdomain:', err));
+        })
+        .catch(err => console.error('Failed to delete subdomain:', err));
 }
 
 function downloadRobotsTxt() {
@@ -3877,24 +4664,24 @@ function downloadRobotsTxt() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: baseUrl })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const editor = document.getElementById('robotsEditorContent');
-            if (editor) {
-                editor.value = data.content || '';
-                updateRobotsLineNumbers();
-                parseRobotsContent();
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const editor = document.getElementById('robotsEditorContent');
+                if (editor) {
+                    editor.value = data.content || '';
+                    updateRobotsLineNumbers();
+                    parseRobotsContent();
+                }
+                showNotification('robots.txt downloaded', 'success');
+            } else {
+                showNotification(data.error || 'Failed to download robots.txt', 'error');
             }
-            showNotification('robots.txt downloaded', 'success');
-        } else {
-            showNotification(data.error || 'Failed to download robots.txt', 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to download robots.txt:', err);
-        showNotification('Failed to download robots.txt', 'error');
-    });
+        })
+        .catch(err => {
+            console.error('Failed to download robots.txt:', err);
+            showNotification('Failed to download robots.txt', 'error');
+        });
 }
 
 function clearRobotsEditor() {
@@ -3934,27 +4721,27 @@ function testRobotsPath() {
             user_agent: '*'
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const result = data.data;
-            if (result.allowed) {
-                resultDiv.className = 'robots-test-result allowed';
-                resultDiv.innerHTML = `<strong>ALLOWED</strong> - Path "${escapeHtml(path)}" is allowed for crawling.<br><small>${result.reason || ''}</small>`;
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const result = data.data;
+                if (result.allowed) {
+                    resultDiv.className = 'robots-test-result allowed';
+                    resultDiv.innerHTML = `<strong>ALLOWED</strong> - Path "${escapeHtml(path)}" is allowed for crawling.<br><small>${result.reason || ''}</small>`;
+                } else {
+                    resultDiv.className = 'robots-test-result blocked';
+                    resultDiv.innerHTML = `<strong>BLOCKED</strong> - Path "${escapeHtml(path)}" is blocked by robots.txt.<br><small>${result.matched_rule || ''}</small>`;
+                }
             } else {
-                resultDiv.className = 'robots-test-result blocked';
-                resultDiv.innerHTML = `<strong>BLOCKED</strong> - Path "${escapeHtml(path)}" is blocked by robots.txt.<br><small>${result.matched_rule || ''}</small>`;
+                resultDiv.className = 'robots-test-result';
+                resultDiv.innerHTML = `Error: ${data.error || 'Unknown error'}`;
             }
-        } else {
+        })
+        .catch(err => {
+            console.error('Failed to test path:', err);
             resultDiv.className = 'robots-test-result';
-            resultDiv.innerHTML = `Error: ${data.error || 'Unknown error'}`;
-        }
-    })
-    .catch(err => {
-        console.error('Failed to test path:', err);
-        resultDiv.className = 'robots-test-result';
-        resultDiv.innerHTML = 'Error testing path';
-    });
+            resultDiv.innerHTML = 'Error testing path';
+        });
 }
 
 // Save robots.txt content when switching subdomains or closing modal
@@ -3972,7 +4759,7 @@ function saveCurrentRobotsContent() {
             content: editor.value
         })
     })
-    .catch(err => console.error('Failed to save robots content:', err));
+        .catch(err => console.error('Failed to save robots content:', err));
 }
 
 // Helper function to escape HTML (if not already defined)
@@ -3982,3 +4769,550 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// ==========================================
+// AUTHENTICATION PANEL FUNCTIONS
+// ==========================================
+
+// Storage for authentication data
+let authStandardsData = [];
+let authFormsData = [];
+
+// Standards Based Authentication Functions
+function addAuthStandardsEntry() {
+    const tbody = document.getElementById('authStandardsTableBody');
+    const emptyState = document.getElementById('authStandardsEmpty');
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    const row = document.createElement('tr');
+    const id = Date.now();
+    row.id = `auth-standards-row-${id}`;
+    row.innerHTML = `
+        <td><input type="text" placeholder="https://example.com" class="auth-url" /></td>
+        <td><input type="text" placeholder="username" class="auth-username" /></td>
+        <td><input type="password" placeholder="password" class="auth-password" /></td>
+        <td>
+            <select class="auth-type">
+                <option value="basic">Basic</option>
+                <option value="digest">Digest</option>
+            </select>
+        </td>
+        <td><button class="auth-delete-btn" onclick="removeAuthStandardsEntry('${id}')">✕</button></td>
+    `;
+    tbody.appendChild(row);
+    updateAuthStandardsEmptyState();
+}
+
+function removeAuthStandardsEntry(id) {
+    const row = document.getElementById(`auth-standards-row-${id}`);
+    if (row) row.remove();
+    updateAuthStandardsEmptyState();
+}
+
+function deleteAllAuthStandards() {
+    if (!confirm('Are you sure you want to delete all standards-based authentication entries?')) return;
+
+    const tbody = document.getElementById('authStandardsTableBody');
+    if (tbody) tbody.innerHTML = '';
+    updateAuthStandardsEmptyState();
+}
+
+function updateAuthStandardsEmptyState() {
+    const tbody = document.getElementById('authStandardsTableBody');
+    const emptyState = document.getElementById('authStandardsEmpty');
+
+    if (emptyState) {
+        emptyState.style.display = tbody && tbody.children.length > 0 ? 'none' : 'block';
+    }
+}
+
+function collectAuthStandardsData() {
+    const rows = document.querySelectorAll('#authStandardsTableBody tr');
+    const data = [];
+
+    rows.forEach(row => {
+        const url = row.querySelector('.auth-url')?.value || '';
+        const username = row.querySelector('.auth-username')?.value || '';
+        const password = row.querySelector('.auth-password')?.value || '';
+        const type = row.querySelector('.auth-type')?.value || 'basic';
+
+        if (url.trim()) {
+            data.push({ url, username, password, type });
+        }
+    });
+
+    return data;
+}
+
+// Forms Based Authentication Functions
+function addAuthFormsEntry() {
+    const tbody = document.getElementById('authFormsTableBody');
+    const emptyState = document.getElementById('authFormsEmpty');
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    const row = document.createElement('tr');
+    const id = Date.now();
+    row.id = `auth-forms-row-${id}`;
+    row.innerHTML = `
+        <td><input type="text" placeholder="https://example.com/login" class="auth-login-url" /></td>
+        <td><input type="text" placeholder="username" class="auth-form-username" /></td>
+        <td><input type="password" placeholder="password" class="auth-form-password" /></td>
+        <td><input type="text" placeholder="#username" class="auth-username-field" /></td>
+        <td><input type="text" placeholder="#password" class="auth-password-field" /></td>
+        <td><input type="text" placeholder="button[type='submit']" class="auth-submit-selector" /></td>
+        <td><button class="auth-delete-btn" onclick="removeAuthFormsEntry('${id}')">✕</button></td>
+    `;
+    tbody.appendChild(row);
+    updateAuthFormsEmptyState();
+}
+
+function removeAuthFormsEntry(id) {
+    const row = document.getElementById(`auth-forms-row-${id}`);
+    if (row) row.remove();
+    updateAuthFormsEmptyState();
+}
+
+function deleteAllAuthForms() {
+    if (!confirm('Are you sure you want to delete all form-based authentication entries?')) return;
+
+    const tbody = document.getElementById('authFormsTableBody');
+    if (tbody) tbody.innerHTML = '';
+    updateAuthFormsEmptyState();
+}
+
+function updateAuthFormsEmptyState() {
+    const tbody = document.getElementById('authFormsTableBody');
+    const emptyState = document.getElementById('authFormsEmpty');
+
+    if (emptyState) {
+        emptyState.style.display = tbody && tbody.children.length > 0 ? 'none' : 'block';
+    }
+}
+
+function collectAuthFormsData() {
+    const rows = document.querySelectorAll('#authFormsTableBody tr');
+    const data = [];
+
+    rows.forEach(row => {
+        const loginUrl = row.querySelector('.auth-login-url')?.value || '';
+        const username = row.querySelector('.auth-form-username')?.value || '';
+        const password = row.querySelector('.auth-form-password')?.value || '';
+        const usernameField = row.querySelector('.auth-username-field')?.value || '';
+        const passwordField = row.querySelector('.auth-password-field')?.value || '';
+        const submitSelector = row.querySelector('.auth-submit-selector')?.value || '';
+
+        if (loginUrl.trim()) {
+            data.push({ loginUrl, username, password, usernameField, passwordField, submitSelector });
+        }
+    });
+
+    return data;
+}
+
+// Profile Functions
+async function exportAuthProfile() {
+    const authStandardsEnabled = document.getElementById('authStandardsEnabled')?.checked || false;
+    const standardsData = collectAuthStandardsData();
+    const formsData = collectAuthFormsData();
+
+    try {
+        // Encrypt credentials using backend
+        const response = await fetch('/api/encrypt_auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                authStandardsData: standardsData,
+                authFormsData: formsData
+            })
+        });
+
+        const result = await response.json();
+
+        let exportData;
+        if (result.success) {
+            exportData = {
+                authStandardsData: result.data.authStandardsData,
+                authFormsData: result.data.authFormsData
+            };
+        } else {
+            // Fallback to unencrypted if encryption fails
+            console.warn('Encryption failed, exporting unencrypted:', result.error);
+            exportData = {
+                authStandardsData: standardsData,
+                authFormsData: formsData
+            };
+        }
+
+        const profile = {
+            version: '1.0',
+            exportDate: new Date().toISOString(),
+            encrypted: result.success,
+            authStandardsEnabled,
+            ...exportData
+        };
+
+        const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `auth-profile-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        alert('Authentication profile exported successfully!');
+    } catch (err) {
+        console.error('Export error:', err);
+        alert('Error exporting profile. Please try again.');
+    }
+}
+
+function importAuthProfile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+
+    input.onchange = async function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+            try {
+                let profile = JSON.parse(e.target.result);
+
+                // Validate profile structure
+                if (!profile.version) {
+                    throw new Error('Invalid profile format');
+                }
+
+                // Decrypt if the profile is encrypted
+                if (profile.encrypted) {
+                    try {
+                        const response = await fetch('/api/decrypt_auth', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                authStandardsData: profile.authStandardsData,
+                                authFormsData: profile.authFormsData
+                            })
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            profile.authStandardsData = result.data.authStandardsData;
+                            profile.authFormsData = result.data.authFormsData;
+                        } else {
+                            console.warn('Decryption failed:', result.error);
+                        }
+                    } catch (decryptErr) {
+                        console.warn('Could not decrypt profile:', decryptErr);
+                    }
+                }
+
+                // Apply standards based settings
+                const enabledCheckbox = document.getElementById('authStandardsEnabled');
+                if (enabledCheckbox && profile.authStandardsEnabled !== undefined) {
+                    enabledCheckbox.checked = profile.authStandardsEnabled;
+                }
+
+                // Clear and repopulate standards data
+                const standardsTbody = document.getElementById('authStandardsTableBody');
+                if (standardsTbody) {
+                    standardsTbody.innerHTML = '';
+                    if (profile.authStandardsData && Array.isArray(profile.authStandardsData)) {
+                        profile.authStandardsData.forEach(entry => {
+                            addAuthStandardsEntry();
+                            const rows = standardsTbody.querySelectorAll('tr');
+                            const lastRow = rows[rows.length - 1];
+                            if (lastRow) {
+                                lastRow.querySelector('.auth-url').value = entry.url || '';
+                                lastRow.querySelector('.auth-username').value = entry.username || '';
+                                lastRow.querySelector('.auth-password').value = entry.password || '';
+                                lastRow.querySelector('.auth-type').value = entry.type || 'basic';
+                            }
+                        });
+                    }
+                }
+                updateAuthStandardsEmptyState();
+
+                // Clear and repopulate forms data
+                const formsTbody = document.getElementById('authFormsTableBody');
+                if (formsTbody) {
+                    formsTbody.innerHTML = '';
+                    if (profile.authFormsData && Array.isArray(profile.authFormsData)) {
+                        profile.authFormsData.forEach(entry => {
+                            addAuthFormsEntry();
+                            const rows = formsTbody.querySelectorAll('tr');
+                            const lastRow = rows[rows.length - 1];
+                            if (lastRow) {
+                                lastRow.querySelector('.auth-login-url').value = entry.loginUrl || '';
+                                lastRow.querySelector('.auth-form-username').value = entry.username || '';
+                                lastRow.querySelector('.auth-form-password').value = entry.password || '';
+                                lastRow.querySelector('.auth-username-field').value = entry.usernameField || '';
+                                lastRow.querySelector('.auth-password-field').value = entry.passwordField || '';
+                                lastRow.querySelector('.auth-submit-selector').value = entry.submitSelector || '';
+                            }
+                        });
+                    }
+                }
+                updateAuthFormsEmptyState();
+
+                alert('Authentication profile imported successfully!');
+            } catch (err) {
+                console.error('Failed to import profile:', err);
+                alert('Failed to import profile. Please ensure the file is a valid authentication profile.');
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    input.click();
+}
+
+function setAuthAsDefault() {
+    const authStandardsEnabled = document.getElementById('authStandardsEnabled')?.checked || false;
+    const standardsData = collectAuthStandardsData();
+    const formsData = collectAuthFormsData();
+
+    const profile = {
+        authStandardsEnabled,
+        authStandardsData: standardsData,
+        authFormsData: formsData
+    };
+
+    localStorage.setItem('authDefaultProfile', JSON.stringify(profile));
+    alert('Current authentication configuration set as default.');
+}
+
+function clearAuthDefault() {
+    if (!confirm('Are you sure you want to clear the default authentication configuration?')) return;
+
+    localStorage.removeItem('authDefaultProfile');
+    alert('Default authentication configuration cleared.');
+}
+
+function loadAuthDefaultProfile() {
+    const saved = localStorage.getItem('authDefaultProfile');
+    if (!saved) return;
+
+    try {
+        const profile = JSON.parse(saved);
+
+        // Apply to UI if on auth panels
+        const enabledCheckbox = document.getElementById('authStandardsEnabled');
+        if (enabledCheckbox && profile.authStandardsEnabled !== undefined) {
+            enabledCheckbox.checked = profile.authStandardsEnabled;
+        }
+
+        // Load standards data
+        if (profile.authStandardsData && Array.isArray(profile.authStandardsData)) {
+            const standardsTbody = document.getElementById('authStandardsTableBody');
+            if (standardsTbody) {
+                standardsTbody.innerHTML = '';
+                profile.authStandardsData.forEach(entry => {
+                    addAuthStandardsEntry();
+                    const rows = standardsTbody.querySelectorAll('tr');
+                    const lastRow = rows[rows.length - 1];
+                    if (lastRow) {
+                        lastRow.querySelector('.auth-url').value = entry.url || '';
+                        lastRow.querySelector('.auth-username').value = entry.username || '';
+                        lastRow.querySelector('.auth-password').value = entry.password || '';
+                        lastRow.querySelector('.auth-type').value = entry.type || 'basic';
+                    }
+                });
+            }
+            updateAuthStandardsEmptyState();
+        }
+
+        // Load forms data
+        if (profile.authFormsData && Array.isArray(profile.authFormsData)) {
+            const formsTbody = document.getElementById('authFormsTableBody');
+            if (formsTbody) {
+                formsTbody.innerHTML = '';
+                profile.authFormsData.forEach(entry => {
+                    addAuthFormsEntry();
+                    const rows = formsTbody.querySelectorAll('tr');
+                    const lastRow = rows[rows.length - 1];
+                    if (lastRow) {
+                        lastRow.querySelector('.auth-login-url').value = entry.loginUrl || '';
+                        lastRow.querySelector('.auth-form-username').value = entry.username || '';
+                        lastRow.querySelector('.auth-form-password').value = entry.password || '';
+                        lastRow.querySelector('.auth-username-field').value = entry.usernameField || '';
+                        lastRow.querySelector('.auth-password-field').value = entry.passwordField || '';
+                        lastRow.querySelector('.auth-submit-selector').value = entry.submitSelector || '';
+                    }
+                });
+            }
+            updateAuthFormsEmptyState();
+        }
+    } catch (err) {
+        console.error('Failed to load default auth profile:', err);
+    }
+}
+
+// ==========================================
+// INCLUDE/EXCLUDE PATTERNS FUNCTIONS
+// ==========================================
+
+function testIncludeUrl() {
+    const testUrl = document.getElementById('includeTestUrl')?.value || '';
+    const encodedUrlEl = document.getElementById('includeEncodedUrl');
+    const resultDiv = document.getElementById('includeTestResult');
+    const patternsText = document.getElementById('includePatterns')?.value || '';
+
+    // Update encoded URL
+    if (encodedUrlEl) {
+        try {
+            encodedUrlEl.value = testUrl ? encodeURI(testUrl) : '';
+        } catch (e) {
+            encodedUrlEl.value = testUrl;
+        }
+    }
+
+    // Get patterns
+    const patterns = patternsText.split('\n')
+        .map(p => p.trim())
+        .filter(p => p && !p.startsWith('#'));
+
+    if (!resultDiv) return;
+
+    // No patterns configured
+    if (patterns.length === 0) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-info">
+                <strong>ℹ️ Info</strong><br>
+                No Includes configured
+            </div>
+        `;
+        return;
+    }
+
+    // No test URL
+    if (!testUrl) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-info">
+                <strong>ℹ️ Info</strong><br>
+                Enter a URL to test against ${patterns.length} pattern(s)
+            </div>
+        `;
+        return;
+    }
+
+    // Test URL against patterns
+    let matchedPattern = null;
+    for (const pattern of patterns) {
+        try {
+            const regex = new RegExp(pattern);
+            if (regex.test(testUrl)) {
+                matchedPattern = pattern;
+                break;
+            }
+        } catch (e) {
+            // Invalid regex, try as literal match
+            if (testUrl.includes(pattern)) {
+                matchedPattern = pattern;
+                break;
+            }
+        }
+    }
+
+    if (matchedPattern) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-success">
+                <strong>✓ Match</strong><br>
+                URL matches pattern: <code>${escapeHtml(matchedPattern)}</code>
+            </div>
+        `;
+    } else {
+        resultDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <strong>✗ No Match</strong><br>
+                URL does not match any of the ${patterns.length} configured pattern(s)
+            </div>
+        `;
+    }
+}
+
+function testExcludeUrl() {
+    const testUrl = document.getElementById('excludeTestUrl')?.value || '';
+    const encodedUrlEl = document.getElementById('excludeEncodedUrl');
+    const resultDiv = document.getElementById('excludeTestResult');
+    const patternsText = document.getElementById('excludePatterns')?.value || '';
+
+    // Update encoded URL
+    if (encodedUrlEl) {
+        try {
+            encodedUrlEl.value = testUrl ? encodeURI(testUrl) : '';
+        } catch (e) {
+            encodedUrlEl.value = testUrl;
+        }
+    }
+
+    // Get patterns
+    const patterns = patternsText.split('\n')
+        .map(p => p.trim())
+        .filter(p => p && !p.startsWith('#'));
+
+    if (!resultDiv) return;
+
+    // No patterns configured
+    if (patterns.length === 0) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-info">
+                <strong>ℹ️ Info</strong><br>
+                No Excludes configured
+            </div>
+        `;
+        return;
+    }
+
+    // No test URL
+    if (!testUrl) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-info">
+                <strong>ℹ️ Info</strong><br>
+                Enter a URL to test against ${patterns.length} pattern(s)
+            </div>
+        `;
+        return;
+    }
+
+    // Test URL against patterns
+    let matchedPattern = null;
+    for (const pattern of patterns) {
+        try {
+            const regex = new RegExp(pattern);
+            if (regex.test(testUrl)) {
+                matchedPattern = pattern;
+                break;
+            }
+        } catch (e) {
+            // Invalid regex, try as literal match
+            if (testUrl.includes(pattern)) {
+                matchedPattern = pattern;
+                break;
+            }
+        }
+    }
+
+    if (matchedPattern) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <strong>✗ Excluded</strong><br>
+                URL will be excluded by pattern: <code>${escapeHtml(matchedPattern)}</code>
+            </div>
+        `;
+    } else {
+        resultDiv.innerHTML = `
+            <div class="alert alert-success">
+                <strong>✓ Not Excluded</strong><br>
+                URL does not match any exclusion patterns
+            </div>
+        `;
+    }
+}
+
