@@ -19,59 +19,117 @@ class LinkManager:
         self.urls_lock = threading.Lock()
         self.links_lock = threading.Lock()
 
-    def extract_links(self, soup, current_url, depth, should_crawl_callback):
+    def extract_links(self, soup, current_url, depth, should_crawl_callback, config=None):
         """Extract links from HTML and add to discovery queue"""
+        config = config or {}
+        
+        # 1. Standard <a> links
         links = soup.find_all('a', href=True)
+        discovered_targets = []
 
         for link in links:
             href = link['href'].strip()
             if not href or href.startswith('#') or href.startswith('mailto:') or href.startswith('tel:'):
                 continue
+                
+            # Check rel="nofollow"
+            rel = [r.lower() for r in link.get('rel', []) if isinstance(r, str)]
+            if 'nofollow' in rel:
+                is_internal = self.is_internal(urljoin(current_url, href))
+                if is_internal and not config.get('follow_internal_nofollow', False):
+                    continue
+                if not is_internal and not config.get('follow_external_nofollow', False):
+                    continue
 
-            # Convert relative URLs to absolute
-            absolute_url = urljoin(current_url, href)
+            discovered_targets.append(href)
 
-            # Clean URL (remove fragment)
-            parsed = urlparse(absolute_url)
-            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-            if parsed.query:
-                clean_url += f"?{parsed.query}"
+        # 2. Extra link types from <link> tags if configured
+        if config.get('crawl_canonicals', True):
+            canonical = soup.find('link', rel='canonical', href=True)
+            if canonical:
+                discovered_targets.append(canonical['href'])
 
-            # Thread-safe checking and adding
-            with self.urls_lock:
-                # Track source page for this URL
-                if clean_url not in self.source_pages:
-                    self.source_pages[clean_url] = []
-                if current_url not in self.source_pages[clean_url]:
-                    self.source_pages[clean_url].append(current_url)
+        if config.get('crawl_pagination', False):
+            for rel_type in ['next', 'prev']:
+                pag_links = soup.find_all('link', rel=rel_type, href=True)
+                for pag in pag_links:
+                    discovered_targets.append(pag['href'])
 
-                if (clean_url not in self.visited_urls and
-                    clean_url not in self.all_discovered_urls and
-                    clean_url != current_url):
+        if config.get('crawl_hreflang', False):
+            hreflangs = soup.find_all('link', hreflang=True, href=True)
+            for hl in hreflangs:
+                discovered_targets.append(hl['href'])
 
-                    # Check if this URL should be crawled
-                    if should_crawl_callback(clean_url):
-                        self.all_discovered_urls.add(clean_url)
-                        self.discovered_urls.append((clean_url, depth))
-
-    def collect_all_links(self, soup, source_url, crawl_results):
-        """Collect all links for the Links tab display"""
-        links = soup.find_all('a', href=True)
-
-        for link in links:
-            href = link['href'].strip()
-            if not href or href.startswith('#'):
-                continue
-
-            # Get anchor text
-            anchor_text = link.get_text().strip()[:100]
-
-            # Handle special link types
-            if href.startswith('mailto:') or href.startswith('tel:'):
-                continue
-
+        for href in discovered_targets:
             # Convert relative URLs to absolute
             try:
+                absolute_url = urljoin(current_url, href)
+
+                # Clean URL (remove fragment)
+                parsed = urlparse(absolute_url)
+                clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                if parsed.query:
+                    clean_url += f"?{parsed.query}"
+
+                # Thread-safe checking and adding
+                with self.urls_lock:
+                    # Track source page for this URL
+                    if clean_url not in self.source_pages:
+                        self.source_pages[clean_url] = []
+                    if current_url not in self.source_pages[clean_url]:
+                        self.source_pages[clean_url].append(current_url)
+
+                    if (clean_url not in self.visited_urls and
+                        clean_url not in self.all_discovered_urls and
+                        clean_url != current_url):
+
+                        # Check if this URL should be crawled
+                        if should_crawl_callback(clean_url, depth):
+                            self.all_discovered_urls.add(clean_url)
+                            self.discovered_urls.append((clean_url, depth))
+            except Exception:
+                continue
+
+    def collect_all_links(self, soup, source_url, crawl_results, config=None):
+        """Collect all links for the Links tab display"""
+        config = config or {}
+        
+        # Define lists of links to discover
+        targets = []
+        
+        # 1. Standard <a> links
+        if config.get('store_internal', True) or config.get('store_external', True):
+            links = soup.find_all('a', href=True)
+            for link in links:
+                href = link['href'].strip()
+                if not href or href.startswith('#') or href.startswith('mailto:') or href.startswith('tel:'):
+                    continue
+                targets.append((href, link.get_text().strip()[:100], self._detect_link_placement(link)))
+
+        # 2. Canonical
+        if config.get('store_canonicals', True):
+            can_link = soup.find('link', rel='canonical', href=True)
+            if can_link:
+                targets.append((can_link['href'], '(canonical)', 'head'))
+
+        # 3. Pagination
+        if config.get('store_pagination', True):
+            for rel in ['next', 'prev']:
+                pag_links = soup.find_all('link', rel=rel, href=True)
+                for pag in pag_links:
+                    targets.append((pag['href'], f'(pagination: {rel})', 'head'))
+
+        # 4. Hreflang
+        if config.get('store_hreflang', True):
+            hl_links = soup.find_all('link', hreflang=True, href=True)
+            for hl in hl_links:
+                lang = hl.get('hreflang', '')
+                targets.append((hl['href'], f'(hreflang: {lang})', 'head'))
+
+        # Process all discovered targets
+        for href, anchor_text, placement in targets:
+            try:
+                # Convert relative URLs to absolute
                 absolute_url = urljoin(source_url, href)
                 parsed_target = urlparse(absolute_url)
 
@@ -81,9 +139,16 @@ class LinkManager:
                     clean_url += f"?{parsed_target.query}"
 
                 # Determine if link is internal or external
-                target_domain_clean = parsed_target.netloc.replace('www.', '', 1)
-                base_domain_clean = self.base_domain.replace('www.', '', 1)
+                target_domain_clean = parsed_target.netloc.lower().replace('www.', '', 1)
+                base_domain_clean = self.base_domain.lower().replace('www.', '', 1)
                 is_internal = target_domain_clean == base_domain_clean
+
+                # Filter based on storage settings for standard links (non-head)
+                if placement != 'head':
+                    if is_internal and not config.get('store_internal', True):
+                        continue
+                    if not is_internal and not config.get('store_external', True):
+                        continue
 
                 # Find the status of the target URL if we've crawled it
                 target_status = None
@@ -91,9 +156,6 @@ class LinkManager:
                     if result['url'] == clean_url:
                         target_status = result['status_code']
                         break
-
-                # Determine placement (navigation, footer, body)
-                placement = self._detect_link_placement(link)
 
                 link_data = {
                     'source_url': source_url,

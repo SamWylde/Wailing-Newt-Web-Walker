@@ -3,6 +3,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 from src.app_state import get_or_create_crawler, get_session_settings
 from src.auth_db import get_guest_crawls_last_24h, log_crawl_start, log_guest_crawl
 from src.auth_utils import get_client_ip, login_required
+from src.core.ga4_service import GA4Service
 from src.utils.issue_filters import filter_issues_by_exclusion_patterns
 
 crawl_bp = Blueprint('crawl', __name__)
@@ -11,12 +12,17 @@ crawl_bp = Blueprint('crawl', __name__)
 @crawl_bp.route('/api/start_crawl', methods=['POST'])
 @login_required
 def start_crawl():
-    data = request.get_json()
+    data = request.get_json() or {}
     url = data.get('url')
     extra_urls = data.get('extra_urls', [])
+    if not isinstance(extra_urls, list):
+        extra_urls = []
+    extra_urls = [str(u).strip() for u in extra_urls if str(u).strip()]
 
     if not url:
         return jsonify({'success': False, 'error': 'URL is required'})
+
+    normalized_url = url if str(url).startswith(('http://', 'https://')) else f"https://{url}"
 
     user_id = session.get('user_id')
     tier = session.get('tier', 'guest')
@@ -37,19 +43,43 @@ def start_crawl():
     settings_manager = get_session_settings()
     session_id = session.get('session_id')
 
+    crawler_config = {}
     try:
         crawler_config = settings_manager.get_crawler_config()
         crawler.update_config(crawler_config)
     except Exception as e:
         print(f"Warning: Could not apply settings: {e}")
 
-    success, message = crawler.start_crawl(url, user_id=user_id, session_id=session_id, extra_urls=extra_urls)
+    ga4_discovery = None
+    if (
+        crawler_config.get('ga4_enabled')
+        and crawler_config.get('ga4_connected')
+        and crawler_config.get('ga4_crawl_new_urls')
+        and crawler_config.get('ga4_property_id')
+    ):
+        try:
+            ga4_urls, ga4_discovery = GA4Service.discover_urls_for_crawl(settings_manager, normalized_url, crawler_config)
+            seen = set(extra_urls)
+            for ga4_url in ga4_urls:
+                if ga4_url and ga4_url not in seen:
+                    seen.add(ga4_url)
+                    extra_urls.append(ga4_url)
+        except Exception as exc:
+            ga4_discovery = {'status': 'error', 'error': str(exc)}
+
+    success, message = crawler.start_crawl(
+        normalized_url,
+        user_id=user_id,
+        session_id=session_id,
+        extra_urls=extra_urls,
+        user_tier=tier,
+    )
 
     if success and crawler.crawl_id:
         session['current_crawl_id'] = crawler.crawl_id
         log_crawl_start(user_id, url)
 
-    return jsonify({'success': success, 'message': message, 'crawl_id': crawler.crawl_id})
+    return jsonify({'success': success, 'message': message, 'crawl_id': crawler.crawl_id, 'ga4_discovery': ga4_discovery})
 
 
 @crawl_bp.route('/api/stop_crawl', methods=['POST'])
@@ -75,7 +105,11 @@ def crawl_status():
     if crawler.base_url and 'stats' in status_data:
         status_data['stats']['baseUrl'] = crawler.base_url
 
-    force_full = session.pop('force_full_refresh', False)
+    crawler_force_full = False
+    if hasattr(crawler, 'consume_force_full_refresh'):
+        crawler_force_full = crawler.consume_force_full_refresh()
+
+    force_full = session.pop('force_full_refresh', False) or crawler_force_full
 
     if not force_full:
         if url_since is not None:
@@ -84,6 +118,8 @@ def crawl_status():
             status_data['links'] = status_data.get('links', [])[link_since:]
         if issue_since is not None:
             status_data['issues'] = status_data.get('issues', [])[issue_since:]
+    else:
+        status_data['full_refresh'] = True
 
     issues = status_data.get('issues', [])
     if issues:

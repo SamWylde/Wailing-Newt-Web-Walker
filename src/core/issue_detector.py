@@ -8,10 +8,23 @@ from difflib import SequenceMatcher
 class IssueDetector:
     """Detects SEO and technical issues in crawled pages"""
 
-    def __init__(self, exclusion_patterns=None):
+    def __init__(self, exclusion_patterns=None, config=None):
         self.exclusion_patterns = exclusion_patterns or []
         self.detected_issues = []
         self.issues_lock = threading.Lock()
+        
+        # Store config with preference thresholds (with sensible defaults)
+        self.config = config or {}
+        self.title_chars_min = self.config.get('pref_title_chars_min', 30)
+        self.title_chars_max = self.config.get('pref_title_chars_max', 60)
+        self.meta_chars_min = self.config.get('pref_meta_chars_min', 70)
+        self.meta_chars_max = self.config.get('pref_meta_chars_max', 155)
+        self.low_content_word_count = self.config.get('pref_low_content_word_count', 200)
+        self.max_h1_length = self.config.get('pref_max_h1_length', 70)
+        self.max_h2_length = self.config.get('pref_max_h2_length', 70)
+        self.max_url_length = self.config.get('pref_max_url_length', 115)
+        self.high_external_outlinks = self.config.get('pref_high_external_outlinks', 10)
+        self.high_internal_outlinks = self.config.get('pref_high_internal_outlinks', 1000)
 
     def detect_issues(self, result):
         """Detect SEO issues for a crawled URL"""
@@ -58,21 +71,21 @@ class IssueDetector:
                 'issue': 'Missing Title Tag',
                 'details': 'Page has no title tag'
             })
-        elif len(title) > 60:
+        elif len(title) > self.title_chars_max:
             issues.append({
                 'url': url,
                 'type': 'warning',
                 'category': 'SEO',
                 'issue': 'Title Too Long',
-                'details': f"Title is {len(title)} characters (recommended: ≤60)"
+                'details': f"Title is {len(title)} characters (recommended: ≤{self.title_chars_max})"
             })
-        elif len(title) < 30:
+        elif len(title) < self.title_chars_min:
             issues.append({
                 'url': url,
                 'type': 'warning',
                 'category': 'SEO',
                 'issue': 'Title Too Short',
-                'details': f"Title is {len(title)} characters (recommended: 30-60)"
+                'details': f"Title is {len(title)} characters (recommended: {self.title_chars_min}-{self.title_chars_max})"
             })
 
     def _check_meta_description_issues(self, result, issues):
@@ -88,28 +101,30 @@ class IssueDetector:
                 'issue': 'Missing Meta Description',
                 'details': 'Page has no meta description'
             })
-        elif len(meta_desc) > 160:
+        elif len(meta_desc) > self.meta_chars_max:
             issues.append({
                 'url': url,
                 'type': 'warning',
                 'category': 'SEO',
                 'issue': 'Meta Description Too Long',
-                'details': f"Description is {len(meta_desc)} characters (recommended: ≤160)"
+                'details': f"Description is {len(meta_desc)} characters (recommended: ≤{self.meta_chars_max})"
             })
-        elif len(meta_desc) < 120:
+        elif len(meta_desc) < self.meta_chars_min:
             issues.append({
                 'url': url,
                 'type': 'warning',
                 'category': 'SEO',
                 'issue': 'Meta Description Too Short',
-                'details': f"Description is {len(meta_desc)} characters (recommended: 120-160)"
+                'details': f"Description is {len(meta_desc)} characters (recommended: {self.meta_chars_min}-{self.meta_chars_max})"
             })
 
     def _check_heading_issues(self, result, issues):
         """Check for heading-related issues"""
         url = result.get('url', '')
+        h1 = result.get('h1', '')
+        h2s = result.get('h2', [])
 
-        if not result.get('h1'):
+        if not h1:
             issues.append({
                 'url': url,
                 'type': 'error',
@@ -117,6 +132,25 @@ class IssueDetector:
                 'issue': 'Missing H1 Tag',
                 'details': 'Page has no H1 heading'
             })
+        elif len(h1) > self.max_h1_length:
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'SEO',
+                'issue': 'H1 Too Long',
+                'details': f"H1 is {len(h1)} characters (recommended: ≤{self.max_h1_length})"
+            })
+
+        for h2 in h2s:
+            if len(h2) > self.max_h2_length:
+                issues.append({
+                    'url': url,
+                    'type': 'warning',
+                    'category': 'SEO',
+                    'issue': 'H2 Too Long',
+                    'details': f"H2 is {len(h2)} characters (recommended: ≤{self.max_h2_length})"
+                })
+                break  # Only report once per page
 
     def _check_content_issues(self, result, issues):
         """Check for content-related issues"""
@@ -132,15 +166,15 @@ class IssueDetector:
                 'type': 'warning',
                 'category': 'Content',
                 'issue': 'Thin Content',
-                'details': f'Page has only {word_count} words (limit: 300)'
+                'details': f'Page has only {word_count} words (limit: {self.low_content_word_count})'
             })
-        elif word_count < 300:
+        elif word_count < self.low_content_word_count:
             issues.append({
                 'url': url,
                 'type': 'warning',
                 'category': 'Content',
                 'issue': 'Thin Content',
-                'details': f'Page has only {word_count} words (recommended: ≥300)'
+                'details': f'Page has only {word_count} words (recommended: ≥{self.low_content_word_count})'
             })
 
         # Readability check
@@ -154,6 +188,24 @@ class IssueDetector:
                     'issue': 'Difficult Readability',
                     'details': f'Content readability is Grade {readability_grade} (complex)'
                 })
+
+        # Soft 404 check
+        soft_404_phrases = self.config.get('pref_soft_404_phrases', [])
+        if soft_404_phrases:
+            text_content = result.get('text_content', '').lower()
+            if not text_content and 'soup' in result: # Backup if text_content not cached
+                text_content = result['soup'].get_text().lower()
+            
+            for phrase in soft_404_phrases:
+                if phrase.lower() in text_content:
+                    issues.append({
+                        'url': url,
+                        'type': 'error',
+                        'category': 'Technical',
+                        'issue': 'Soft 404 Detected',
+                        'details': f'Page content contains soft 404 phrase: "{phrase}"'
+                    })
+                    break
 
     def _check_technical_issues(self, result, issues):
         """Check for technical SEO issues"""
@@ -213,6 +265,38 @@ class IssueDetector:
                 'category': 'Technical',
                 'issue': 'Canonical URL Different',
                 'details': f"Canonical points to: {canonical_url}"
+            })
+
+        # URL length check
+        if len(url) > self.max_url_length:
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'Technical',
+                'issue': 'URL Too Long',
+                'details': f'URL is {len(url)} characters (recommended: ≤{self.max_url_length})'
+            })
+
+        # High outlinks check
+        internal_links = result.get('internal_links', 0)
+        external_links = result.get('external_links', 0)
+
+        if internal_links > self.high_internal_outlinks:
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'Technical',
+                'issue': 'High Internal Outlinks',
+                'details': f'Page has {internal_links} internal outlinks (recommended: ≤{self.high_internal_outlinks})'
+            })
+
+        if external_links > self.high_external_outlinks:
+            issues.append({
+                'url': url,
+                'type': 'warning',
+                'category': 'Technical',
+                'issue': 'High External Outlinks',
+                'details': f'Page has {external_links} external outlinks (recommended: ≤{self.high_external_outlinks})'
             })
 
     def _check_mobile_issues(self, result, issues):

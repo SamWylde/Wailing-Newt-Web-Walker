@@ -1,5 +1,20 @@
 // Settings Management
 let currentSettings = {};
+
+function publishCurrentSettings() {
+    if (typeof window !== 'undefined') {
+        window.currentSettings = currentSettings;
+    }
+}
+
+function sanitizeSettingsForClient(settings) {
+    const sanitized = { ...settings };
+    delete sanitized.ga4OauthTokens;
+    return sanitized;
+}
+
+publishCurrentSettings();
+
 let defaultSettings = {
     // Crawler settings
     maxDepth: 3,
@@ -10,8 +25,10 @@ let defaultSettings = {
 
     // Speed settings
     maxThreads: 5,
+    concurrency: 5,
     limitUrlsPerSecond: false,
     maxUrlsPerSecond: 2,
+    respectCrawlDelay: true,
 
     // User-Agent settings
     presetUserAgent: 'wailingnewt',
@@ -23,6 +40,9 @@ let defaultSettings = {
     retries: 3,
     acceptLanguage: 'en-US,en;q=0.9',
     respectRobotsTxt: true,
+    robotsMode: 'respect',
+    showInternalBlocked: true,
+    showExternalBlocked: true,
     allowCookies: true,
     discoverSitemaps: true,
     enablePageSpeed: false,
@@ -43,8 +63,168 @@ let defaultSettings = {
     exportFormat: 'csv',
     exportFields: ['url', 'status_code', 'title', 'meta_description', 'h1', 'word_count', 'response_time', 'analytics', 'og_tags', 'json_ld', 'internal_links', 'external_links', 'images'],
 
-    // Advanced settings
-    concurrency: 5,
+    // Extraction Panel - Page Details
+    extractPageTitle: true,
+    extractMetaDescription: true,
+    extractMetaKeywords: true,
+    extractH1: true,
+    extractH2: true,
+    extractIndexability: true,
+    extractWordCount: true,
+    extractReadability: true,
+    extractTextCodeRatio: true,
+    extractHashValue: true,
+    extractPageSize: true,
+    extractForms: true,
+    extractAccessibility: false,
+    extractResponseTime: true,
+    extractLastModified: true,
+    extractHTTPHeaders: false,
+    extractCookies: false,
+    extractMetaRobots: true,
+    extractXRobotsTag: true,
+    extractJSONLD: false,
+    extractMicrodata: false,
+    extractRDFa: false,
+    extractSchemaValidation: false,
+    extractGoogleRichResult: false,
+    extractCaseSensitive: false,
+    extractStoreHTML: false,
+    extractStoreRenderedHTML: false,
+    extractStorePDF: false,
+    extractPDFProperties: false,
+    extractPDFLinkText: false,
+
+    // Crawl Panel - Resource Links
+    crawlImages: true,
+    storeImages: true,
+    crawlMedia: false,
+    storeMedia: false,
+    crawlCSS: true,
+    storeCSS: true,
+    crawlJS: true,
+    storeJS: true,
+    crawlSWF: true,
+    storeSWF: true,
+
+    // Crawl Panel - Crawl Behaviour
+    checkLinksOutside: true,
+    crawlOutside: true,
+    crawlSubdomains: true,
+    followInternalNofollow: false,
+    followExternalNofollow: false,
+
+    // Crawl Panel - Page Links
+    crawlInternal: true,
+    storeInternal: true,
+    crawlExternalValue: true, // Internal key name variant
+    crawlExternal: true,
+    storeExternal: true,
+    crawlCanonicals: true,
+    storeCanonicals: true,
+    crawlPagination: false,
+    storePagination: true,
+    crawlHreflang: false,
+    storeHreflang: true,
+
+    // Crawl Panel - XML Sitemaps
+    crawlSitemaps: true,
+    autoDiscoverSitemaps: false,
+    crawlTheseSitemaps: false,
+    sitemapUrls: '',
+
+    // Google Analytics 4 (GA4)
+    ga4Enabled: false,
+    ga4Connected: false,
+    ga4AccountId: '',
+    ga4AccountName: '',
+    ga4PropertyId: '',
+    ga4PropertyName: '',
+    ga4DataStreamId: '',
+    ga4DataStreamName: '',
+    ga4DateRangePreset: 'last_30_days',
+    ga4DateStart: '',
+    ga4DateEnd: '',
+    ga4SelectedMetrics: ['sessions', 'screenPageViews', 'engagedSessions', 'engagementRate', 'keyEvents', 'eventCount', 'totalRevenue'],
+    ga4MetricDimensions: {
+        sessions: 'landingPagePlusQueryString',
+        screenPageViews: 'landingPagePlusQueryString',
+        engagedSessions: 'landingPagePlusQueryString',
+        engagementRate: 'landingPagePlusQueryString',
+        keyEvents: 'landingPagePlusQueryString',
+        eventCount: 'landingPagePlusQueryString',
+        totalRevenue: 'landingPagePlusQueryString'
+    },
+    ga4FilterDimensionType: '',
+    ga4FilterValue: '',
+    ga4MatchTrailingSlash: true,
+    ga4MatchCase: false,
+    ga4LimitMaxResults: true,
+    ga4MaxResults: 100000,
+    ga4CrawlNewUrls: false,
+    ga4LastSyncAt: '',
+    ga4LastSyncStatus: '',
+    ga4LastSyncError: '',
+
+    // Limits Panel
+    limitCrawlTotal: true,
+    limitCrawlTotalValue: 500,
+    limitCrawlDepth: true,
+    limitCrawlDepthValue: 0,
+    limitUrlsPerDepth: false,
+    limitUrlsPerDepthValue: 1000,
+    limitMaxFolderDepth: false,
+    limitMaxFolderDepthValue: 5,
+    limitQueryStrings: false,
+    limitQueryStringsValue: 5,
+    limitCrawlPerSubdomain: false,
+    limitCrawlPerSubdomainValue: 1000,
+    limitMaxRedirects: 10,
+    limitMaxUrlLength: 10000,
+    limitMaxLinksPerUrl: 10000,
+    limitMaxPageSize: 50000,
+
+    // Advanced Panel
+    advCookieStorage: 'session',
+    advIgnoreNonIndexable: true,
+    advIgnorePaginated: true,
+    advAlwaysFollowRedirects: false,
+    advAlwaysFollowCanonicals: false,
+    advRespectNoindex: false,
+    advRespectCanonicals: false,
+    advRespectNextPrev: false,
+    advRespectHSTS: false,
+    advRespectMetaRefresh: false,
+    advExtractImagesSrcset: false,
+    advCrawlFragments: false,
+    advHTMLValidation: true,
+    advGreenHosting: false,
+    advAssumeHTML: false,
+    advResponseTimeout: 20,
+    advResponseRetries: 0,
+
+    // Preferences Panel - SEO thresholds
+    prefTitlePixelsMin: 200,
+    prefTitlePixelsMax: 561,
+    prefTitleCharsMin: 30,
+    prefTitleCharsMax: 60,
+    prefMetaPixelsMin: 400,
+    prefMetaPixelsMax: 585,
+    prefMetaCharsMin: 70,
+    prefMetaCharsMax: 155,
+    prefHighExternalOutlinks: 10,
+    prefHighInternalOutlinks: 1000,
+    prefHighCrawlDepth: 3,
+    prefNonDescriptiveAnchors: "click here\nclick this\nfind out more\ngo\nhere\nlearn more\nmore\nover here\nread here\nread more\nright here\nstart\nthis\nthis page",
+    prefMaxUrlLength: 115,
+    prefMaxH1Length: 70,
+    prefMaxH2Length: 70,
+    prefMaxImageAltLength: 100,
+    prefMaxImageSizeKb: 100,
+    prefLowContentWordCount: 200,
+    prefSoft404Phrases: "404 Not Found\n404 error\n410 Not Found\ncan't find the page\ncan't seem to find that page\ncouldn't find that page\ncouldn't find the page\ncouldn't find what you're looking for\nerror 404\nerror occurred\nno products found\nno results found\nnot exist\nnot found\nnothing found\npage cannot be found\npage does not exist\npage not found\npage you are looking for\npage you requested\nsorry\nwe couldn't find",
+
+    // Advanced technical settings
     memoryLimit: 512,
     logLevel: 'INFO',
     saveSession: false,
@@ -607,7 +787,9 @@ function collectSettingsFromForm() {
 function saveSettings() {
     // Collect settings from form
     const collectedSettings = collectSettingsFromForm();
-    const newSettings = normalizeSpeedSettings({ ...currentSettings, ...collectedSettings });
+    const newSettings = sanitizeSettingsForClient(
+        normalizeSpeedSettings({ ...currentSettings, ...collectedSettings })
+    );
 
     // Validate settings
     const validation = validateSettings(newSettings);
@@ -627,6 +809,7 @@ function saveSettings() {
 
     // Update current settings
     currentSettings = { ...newSettings };
+    publishCurrentSettings();
 
     // Apply custom CSS immediately
     applyCustomCSS();
@@ -661,7 +844,8 @@ function saveSettings() {
 
 function resetSettings() {
     if (confirm('Are you sure you want to reset all settings to their default values?')) {
-        currentSettings = { ...defaultSettings };
+        currentSettings = sanitizeSettingsForClient({ ...defaultSettings });
+        publishCurrentSettings();
 
         // Clear localStorage
         try {
@@ -778,7 +962,10 @@ function loadSettings() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                currentSettings = normalizeSpeedSettings({ ...defaultSettings, ...data.settings });
+                currentSettings = sanitizeSettingsForClient(
+                    normalizeSpeedSettings({ ...defaultSettings, ...data.settings })
+                );
+                publishCurrentSettings();
                 localStorage.setItem('wailingnewt_settings', JSON.stringify(currentSettings));
                 applyCustomCSS();
                 return;
@@ -791,7 +978,10 @@ function loadSettings() {
                 const savedSettings = localStorage.getItem('wailingnewt_settings');
                 if (savedSettings) {
                     const parsed = JSON.parse(savedSettings);
-                    currentSettings = normalizeSpeedSettings({ ...defaultSettings, ...parsed });
+                    currentSettings = sanitizeSettingsForClient(
+                        normalizeSpeedSettings({ ...defaultSettings, ...parsed })
+                    );
+                    publishCurrentSettings();
                     applyCustomCSS();
                     syncSettingsToBackend();
                     return;
@@ -800,7 +990,10 @@ function loadSettings() {
                 console.warn('Failed to load settings from localStorage:', storageError);
             }
 
-            currentSettings = normalizeSpeedSettings({ ...defaultSettings });
+            currentSettings = sanitizeSettingsForClient(
+                normalizeSpeedSettings({ ...defaultSettings })
+            );
+            publishCurrentSettings();
             applyCustomCSS();
         });
 }
@@ -813,7 +1006,7 @@ function syncSettingsToBackend() {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(currentSettings)
+        body: JSON.stringify(sanitizeSettingsForClient(currentSettings))
     }).catch(error => {
         console.warn('Failed to sync settings to backend:', error);
     });
@@ -826,7 +1019,7 @@ function updateCrawlerSettings() {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(currentSettings)
+        body: JSON.stringify(sanitizeSettingsForClient(currentSettings))
     })
         .then(response => response.json())
         .then(data => {
@@ -843,7 +1036,7 @@ function updateCrawlerSettings() {
 
 function exportSettings() {
     // Create downloadable settings file
-    const settingsBlob = new Blob([JSON.stringify(currentSettings, null, 2)], {
+    const settingsBlob = new Blob([JSON.stringify(sanitizeSettingsForClient(currentSettings), null, 2)], {
         type: 'application/json'
     });
 
@@ -874,7 +1067,8 @@ function importSettings(event) {
             }
 
             // Merge with defaults to ensure all fields are present
-            currentSettings = { ...defaultSettings, ...importedSettings };
+            currentSettings = sanitizeSettingsForClient({ ...defaultSettings, ...importedSettings });
+            publishCurrentSettings();
             populateSettingsForm();
             showNotification('Settings imported successfully', 'success');
 

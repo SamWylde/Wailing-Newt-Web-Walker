@@ -14,6 +14,7 @@ from src.blueprints.auth import auth_bp
 from src.blueprints.crawl import crawl_bp
 from src.blueprints.debug import debug_bp
 from src.blueprints.export import export_bp
+from src.blueprints.ga4 import ga4_bp
 from src.blueprints.history import history_bp
 from src.blueprints.imports import imports_bp
 from src.blueprints.pages import pages_bp
@@ -22,7 +23,7 @@ from src.blueprints.settings import settings_bp
 
 load_dotenv()
 
-parser = argparse.ArgumentParser(description='Wailing Newt Web Walker - SEO Spider Tool')
+parser = argparse.ArgumentParser(description='Wailing Newt Web Walker - Web Crawler Tool')
 parser.add_argument('--local', '-l', action='store_true',
                     help='Run in local mode (all users get admin tier, no rate limits)')
 parser.add_argument('--disable-register', '-dr', action='store_true',
@@ -53,6 +54,7 @@ def create_app():
     app.register_blueprint(pages_bp)
     app.register_blueprint(crawl_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(ga4_bp)
     app.register_blueprint(history_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(debug_bp)
@@ -130,7 +132,7 @@ def main():
     start_cleanup_thread()
 
     print("=" * 60)
-    print("Wailing Newt Web Walker - SEO Spider")
+    print("Wailing Newt Web Walker")
     print("=" * 60)
     print(f"\n🚀 Server starting on http://0.0.0.0:5000")
     print("🌐 Access from browser: http://localhost:5000")

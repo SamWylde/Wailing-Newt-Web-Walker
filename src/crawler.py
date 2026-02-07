@@ -21,6 +21,8 @@ from src.core.sitemap_parser import SitemapParser
 from src.core.issue_detector import IssueDetector
 from src.core.memory_monitor import MemoryMonitor
 from src.core.crawler_defaults import get_default_crawler_config
+from src.core.ga4_service import GA4Service
+from src.settings_manager import SettingsManager
 
 
 class WebCrawler:
@@ -39,6 +41,9 @@ class WebCrawler:
         # Base URL tracking
         self.base_url = None
         self.base_domain = None
+        self.user_id = None
+        self.session_id = None
+        self.user_tier = 'guest'
 
         # Component instances (initialized on demand)
         self.rate_limiter = None
@@ -52,11 +57,13 @@ class WebCrawler:
         # Results storage
         self.crawl_results = []
         self.results_lock = threading.Lock()
+        self.stats_lock = threading.Lock()
 
         # State flags
         self.is_running = False
         self.is_paused = False
         self.is_running_pagespeed = False
+        self.force_full_refresh = False
 
         # Configuration
         self.config = self._get_default_config()
@@ -67,7 +74,9 @@ class WebCrawler:
             'crawled': 0,
             'depth': 0,
             'speed': 0.0,
-            'start_time': None
+            'start_time': None,
+            'urls_per_depth': {},
+            'urls_per_subdomain': {}
         }
 
         # Thread reference
@@ -95,7 +104,7 @@ class WebCrawler:
         """Get default configuration"""
         return get_default_crawler_config()
 
-    def start_crawl(self, url, user_id=None, session_id=None, extra_urls=None):
+    def start_crawl(self, url, user_id=None, session_id=None, extra_urls=None, user_tier='guest'):
         """Start crawling from the given URL"""
         if self.is_running:
             return False, "Crawl already in progress"
@@ -108,6 +117,9 @@ class WebCrawler:
             parsed = urlparse(url)
             self.base_url = f"{parsed.scheme}://{parsed.netloc}"
             self.base_domain = parsed.netloc
+            self.user_id = user_id
+            self.session_id = session_id
+            self.user_tier = user_tier or 'guest'
 
             # Note: max_depth from user settings is respected - no override
             print(f"Starting crawl from {url} with max_depth={self.config.get('max_depth', 3)}")
@@ -132,6 +144,9 @@ class WebCrawler:
             # Reset state
             self._reset_state()
 
+            # Apply session settings (UA, Proxy)
+            self._apply_session_settings()
+
             # Add initial URL
             # Add initial URL
             self.link_manager.add_url(url, 0)
@@ -139,18 +154,30 @@ class WebCrawler:
             # Add extra URLs from bulk input
             if extra_urls:
                 for extra in extra_urls:
-                    # Normalize extra URLs if needed
                     if not extra.startswith(('http://', 'https://')):
                         extra = 'https://' + extra
-                    self.link_manager.add_url(extra, 0)
                     
-            self.stats['discovered'] = self.link_manager.get_stats()['discovered']
+                    if self._should_crawl_url(extra, 0):
+                        self.link_manager.add_url(extra, 0)
+                    
+            with self.stats_lock:
+                self.stats['discovered'] = self.link_manager.get_stats()['discovered']
 
             # Discover sitemaps if enabled
-            if self.config.get('discover_sitemaps', True):
-                print(f"Starting sitemap discovery for {url}")
-                self._discover_and_add_sitemap_urls(url)
-                print(f"Sitemap discovery completed. Total discovered URLs: {self.stats['discovered']}")
+            if self.config.get('crawl_sitemaps', True):
+                # 1. Auto-discover sitemaps if enabled
+                if self.config.get('auto_discover_sitemaps', False):
+                    print(f"Starting auto-discovery of sitemaps for {url}")
+                    self._discover_and_add_sitemap_urls(url)
+                
+                # 2. Process specific sitemap URLs if provided
+                if self.config.get('crawl_these_sitemaps', False):
+                    custom_sitemaps = self.config.get('sitemap_urls', [])
+                    if custom_sitemaps:
+                        print(f"Processing {len(custom_sitemaps)} custom sitemap URLs")
+                        self._discover_and_add_sitemap_urls(url, custom_sitemaps)
+                
+                print(f"Sitemap processing completed. Total discovered URLs: {self.stats['discovered']}")
 
             # Start auto-save thread if DB enabled
             if self.db_save_enabled:
@@ -166,6 +193,53 @@ class WebCrawler:
         except Exception as e:
             return False, f"Error starting crawl: {str(e)}"
 
+    def _apply_session_settings(self):
+        """Apply user agent and proxy settings to the HTTP session"""
+        # 1. User Agent Logic
+        ua_mode = self.config.get('user_agent_dropdown', 'Default')
+        custom_ua = self.config.get('custom_user_agent', '')
+        
+        ua_map = {
+            'Googlebot': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Bingbot': 'Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+            'Desktop Chrome': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+            'Mobile Chrome': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36',
+            'Screaming Frog SEO Spider': 'Screaming Frog SEO Spider/19.1',
+            'Wailing Newt Web Walker': 'WailingNewt/1.0 (Web Crawler)',
+            'Default': 'WailingNewt/1.0 (Web Crawler)'
+        }
+        
+        final_ua = ua_map.get(ua_mode, ua_map['Default'])
+        if ua_mode == 'Custom' and custom_ua:
+            final_ua = custom_ua
+            
+        self.session.headers.update({'User-Agent': final_ua})
+        
+        # 2. Proxy Logic
+        if self.config.get('enable_proxy', False) or self.config.get('use_standard_proxy', False):
+            proxy_url = self.config.get('proxy_url')
+            if proxy_url:
+                self.session.proxies = {
+                    'http': proxy_url,
+                    'https': proxy_url
+                }
+        else:
+            self.session.proxies = {}
+
+        # 3. HTTP Basic/Digest Authentication
+        self._auth_credentials = {}
+        if self.config.get('auth_standards_enabled', False):
+            auth_data = self.config.get('auth_standards_data', [])
+            for entry in auth_data:
+                if entry.get('url') and entry.get('username'):
+                    self._auth_credentials[entry['url']] = {
+                        'username': entry.get('username', ''),
+                        'password': entry.get('password', ''),
+                        'type': entry.get('type', 'basic')
+                    }
+            if self._auth_credentials:
+                print(f"HTTP authentication configured for {len(self._auth_credentials)} URL(s)")
+
     def _initialize_components(self):
         """Initialize all crawler components"""
         # Calculate requests per second from delay
@@ -178,11 +252,12 @@ class WebCrawler:
         self.rate_limiter = RateLimiter(requests_per_second)
         self.link_manager = LinkManager(self.base_domain)
         self.sitemap_parser = SitemapParser(self.session, self.base_domain, self.config['timeout'])
-        self.issue_detector = IssueDetector(self.config.get('issue_exclusion_patterns', []))
+        self.issue_detector = IssueDetector(self.config.get('issue_exclusion_patterns', []), self.config)
 
         # Initialize JS renderer if needed
         if self.config.get('enable_javascript', False):
             self.js_renderer = JavaScriptRenderer(self.config)
+            # Form-based auth will be performed after renderer.initialize() in _crawl_worker
 
     def _reset_state(self):
         """Reset crawler state"""
@@ -192,32 +267,48 @@ class WebCrawler:
             self.issue_detector.reset()
 
         self.crawl_results.clear()
-        self.stats = {
-            'discovered': 0,
-            'crawled': 0,
-            'depth': 0,
-            'speed': 0.0,
-            'start_time': time.time()
-        }
+        self.force_full_refresh = False
+        with self.stats_lock:
+            self.stats = {
+                'discovered': 0,
+                'crawled': 0,
+                'depth': 0,
+                'speed': 0.0,
+                'start_time': time.time(),
+                'urls_per_depth': {},
+                'urls_per_subdomain': {}
+            }
 
         # Start memory monitoring
         self.memory_monitor.start_monitoring()
 
-    def _discover_and_add_sitemap_urls(self, base_url):
+    def _discover_and_add_sitemap_urls(self, base_url, specific_sitemaps=None):
         """Discover sitemaps and add URLs to crawl queue"""
-        sitemap_urls = self.sitemap_parser.discover_sitemaps(base_url)
+        if specific_sitemaps:
+            # Parse only the provided sitemap URLs
+            sitemap_urls = []
+            for sitemap_url in specific_sitemaps:
+                try:
+                    urls = self.sitemap_parser._parse_sitemap(sitemap_url, depth=1)
+                    sitemap_urls.extend(urls)
+                except Exception as e:
+                    print(f"Failed to parse custom sitemap {sitemap_url}: {e}")
+        else:
+            # Auto-discover
+            sitemap_urls = self.sitemap_parser.discover_sitemaps(base_url)
 
         added_count = 0
         filtered_count = 0
 
         for url in sitemap_urls:
-            if self._should_crawl_url(url):
+            if self._should_crawl_url(url, 0):
                 self.link_manager.add_url(url, 0)
                 added_count += 1
             else:
                 filtered_count += 1
 
-        self.stats['discovered'] = self.link_manager.get_stats()['discovered']
+        with self.stats_lock:
+            self.stats['discovered'] = self.link_manager.get_stats()['discovered']
         print(f"Sitemap processing: {added_count} added, {filtered_count} filtered")
 
     def stop_crawl(self):
@@ -272,7 +363,7 @@ class WebCrawler:
 
         return True, "Crawl resumed"
 
-    def resume_from_database(self, crawl_id, user_id=None, session_id=None):
+    def resume_from_database(self, crawl_id, user_id=None, session_id=None, user_tier='guest'):
         """Resume a previously interrupted crawl from database"""
         if self.is_running:
             return False, "Crawl already in progress"
@@ -298,6 +389,9 @@ class WebCrawler:
             self.crawl_id = crawl_id
             self.base_url = crawl_data['base_url']
             self.base_domain = crawl_data['base_domain']
+            self.user_id = user_id
+            self.session_id = session_id
+            self.user_tier = user_tier or 'guest'
             self.config = crawl_data.get('config_snapshot', self._get_default_config())
             self.db_save_enabled = True
 
@@ -397,14 +491,23 @@ class WebCrawler:
 
     def get_status(self):
         """Get current crawl status and results"""
-        status = 'completed' if not self.is_running and self.stats['crawled'] > 0 else 'running'
-        if not self.is_running and self.stats['crawled'] == 0:
-            status = 'idle'
+        # Snapshots for return
+        stats_snapshot = {}
+        with self.stats_lock:
+            # Calculate speed
+            if self.stats['start_time']:
+                elapsed = time.time() - self.stats['start_time']
+                self.stats['speed'] = round(self.stats['crawled'] / max(elapsed, 1), 2)
+            
+            # Create a shallow copy of stats for return
+            stats_snapshot = self.stats.copy()
+            # Deep copy the nested dicts to be extra safe
+            stats_snapshot['urls_per_depth'] = self.stats['urls_per_depth'].copy()
+            stats_snapshot['urls_per_subdomain'] = self.stats['urls_per_subdomain'].copy()
 
-        # Calculate speed
-        if self.stats['start_time']:
-            elapsed = time.time() - self.stats['start_time']
-            self.stats['speed'] = round(self.stats['crawled'] / max(elapsed, 1), 2)
+        status = 'completed' if not self.is_running and stats_snapshot['crawled'] > 0 else 'running'
+        if not self.is_running and stats_snapshot['crawled'] == 0:
+            status = 'idle'
 
         # Get link manager stats
         link_stats = self.link_manager.get_stats() if self.link_manager else {'discovered': 0}
@@ -424,12 +527,12 @@ class WebCrawler:
             self.issue_detector.detected_issues if self.issue_detector else []
         )
 
-        print(f"get_status called - crawl_results length: {len(self.crawl_results)}, status: {status}, crawled: {self.stats['crawled']}")
+        print(f"get_status called - crawl_results length: {len(self.crawl_results)}, status: {status}, crawled: {stats_snapshot['crawled']}")
 
         return {
             'status': status,
             'stats': {
-                **self.stats,
+                **stats_snapshot,
                 'discovered': link_stats['discovered']
             },
             'urls': self.crawl_results.copy(),
@@ -440,6 +543,13 @@ class WebCrawler:
             'memory': self.memory_monitor.get_stats(),
             'memory_data': data_sizes
         }
+
+    def consume_force_full_refresh(self):
+        """Return and reset the one-shot full refresh flag."""
+        if self.force_full_refresh:
+            self.force_full_refresh = False
+            return True
+        return False
 
     def _save_batch_to_db(self, force=False):
         """Save batched data to database"""
@@ -466,14 +576,15 @@ class WebCrawler:
 
             # Update statistics
             memory_stats = self.memory_monitor.get_stats()
-            update_crawl_stats(
-                self.crawl_id,
-                discovered=self.stats['discovered'],
-                crawled=self.stats['crawled'],
-                max_depth=self.stats['depth'],
-                peak_memory_mb=memory_stats.get('peak_mb', 0),
-                estimated_size_mb=memory_stats.get('estimated_crawl_mb', 0)
-            )
+            with self.stats_lock:
+                update_crawl_stats(
+                    self.crawl_id,
+                    discovered=self.stats['discovered'],
+                    crawled=self.stats['crawled'],
+                    max_depth=self.stats['depth'],
+                    peak_memory_mb=memory_stats.get('peak_mb', 0),
+                    estimated_size_mb=memory_stats.get('estimated_crawl_mb', 0)
+                )
 
             self.last_save_time = time.time()
             print(f"Saved batch to database for crawl {self.crawl_id}")
@@ -577,9 +688,15 @@ class WebCrawler:
                         time.sleep(1)
                         continue
 
+                    # Calculate effective max URLs (lowest of configured limits)
+                    effective_max_urls = self.config['max_urls']
+                    if self.config.get('limit_crawl_total', False):
+                        limit_total = self.config.get('limit_crawl_total_value', 500)
+                        effective_max_urls = min(effective_max_urls, limit_total)
+
                     # Submit new tasks - fill ALL available slots, apply rate limiting per task
                     while (len(active_futures) < max_workers and
-                           self.stats['crawled'] < self.config['max_urls']):
+                           self.stats['crawled'] < effective_max_urls):
 
                         url_info = self.link_manager.get_next_url()
                         if not url_info:
@@ -606,9 +723,11 @@ class WebCrawler:
                                 if result:
                                     with self.results_lock:
                                         self.crawl_results.append(result)
+                                        print(f"Added URL to results: {result['url']} - Total in results: {len(self.crawl_results)}")
+                                    
+                                    with self.stats_lock:
                                         self.stats['crawled'] += 1
                                         self.stats['depth'] = max(self.stats['depth'], result.get('depth', 0))
-                                        print(f"Added URL to results: {result['url']} - Total in results: {len(self.crawl_results)}")
 
                                     # Detect issues
                                     issues_before = len(self.issue_detector.detected_issues)
@@ -689,6 +808,9 @@ class WebCrawler:
                 new_issues = self.issue_detector.detected_issues[issues_before:issues_after]
                 self.unsaved_issues.extend(new_issues)
 
+        # Run GA4 enrichment after crawl + issue processing
+        self._run_ga4_enrichment()
+
         # Save final data and mark as complete
         if self.db_save_enabled and self.crawl_id:
             self._save_batch_to_db(force=True)
@@ -698,6 +820,90 @@ class WebCrawler:
         # Mark crawl as complete
         self.is_running = False
         print(f"Crawl completed. Discovered: {self.stats['discovered']}, Crawled: {self.stats['crawled']}")
+
+    async def _crawl_async_with_js(self):
+        """Async crawl worker for JavaScript rendering with form-based auth support"""
+        try:
+            # Initialize the JavaScript renderer
+            await self.js_renderer.initialize()
+
+            # Perform form-based authentication if configured
+            auth_forms_data = self.config.get('auth_forms_data', [])
+            if auth_forms_data:
+                print(f"Performing {len(auth_forms_data)} form-based login(s)...")
+                results = await self.js_renderer.perform_all_form_logins(auth_forms_data)
+                for login_url, success, error in results:
+                    if success:
+                        print(f"✓ Form login successful: {login_url}")
+                    else:
+                        print(f"✗ Form login failed: {login_url} - {error}")
+
+            # Main crawl loop
+            while self.is_running:
+                if self.is_paused:
+                    await asyncio.sleep(1)
+                    continue
+
+                # Calculate effective max URLs
+                effective_max_urls = self.config['max_urls']
+                if self.config.get('limit_crawl_total', False):
+                    limit_total = self.config.get('limit_crawl_total_value', 500)
+                    effective_max_urls = min(effective_max_urls, limit_total)
+
+                # Check if we've reached the limit
+                if self.stats['crawled'] >= effective_max_urls:
+                    print(f"Reached maximum URLs limit ({effective_max_urls})")
+                    break
+
+                # Get next URL to crawl
+                url_info = self.link_manager.get_next_url()
+                if not url_info:
+                    # Check if no more work
+                    link_stats = self.link_manager.get_stats()
+                    if link_stats['pending'] == 0:
+                        print("No more URLs to crawl")
+                        break
+                    await asyncio.sleep(0.1)
+                    continue
+
+                current_url, depth = url_info
+
+                # Skip if depth exceeded
+                if depth > self.config['max_depth']:
+                    continue
+
+                # Apply rate limiting
+                if self.rate_limiter:
+                    self.rate_limiter.acquire()
+
+                # Crawl the URL
+                result = await self._crawl_url_with_javascript(current_url, depth)
+
+                if result:
+                    with self.results_lock:
+                        self.crawl_results.append(result)
+
+                    with self.stats_lock:
+                        self.stats['crawled'] += 1
+                        self.stats['depth'] = max(self.stats['depth'], result.get('depth', 0))
+
+                    # Detect issues
+                    issues_before = len(self.issue_detector.detected_issues)
+                    self.issue_detector.detect_issues(result)
+                    issues_after = len(self.issue_detector.detected_issues)
+
+                    if self.db_save_enabled and issues_after > issues_before:
+                        new_issues = self.issue_detector.detected_issues[issues_before:issues_after]
+                        self.unsaved_issues.extend(new_issues)
+
+        except Exception as e:
+            print(f"Error in async JS crawl: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Cleanup JavaScript renderer
+            if self.js_renderer:
+                await self.js_renderer.cleanup()
 
     def _crawl_url(self, url, depth):
         """Crawl a single URL"""
@@ -714,8 +920,18 @@ class WebCrawler:
         start_time = time.time()
 
         try:
-            # Check file size if configured
-            if self.config.get('max_file_size', 0) > 0:
+            # Check file size if configured (consolidate max_file_size and limit_max_page_size)
+            max_file_size = self.config.get('max_file_size', 0)
+            limit_page_size = self.config.get('limit_max_page_size', 0)
+            
+            # Use the stricter (smaller) limit if both are set
+            max_size_limit = 0
+            if max_file_size > 0 and limit_page_size > 0:
+                max_size_limit = min(max_file_size, limit_page_size)
+            else:
+                max_size_limit = max_file_size or limit_page_size
+
+            if max_size_limit > 0:
                 try:
                     head_response = self.session.head(
                         url,
@@ -723,22 +939,38 @@ class WebCrawler:
                         allow_redirects=self.config['follow_redirects']
                     )
                     content_length = head_response.headers.get('content-length')
-                    if content_length and int(content_length) > self.config['max_file_size']:
+                    if content_length and int(content_length) > max_size_limit:
                         return self.seo_extractor.create_empty_result(
                             url, depth, 0,
-                            f'File too large: {content_length} bytes'
+                            f'File too large: {content_length} bytes (limit: {max_size_limit} bytes)'
                         )
                 except:
                     pass  # Continue if HEAD request fails
 
             # Fetch the page with retries
             response = None
+            
+            # Get authentication if configured for this URL
+            auth = None
+            if hasattr(self, '_auth_credentials') and self._auth_credentials:
+                for auth_url, creds in self._auth_credentials.items():
+                    if url.startswith(auth_url) or auth_url == '*':
+                        auth_type = creds.get('type', 'basic')
+                        if auth_type == 'digest':
+                            from requests.auth import HTTPDigestAuth
+                            auth = HTTPDigestAuth(creds['username'], creds['password'])
+                        else:
+                            from requests.auth import HTTPBasicAuth
+                            auth = HTTPBasicAuth(creds['username'], creds['password'])
+                        break
+            
             for attempt in range(retries + 1):
                 try:
                     response = self.session.get(
                         url,
                         timeout=self.config['timeout'],
-                        allow_redirects=self.config['follow_redirects']
+                        allow_redirects=self.config['follow_redirects'],
+                        auth=auth
                     )
                     break
                 except Exception as e:
@@ -799,21 +1031,43 @@ class WebCrawler:
             if 'text/html' in response.headers.get('content-type', ''):
                 soup = BeautifulSoup(response.content, 'html.parser')
 
-                # Extract comprehensive data using SEO extractor
+                # Extract comprehensive data using SEO extractor - controlled by settings
+                # Basic SEO data is always extracted (title, description, headings)
                 self.seo_extractor.extract_basic_seo_data(soup, result)
-                self.seo_extractor.extract_meta_tags(soup, result)
+                
+                # Meta tags (meta robots, keywords, etc.)
+                if self.config.get('extract_meta_robots', True) or self.config.get('extract_meta_keywords', True):
+                    self.seo_extractor.extract_meta_tags(soup, result)
+                
+                # OpenGraph and Twitter tags (always extract for compatibility)
                 self.seo_extractor.extract_opengraph_tags(soup, result)
                 self.seo_extractor.extract_twitter_tags(soup, result)
-                self.seo_extractor.extract_json_ld(soup, result)
+                
+                # JSON-LD structured data
+                if self.config.get('extract_json_ld', False):
+                    self.seo_extractor.extract_json_ld(soup, result)
+                
+                # Analytics tracking
                 self.seo_extractor.extract_analytics_tracking(soup, response.text, result)
-                self.seo_extractor.extract_images(soup, url, result)
+                
+                # Images - controlled by crawlImages setting
+                if self.config.get('crawl_images', True):
+                    self.seo_extractor.extract_images(soup, url, result)
+                
+                # Link counts
                 self.seo_extractor.extract_link_counts(soup, result, self.base_domain)
-                self.seo_extractor.extract_hreflang(soup, result)
-                self.seo_extractor.extract_schema_org(soup, result)
+                
+                # Hreflang
+                if self.config.get('crawl_hreflang', False) or self.config.get('store_hreflang', True):
+                    self.seo_extractor.extract_hreflang(soup, result)
+                
+                # Schema.org microdata
+                if self.config.get('extract_microdata', False):
+                    self.seo_extractor.extract_schema_org(soup, result)
 
                 # Collect all links
                 links_before = len(self.link_manager.all_links)
-                self.link_manager.collect_all_links(soup, url, self.crawl_results)
+                self.link_manager.collect_all_links(soup, url, self.crawl_results, self.config)
                 links_after = len(self.link_manager.all_links)
 
                 # Add newly discovered links to unsaved batch
@@ -828,7 +1082,7 @@ class WebCrawler:
                 )
 
                 if should_extract:
-                    self.link_manager.extract_links(soup, url, depth + 1, self._should_crawl_url)
+                    self.link_manager.extract_links(soup, url, depth + 1, self._should_crawl_url, self.config)
 
             # Populate linked_from after all link collection is complete
             result['linked_from'] = self.link_manager.get_source_pages(url)
@@ -910,21 +1164,43 @@ class WebCrawler:
             # Parse HTML
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            # Extract comprehensive data
+            # Extract comprehensive data using SEO extractor - controlled by settings
+            # Basic SEO data is always extracted (title, description, headings)
             self.seo_extractor.extract_basic_seo_data(soup, result)
-            self.seo_extractor.extract_meta_tags(soup, result)
+            
+            # Meta tags (meta robots, keywords, etc.)
+            if self.config.get('extract_meta_robots', True) or self.config.get('extract_meta_keywords', True):
+                self.seo_extractor.extract_meta_tags(soup, result)
+            
+            # OpenGraph and Twitter tags (always extract for compatibility)
             self.seo_extractor.extract_opengraph_tags(soup, result)
             self.seo_extractor.extract_twitter_tags(soup, result)
-            self.seo_extractor.extract_json_ld(soup, result)
+            
+            # JSON-LD structured data
+            if self.config.get('extract_json_ld', False):
+                self.seo_extractor.extract_json_ld(soup, result)
+            
+            # Analytics tracking
             self.seo_extractor.extract_analytics_tracking(soup, html_content, result)
-            self.seo_extractor.extract_images(soup, url, result)
+            
+            # Images - controlled by crawlImages setting
+            if self.config.get('crawl_images', True):
+                self.seo_extractor.extract_images(soup, url, result)
+            
+            # Link counts
             self.seo_extractor.extract_link_counts(soup, result, self.base_domain)
-            self.seo_extractor.extract_hreflang(soup, result)
-            self.seo_extractor.extract_schema_org(soup, result)
+            
+            # Hreflang
+            if self.config.get('crawl_hreflang', False) or self.config.get('store_hreflang', True):
+                self.seo_extractor.extract_hreflang(soup, result)
+            
+            # Schema.org microdata
+            if self.config.get('extract_microdata', False):
+                self.seo_extractor.extract_schema_org(soup, result)
 
             # Collect all links
             links_before = len(self.link_manager.all_links)
-            self.link_manager.collect_all_links(soup, url, self.crawl_results)
+            self.link_manager.collect_all_links(soup, url, self.crawl_results, self.config)
             links_after = len(self.link_manager.all_links)
 
             # Add newly discovered links to unsaved batch
@@ -939,7 +1215,7 @@ class WebCrawler:
             )
 
             if should_extract:
-                self.link_manager.extract_links(soup, url, depth + 1, self._should_crawl_url)
+                self.link_manager.extract_links(soup, url, depth + 1, self._should_crawl_url, self.config)
 
             # Populate linked_from after all link collection is complete
             result['linked_from'] = self.link_manager.get_source_pages(url)
@@ -966,7 +1242,13 @@ class WebCrawler:
             max_workers = self.config.get('js_max_concurrent_pages', 3)
             active_tasks = set()
 
-            while self.is_running and self.stats['crawled'] < self.config['max_urls']:
+            # Calculate effective max URLs (lowest of configured limits)
+            effective_max_urls = self.config['max_urls']
+            if self.config.get('limit_crawl_total', False):
+                limit_total = self.config.get('limit_crawl_total_value', 500)
+                effective_max_urls = min(effective_max_urls, limit_total)
+
+            while self.is_running and self.stats['crawled'] < effective_max_urls:
                 # Check if paused
                 if self.is_paused:
                     await asyncio.sleep(1)
@@ -999,9 +1281,11 @@ class WebCrawler:
                             if result:
                                 with self.results_lock:
                                     self.crawl_results.append(result)
+                                    print(f"Added URL to results (JS): {result['url']} - Total in results: {len(self.crawl_results)}")
+                                
+                                with self.stats_lock:
                                     self.stats['crawled'] += 1
                                     self.stats['depth'] = max(self.stats['depth'], result.get('depth', 0))
-                                    print(f"Added URL to results (JS): {result['url']} - Total in results: {len(self.crawl_results)}")
 
                                 # Detect issues
                                 issues_before = len(self.issue_detector.detected_issues)
@@ -1040,6 +1324,9 @@ class WebCrawler:
                 self.issue_detector.detect_duplication_issues(self.crawl_results, duplication_threshold)
                 print(f"Duplication detection complete. Total issues: {len(self.issue_detector.get_issues())}")
 
+            # Run GA4 enrichment after crawl + issue processing
+            self._run_ga4_enrichment()
+
             # Save final data and mark as complete
             if self.db_save_enabled and self.crawl_id:
                 self._save_batch_to_db(force=True)
@@ -1065,45 +1352,106 @@ class WebCrawler:
 
         print(f"Updated linked_from data for {updated_count} URLs")
 
-    def _should_crawl_url(self, url):
+    def _should_crawl_url(self, url, depth, skip_increment=False):
         """Check if URL should be crawled based on settings"""
         parsed = urlparse(url)
+        subdomain = parsed.netloc.lower()
+
+        # 1. Stateless / Static Checks (Cheap)
+        
+        # Check URL length limit
+        max_url_length = self.config.get('limit_max_url_length', 10000)
+        if len(url) > max_url_length:
+            return False
+
+        # Check folder depth limit
+        if self.config.get('limit_max_folder_depth', False):
+            max_folder_depth = self.config.get('limit_max_folder_depth_value', 5)
+            path_segments = [s for s in parsed.path.split('/') if s]
+            if len(path_segments) > max_folder_depth:
+                return False
+
+        # Check query string parameter count limit
+        if self.config.get('limit_query_strings', False):
+            max_query_params = self.config.get('limit_query_strings_value', 5)
+            query_params = parsed.query.split('&') if parsed.query else []
+            if len([p for p in query_params if p]) > max_query_params:
+                return False
+
+        # Check subdomain crawling policy
+        if not self.config.get('crawl_subdomains', True):
+            # Only allow URLs on the exact same domain (no subdomains)
+            if self.base_domain:
+                url_domain = parsed.netloc.lower()
+                if url_domain != self.base_domain and url_domain.endswith('.' + self.base_domain):
+                    return False
 
         # Check external domain policy
         if not self.config['crawl_external']:
             if not self.link_manager.is_internal(url):
                 return False
 
-        # Check robots.txt
-        if self.config['respect_robots']:
-            if not self._check_robots_txt(url):
-                return False
-
         # Check file extensions
         path = parsed.path.lower()
         if '.' in path:
             extension = path.split('.')[-1]
-
             if extension in self.config['exclude_extensions']:
                 return False
-
             if self.config['include_extensions'] and extension not in self.config['include_extensions']:
                 return False
 
         # Check URL patterns
         if self.config['exclude_patterns']:
             for pattern in self.config['exclude_patterns']:
-                if pattern and re.search(pattern, url):
-                    return False
+                if pattern:
+                    try:
+                        if re.search(pattern, url):
+                            return False
+                    except re.error:
+                        # Invalid regex - skip this pattern
+                        pass
 
         if self.config['include_patterns']:
             pattern_match = False
             for pattern in self.config['include_patterns']:
-                if pattern and re.search(pattern, url):
-                    pattern_match = True
-                    break
+                if pattern:
+                    try:
+                        if re.search(pattern, url):
+                            pattern_match = True
+                            break
+                    except re.error:
+                        # Invalid regex - skip this pattern
+                        pass
             if not pattern_match:
                 return False
+
+        # Check if URL fragments should be crawled
+        if parsed.fragment and not self.config.get('adv_crawl_fragments', False):
+            pass
+
+        # 2. robots.txt Check (semi-expensive, self-cached)
+        if self.config['respect_robots']:
+            if not self._check_robots_txt(url):
+                return False
+
+        # 3. State-dependent Checks (Transactional)
+        with self.stats_lock:
+            # Check URLs per depth limit
+            if self.config.get('limit_urls_per_depth', False):
+                max_urls_per_depth = self.config.get('limit_urls_per_depth_value', 1000)
+                if self.stats['urls_per_depth'].get(depth, 0) >= max_urls_per_depth:
+                    return False
+
+            # Check URLs per subdomain limit
+            if self.config.get('limit_crawl_per_subdomain', False):
+                max_per_subdomain = self.config.get('limit_crawl_per_subdomain_value', 1000)
+                if self.stats['urls_per_subdomain'].get(subdomain, 0) >= max_per_subdomain:
+                    return False
+
+            # If all checks pass and we're not just probing, increment the state
+            if not skip_increment:
+                self.stats['urls_per_depth'][depth] = self.stats['urls_per_depth'].get(depth, 0) + 1
+                self.stats['urls_per_subdomain'][subdomain] = self.stats['urls_per_subdomain'].get(subdomain, 0) + 1
 
         return True
 
@@ -1128,6 +1476,73 @@ class WebCrawler:
 
         except Exception:
             return True
+
+    def _run_ga4_enrichment(self):
+        """Attach GA4 metrics to crawled URLs after crawl completion."""
+        if not self.config.get('ga4_enabled', False):
+            return
+        if not self.config.get('ga4_connected', False):
+            return
+        if not self.config.get('ga4_property_id'):
+            return
+        if not self.crawl_results:
+            return
+
+        print("Running GA4 enrichment...")
+        settings_manager = SettingsManager(
+            session_id=self.session_id,
+            user_id=self.user_id,
+            tier=self.user_tier or 'guest'
+        )
+
+        try:
+            summary = GA4Service.enrich_crawl_results(settings_manager, self.crawl_results, self.config)
+            with self.stats_lock:
+                self.stats['ga4_sync'] = summary
+
+            status = summary.get('status', 'error')
+            if status == 'success':
+                self.force_full_refresh = True
+                sync_payload = {
+                    'ga4LastSyncAt': summary.get('last_sync_at', ''),
+                    'ga4LastSyncStatus': 'success',
+                    'ga4LastSyncError': ''
+                }
+
+                if self.db_save_enabled and self.crawl_id:
+                    try:
+                        from src.crawl_db import update_url_analytics_batch
+                        analytics_rows = [
+                            {'url': row.get('url'), 'analytics': row.get('analytics', {})}
+                            for row in self.crawl_results
+                            if row.get('url')
+                        ]
+                        update_url_analytics_batch(self.crawl_id, analytics_rows)
+                    except Exception as db_exc:
+                        print(f"Failed to persist GA4 enrichment to DB: {db_exc}")
+            elif status == 'skipped':
+                sync_payload = {
+                    'ga4LastSyncStatus': f"skipped:{summary.get('reason', 'unknown')}",
+                    'ga4LastSyncError': ''
+                }
+            else:
+                sync_payload = {
+                    'ga4LastSyncStatus': status,
+                    'ga4LastSyncError': summary.get('error', '')
+                }
+
+            settings_manager.save_settings(sync_payload)
+            print(f"GA4 enrichment complete: {summary}")
+        except Exception as exc:
+            with self.stats_lock:
+                self.stats['ga4_sync'] = {'status': 'error', 'error': str(exc)}
+            settings_manager.save_settings(
+                {
+                    'ga4LastSyncStatus': 'error',
+                    'ga4LastSyncError': str(exc)
+                }
+            )
+            print(f"GA4 enrichment failed: {exc}")
 
     def _run_pagespeed_analysis(self):
         """Run PageSpeed analysis on selected pages"""

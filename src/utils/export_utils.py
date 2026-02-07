@@ -4,6 +4,75 @@ import time
 import xml.etree.ElementTree as ET
 from io import StringIO
 
+GA4_EXPORT_METRIC_ALIASES = {
+    'ga4_sessions': 'sessions',
+    'ga4_screen_page_views': 'screenPageViews',
+    'ga4_engaged_sessions': 'engagedSessions',
+    'ga4_engagement_rate': 'engagementRate',
+    'ga4_key_events': 'keyEvents',
+    'ga4_event_count': 'eventCount',
+    'ga4_total_revenue': 'totalRevenue',
+}
+
+
+def _get_nested_value(data, path_parts):
+    current = data
+    for part in path_parts:
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            return None
+    return current
+
+
+def _get_ga4_block(url_data):
+    analytics = url_data.get('analytics', {})
+    if not isinstance(analytics, dict):
+        analytics = {}
+    ga4 = url_data.get('ga4')
+    if not isinstance(ga4, dict):
+        ga4 = analytics.get('ga4', {})
+    if not isinstance(ga4, dict):
+        ga4 = {}
+    return ga4
+
+
+def _get_export_field_value(url_data, field):
+    # Support explicit GA4 metric field ids in exports.
+    if field in GA4_EXPORT_METRIC_ALIASES:
+        metric_name = GA4_EXPORT_METRIC_ALIASES[field]
+        ga4_metrics = _get_ga4_block(url_data).get('metrics', {})
+        if isinstance(ga4_metrics, dict) and metric_name in ga4_metrics:
+            return ga4_metrics.get(metric_name)
+        analytics = url_data.get('analytics', {})
+        if isinstance(analytics, dict):
+            return analytics.get(field, '')
+        return ''
+
+    if field.startswith('ga4.metrics.'):
+        metric_name = field.split('.', 2)[2]
+        ga4_metrics = _get_ga4_block(url_data).get('metrics', {})
+        if isinstance(ga4_metrics, dict):
+            return ga4_metrics.get(metric_name, '')
+        return ''
+
+    if field == 'ga4_last_sync_at':
+        return _get_ga4_block(url_data).get('last_sync_at', '')
+    if field == 'ga4_sync_status':
+        return _get_ga4_block(url_data).get('sync_status', '')
+    if field == 'ga4_matched_dimension_value':
+        return _get_ga4_block(url_data).get('matched_dimension_value', '')
+    if field == 'ga4':
+        return _get_ga4_block(url_data)
+
+    # Support nested selectors (e.g. ga4.metrics.sessions)
+    if '.' in field:
+        nested_value = _get_nested_value(url_data, field.split('.'))
+        if nested_value is not None:
+            return nested_value
+
+    return url_data.get(field, '')
+
 
 def generate_csv_export(urls, fields):
     """Generate CSV export content."""
@@ -14,7 +83,7 @@ def generate_csv_export(urls, fields):
     for url_data in urls:
         row = {}
         for field in fields:
-            value = url_data.get(field, '')
+            value = _get_export_field_value(url_data, field)
 
             if field == 'analytics' and isinstance(value, dict):
                 analytics_list = []
@@ -30,6 +99,8 @@ def generate_csv_export(urls, fields):
                     analytics_list.append('HJ')
                 if value.get('mixpanel'):
                     analytics_list.append('MP')
+                if isinstance(value.get('ga4'), dict) and value['ga4'].get('metrics'):
+                    analytics_list.append('GA4 Data')
                 row[field] = ', '.join(analytics_list)
             elif field == 'og_tags' and isinstance(value, dict):
                 row[field] = f"{len(value)} tags" if value else ''
@@ -48,7 +119,7 @@ def generate_csv_export(urls, fields):
             elif field == 'h3' and isinstance(value, list):
                 row[field] = ', '.join(value[:3]) + ('...' if len(value) > 3 else '')
             elif isinstance(value, (dict, list)):
-                row[field] = str(value)
+                row[field] = json.dumps(value)
             else:
                 row[field] = value
 
@@ -63,7 +134,7 @@ def generate_json_export(urls, fields):
     for url_data in urls:
         filtered_data = {}
         for field in fields:
-            filtered_data[field] = url_data.get(field, '')
+            filtered_data[field] = _get_export_field_value(url_data, field)
         filtered_urls.append(filtered_data)
 
     return json.dumps({
@@ -86,7 +157,11 @@ def generate_xml_export(urls, fields):
         url_element = ET.SubElement(urls_element, 'url')
         for field in fields:
             field_element = ET.SubElement(url_element, field)
-            field_element.text = str(url_data.get(field, ''))
+            value = _get_export_field_value(url_data, field)
+            if isinstance(value, (dict, list)):
+                field_element.text = json.dumps(value)
+            else:
+                field_element.text = str(value)
 
     return ET.tostring(root, encoding='unicode')
 
