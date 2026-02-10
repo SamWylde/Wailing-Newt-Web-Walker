@@ -116,21 +116,13 @@
                 disconnectBtn.addEventListener('click', () => this.disconnectOAuth());
             }
 
-            const copyRedirectBtn = document.getElementById('gscCopyRedirectUriBtn');
-            if (copyRedirectBtn) {
-                copyRedirectBtn.addEventListener('click', () => this.copyRedirectUri());
-            }
+            document.querySelectorAll('#gscCopyRedirectUriBtn, #gscCopyRedirectUriBtn2').forEach((btn) => {
+                btn.addEventListener('click', () => this.copyRedirectUri());
+            });
 
             const saveSetupBtn = document.getElementById('gscSaveSetupBtn');
             if (saveSetupBtn) {
                 saveSetupBtn.addEventListener('click', () => this.saveOAuthSetup());
-            }
-
-            const redirectInput = document.getElementById('gscSetupRedirectUri');
-            if (redirectInput) {
-                redirectInput.addEventListener('input', () => {
-                    redirectInput.dataset.autofill = 'false';
-                });
             }
 
             const datePreset = document.getElementById('gscDateRangePreset');
@@ -342,31 +334,35 @@
 
         updateSetupUI: function () {
             const setupCard = document.getElementById('gscSetupCard');
-            const setupSteps = document.getElementById('gscSetupSteps');
             const redirectInput = document.getElementById('gscSetupRedirectUri');
+            const redirectDisplay = document.getElementById('gscSetupRedirectUriDisplay');
+            const redirectDisplay2 = document.getElementById('gscSetupRedirectUriDisplay2');
             const statusEl = document.getElementById('gscSetupStatusText');
             const pathHint = document.getElementById('gscSetupPathHint');
+            const sharedNotice = document.getElementById('gscSharedCredsNotice');
+            const fullWizard = document.getElementById('gscFullSetupWizard');
 
             if (setupCard) {
                 setupCard.style.display = this.setupSnapshot.setup_required ? 'block' : 'none';
             }
 
-            if (setupSteps) {
-                const steps = this.setupSnapshot.setup_steps && this.setupSnapshot.setup_steps.length > 0
-                    ? this.setupSnapshot.setup_steps
-                    : [
-                        'Open Google Cloud Console and create an OAuth 2.0 Client ID.',
-                        'Add the Redirect URI shown below in Google Cloud Console.',
-                        'Paste your Client ID and Client Secret below, then click Save setup.'
-                    ];
-                setupSteps.innerHTML = steps.map((step) => `<li>${this.escapeText(step)}</li>`).join('');
-            }
-
+            const redirectUri = this.setupSnapshot.suggested_redirect_uri || `${window.location.origin}/api/search_console/oauth/callback`;
             if (redirectInput) {
-                const shouldAutofill = !redirectInput.value || redirectInput.dataset.autofill !== 'false';
-                if (shouldAutofill) {
-                    redirectInput.value = this.setupSnapshot.suggested_redirect_uri || `${window.location.origin}/api/search_console/oauth/callback`;
-                    redirectInput.dataset.autofill = 'true';
+                redirectInput.value = redirectUri;
+            }
+            [redirectDisplay, redirectDisplay2].forEach((el) => {
+                if (el) el.textContent = redirectUri;
+            });
+
+            // Check if GA4 already configured credentials (shared file)
+            const ga4HasCreds = window.GA4Config && window.GA4Config.setupSnapshot && window.GA4Config.setupSnapshot.has_credentials;
+            if (sharedNotice && fullWizard) {
+                if (ga4HasCreds && this.setupSnapshot.setup_required) {
+                    sharedNotice.style.display = 'block';
+                    fullWizard.style.display = 'none';
+                } else {
+                    sharedNotice.style.display = 'none';
+                    fullWizard.style.display = '';
                 }
             }
 
@@ -474,8 +470,7 @@
                     secretInput.value = '';
                 }
                 this.setSetupStatusMessage('Setup saved. Opening Google sign-in...', 'success');
-                showNotification('Setup saved. Continue in the Google sign-in window.', 'success');
-                await this.startOAuth();
+                await this.startOAuth({ silent: true });
             } catch (error) {
                 console.error('Failed to save Search Console setup', error);
                 this.setSetupStatusMessage('Could not save setup. Please try again.', 'error');
@@ -489,7 +484,8 @@
             }
         },
 
-        startOAuth: async function () {
+        startOAuth: async function (options) {
+            const silent = options?.silent || false;
             try {
                 const response = await fetch('/api/search_console/oauth/start');
                 const payload = await response.json();
@@ -510,8 +506,17 @@
 
                 this.applySetupStatus(payload);
                 const opened = window.open(payload.auth_url, '_blank');
-                if (!opened) {
-                    window.location.href = payload.auth_url;
+
+                if (!opened && !window.electronAPI) {
+                    // Regular browser with popups blocked — URL was NOT opened
+                    showNotification('Pop-up was blocked. Please allow pop-ups for this site and try again.', 'error');
+                    return;
+                }
+
+                // In Electron, setWindowOpenHandler opens in default browser (returns null).
+                // In regular browser, opened is the new window ref. Either way, URL was opened.
+                if (!silent) {
+                    showNotification('Complete sign-in in the browser window that just opened.', 'info');
                 }
 
                 this.beginOAuthPolling();

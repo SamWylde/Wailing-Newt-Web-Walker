@@ -48,6 +48,24 @@ let defaultSettings = {
     discoverSitemaps: true,
     enablePageSpeed: false,
     googleApiKey: '',
+    pagespeedEnabled: false,
+    pagespeedConnected: false,
+    pagespeedSource: 'remote',
+    pagespeedApiKey: '',
+    pagespeedAutoConnect: true,
+    pagespeedSelectedDevices: ['mobile', 'desktop'],
+    pagespeedSelectedMetricGroups: [
+        'overview',
+        'crux_metrics',
+        'lighthouse_metrics',
+        'insights',
+        'diagnostics',
+        'mobile_friendly',
+        'accessibility'
+    ],
+    pagespeedLastSyncAt: '',
+    pagespeedLastSyncStatus: '',
+    pagespeedLastSyncError: '',
 
     // Filter settings
     includeExtensions: 'html,htm,php,asp,aspx,jsp',

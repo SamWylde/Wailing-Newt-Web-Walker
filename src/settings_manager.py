@@ -72,7 +72,13 @@ class SettingsManager:
             'gscInspectionLanguageCode', 'gscInspectionMaxUrls',
             'gscOauthTokens',
             'gscLastSyncAt', 'gscLastSyncStatus', 'gscLastSyncError',
-            'gscLastInspectionAt', 'gscLastInspectionStatus', 'gscLastInspectionError'
+            'gscLastInspectionAt', 'gscLastInspectionStatus', 'gscLastInspectionError',
+            # PageSpeed settings (available for all logged-in users)
+            'enablePageSpeed', 'googleApiKey',
+            'pagespeedEnabled', 'pagespeedConnected',
+            'pagespeedSource', 'pagespeedApiKey', 'pagespeedAutoConnect',
+            'pagespeedSelectedDevices', 'pagespeedSelectedMetricGroups',
+            'pagespeedLastSyncAt', 'pagespeedLastSyncStatus', 'pagespeedLastSyncError'
         ]
 
         # extra: all in user + Filters, Requests, Custom CSS, JavaScript tabs
@@ -327,8 +333,15 @@ class SettingsManager:
             'proxy_url': settings['proxyUrl'] if settings['enableProxy'] else None,
             'custom_headers': self._get_all_headers(settings),
             'discover_sitemaps': settings['discoverSitemaps'],
-            'enable_pagespeed': settings['enablePageSpeed'],
-            'google_api_key': settings['googleApiKey'],
+            'enable_pagespeed': settings.get('pagespeedEnabled', settings.get('enablePageSpeed', False)),
+            'google_api_key': settings.get('pagespeedApiKey', settings.get('googleApiKey', '')),
+            'pagespeed_source': settings.get('pagespeedSource', 'remote'),
+            'pagespeed_auto_connect': settings.get('pagespeedAutoConnect', True),
+            'pagespeed_selected_devices': settings.get('pagespeedSelectedDevices', ['mobile', 'desktop']),
+            'pagespeed_selected_metric_groups': settings.get(
+                'pagespeedSelectedMetricGroups',
+                ['overview', 'crux_metrics', 'lighthouse_metrics', 'insights', 'diagnostics', 'mobile_friendly', 'accessibility']
+            ),
             'enable_javascript': settings['enableJavaScript'],
             'js_wait_time': settings['jsWaitTime'],
             'js_timeout': settings['jsTimeout'],

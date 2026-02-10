@@ -18,6 +18,7 @@ from src.blueprints.ga4 import ga4_bp
 from src.blueprints.history import history_bp
 from src.blueprints.imports import imports_bp
 from src.blueprints.pages import pages_bp
+from src.blueprints.pagespeed import pagespeed_bp
 from src.blueprints.robots import robots_bp
 from src.blueprints.search_console import search_console_bp
 from src.blueprints.settings import settings_bp
@@ -56,6 +57,7 @@ def create_app():
     app.register_blueprint(crawl_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(ga4_bp)
+    app.register_blueprint(pagespeed_bp)
     app.register_blueprint(search_console_bp)
     app.register_blueprint(history_bp)
     app.register_blueprint(export_bp)

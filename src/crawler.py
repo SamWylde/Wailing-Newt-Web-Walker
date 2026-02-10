@@ -1637,14 +1637,21 @@ class WebCrawler:
         """Run PageSpeed analysis on selected pages"""
         try:
             selected_pages = self._select_pages_for_pagespeed()
+            selected_devices = self._get_pagespeed_selected_devices()
 
             if not selected_pages:
                 print("No suitable pages found for PageSpeed analysis")
+                with self.stats_lock:
+                    self.stats['pagespeed_sync'] = {'status': 'skipped', 'reason': 'no_pages'}
                 return
 
-            print(f"Running PageSpeed analysis on {len(selected_pages)} pages...")
+            print(
+                f"Running PageSpeed analysis on {len(selected_pages)} pages "
+                f"({', '.join(selected_devices)})..."
+            )
 
             pagespeed_results = []
+            updated_rows = []
             for i, page_url in enumerate(selected_pages):
                 if not self.is_running:
                     print("PageSpeed analysis cancelled")
@@ -1652,31 +1659,93 @@ class WebCrawler:
 
                 print(f"Analyzing page {i+1}/{len(selected_pages)}: {page_url}")
 
-                # Mobile analysis
-                mobile_result = self._call_pagespeed_api(page_url, 'mobile')
-                time.sleep(2)
-
-                if not self.is_running:
-                    return
-
-                # Desktop analysis
-                desktop_result = self._call_pagespeed_api(page_url, 'desktop')
-
-                pagespeed_results.append({
+                page_result = {
                     'url': page_url,
-                    'mobile': mobile_result,
-                    'desktop': desktop_result,
                     'analysis_date': time.strftime('%Y-%m-%d %H:%M:%S')
-                })
+                }
+                device_results = {}
+                for device_index, device in enumerate(selected_devices):
+                    result = self._call_pagespeed_api(page_url, device)
+                    page_result[device] = result
+                    device_results[device] = result
+
+                    if device_index < len(selected_devices) - 1:
+                        time.sleep(2)
+                        if not self.is_running:
+                            return
+
+                pagespeed_results.append(page_result)
+                updated_row = self._attach_pagespeed_to_crawl_row(page_url, device_results)
+                if updated_row:
+                    updated_rows.append(updated_row)
 
                 if i < len(selected_pages) - 1:
                     time.sleep(3)
 
             self.stats['pagespeed_results'] = pagespeed_results
+            successful = sum(
+                1
+                for item in pagespeed_results
+                if any((item.get(device) or {}).get('success') for device in selected_devices)
+            )
+            sync_summary = {
+                'status': 'success' if successful == len(pagespeed_results) else 'partial',
+                'analyzed_pages': len(pagespeed_results),
+                'successful_pages': successful,
+                'devices': selected_devices,
+                'last_sync_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+            }
+            with self.stats_lock:
+                self.stats['pagespeed_sync'] = sync_summary
             print(f"PageSpeed analysis completed for {len(pagespeed_results)} pages")
+
+            if self.crawl_id and updated_rows:
+                from src.crawl_db import update_url_analytics_batch
+
+                update_url_analytics_batch(
+                    self.crawl_id,
+                    [
+                        {'url': row.get('url'), 'analytics': row.get('analytics', {})}
+                        for row in updated_rows
+                        if row.get('url')
+                    ]
+                )
+                self.force_full_refresh = True
+
+            try:
+                settings_manager = SettingsManager(
+                    session_id=self.session_id,
+                    user_id=self.user_id,
+                    tier=self.user_tier
+                )
+                settings_manager.save_settings(
+                    {
+                        'pagespeedLastSyncAt': sync_summary.get('last_sync_at', ''),
+                        'pagespeedLastSyncStatus': sync_summary.get('status', ''),
+                        'pagespeedLastSyncError': '',
+                    }
+                )
+            except Exception:
+                pass
 
         except Exception as e:
             print(f"Error running PageSpeed analysis: {e}")
+            with self.stats_lock:
+                self.stats['pagespeed_sync'] = {'status': 'error', 'error': str(e)}
+            try:
+                settings_manager = SettingsManager(
+                    session_id=self.session_id,
+                    user_id=self.user_id,
+                    tier=self.user_tier
+                )
+                settings_manager.save_settings(
+                    {
+                        'pagespeedLastSyncStatus': 'error',
+                        'pagespeedLastSyncError': str(e),
+                    }
+                )
+            except Exception:
+                pass
 
     def _select_pages_for_pagespeed(self):
         """Select homepage and 2 category pages for PageSpeed analysis"""
@@ -1715,6 +1784,58 @@ class WebCrawler:
 
         selected_pages.extend(category_pages[:2])
         return selected_pages
+
+    def _get_pagespeed_selected_devices(self):
+        devices = self.config.get('pagespeed_selected_devices', ['mobile', 'desktop'])
+        if isinstance(devices, str):
+            devices = [d.strip() for d in devices.split(',') if d.strip()]
+        if not isinstance(devices, list):
+            devices = ['mobile', 'desktop']
+
+        normalized = []
+        for device in devices:
+            d = str(device).strip().lower()
+            if d in {'mobile', 'desktop'} and d not in normalized:
+                normalized.append(d)
+
+        return normalized or ['mobile', 'desktop']
+
+    def _build_pagespeed_summary(self, device_results):
+        preferred_order = self._get_pagespeed_selected_devices()
+        primary_device = next((d for d in preferred_order if d in device_results), None)
+        if not primary_device and device_results:
+            primary_device = next(iter(device_results.keys()))
+
+        primary_result = device_results.get(primary_device, {}) if primary_device else {}
+        primary_metrics = (
+            primary_result.get('metrics', {})
+            if isinstance(primary_result.get('metrics', {}), dict)
+            else {}
+        )
+
+        return {
+            'strategy': primary_device or '',
+            'performance_score': primary_result.get('performance_score'),
+            'performance': primary_result.get('performance_score'),
+            'metrics': primary_metrics,
+            'devices': device_results,
+            'updated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        }
+
+    def _attach_pagespeed_to_crawl_row(self, page_url, device_results):
+        for row in self.crawl_results:
+            if row.get('url') != page_url:
+                continue
+
+            summary = self._build_pagespeed_summary(device_results)
+            row['pagespeed'] = summary
+            analytics = row.setdefault('analytics', {})
+            if not isinstance(analytics, dict):
+                analytics = {}
+                row['analytics'] = analytics
+            analytics['pagespeed'] = summary
+            return row
+        return None
 
     def _call_pagespeed_api(self, url, strategy='mobile', retries=3):
         """Call Google PageSpeed Insights API"""
@@ -1772,6 +1893,10 @@ class WebCrawler:
                         if 'interactive' in audits:
                             tti = audits['interactive'].get('numericValue')
                             metrics['time_to_interactive'] = round(tti / 1000, 2) if tti else None
+
+                        if 'total-blocking-time' in audits:
+                            tbt = audits['total-blocking-time'].get('numericValue')
+                            metrics['total_blocking_time'] = round(tbt, 2) if tbt else None
 
                         return {
                             'success': True,

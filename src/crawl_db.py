@@ -560,6 +560,7 @@ def load_crawled_urls(crawl_id, limit=None, offset=0):
                 if isinstance(url_data.get('analytics'), dict):
                     url_data['ga4'] = url_data['analytics'].get('ga4', {})
                     url_data['search_console'] = url_data['analytics'].get('search_console', {})
+                    url_data['pagespeed'] = url_data['analytics'].get('pagespeed', {})
 
                 urls.append(url_data)
 

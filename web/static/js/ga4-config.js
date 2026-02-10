@@ -145,13 +145,6 @@
                 saveSetupBtn.addEventListener('click', () => this.saveOAuthSetup());
             }
 
-            const redirectInput = document.getElementById('ga4SetupRedirectUri');
-            if (redirectInput) {
-                redirectInput.addEventListener('input', () => {
-                    redirectInput.dataset.autofill = 'false';
-                });
-            }
-
             const accountSelect = document.getElementById('ga4AccountSelect');
             if (accountSelect) {
                 accountSelect.addEventListener('change', () => this.handleAccountChanged());
@@ -493,8 +486,8 @@
 
         updateSetupUI: function () {
             const setupCard = document.getElementById('ga4SetupCard');
-            const setupSteps = document.getElementById('ga4SetupSteps');
             const redirectInput = document.getElementById('ga4SetupRedirectUri');
+            const redirectDisplay = document.getElementById('ga4SetupRedirectUriDisplay');
             const statusEl = document.getElementById('ga4SetupStatusText');
             const pathHint = document.getElementById('ga4SetupPathHint');
 
@@ -502,23 +495,12 @@
                 setupCard.style.display = this.setupSnapshot.setup_required ? 'block' : 'none';
             }
 
-            if (setupSteps) {
-                const steps = this.setupSnapshot.setup_steps && this.setupSnapshot.setup_steps.length > 0
-                    ? this.setupSnapshot.setup_steps
-                    : [
-                        'Open Google Cloud Console and create an OAuth 2.0 Client ID.',
-                        'Add the Redirect URI shown below in Google Cloud Console.',
-                        'Paste your Client ID and Client Secret below, then click Save setup.'
-                    ];
-                setupSteps.innerHTML = steps.map((step) => `<li>${this.escapeText(step)}</li>`).join('');
-            }
-
+            const redirectUri = this.setupSnapshot.suggested_redirect_uri || `${window.location.origin}/api/ga4/oauth/callback`;
             if (redirectInput) {
-                const shouldAutofill = !redirectInput.value || redirectInput.dataset.autofill !== 'false';
-                if (shouldAutofill) {
-                    redirectInput.value = this.setupSnapshot.suggested_redirect_uri || `${window.location.origin}/api/ga4/oauth/callback`;
-                    redirectInput.dataset.autofill = 'true';
-                }
+                redirectInput.value = redirectUri;
+            }
+            if (redirectDisplay) {
+                redirectDisplay.textContent = redirectUri;
             }
 
             if (pathHint) {
@@ -625,8 +607,7 @@
                     secretInput.value = '';
                 }
                 this.setSetupStatusMessage('Setup saved. Opening Google sign-in...', 'success');
-                showNotification('Setup saved. Continue in the Google sign-in window.', 'success');
-                await this.startOAuth();
+                await this.startOAuth({ silent: true });
             } catch (error) {
                 console.error('Failed to save GA4 setup', error);
                 this.setSetupStatusMessage('Could not save setup. Please try again.', 'error');
@@ -639,7 +620,8 @@
                 await this.loadAccountsHierarchy();
             }
         },
-        startOAuth: async function () {
+        startOAuth: async function (options) {
+            const silent = options?.silent || false;
             try {
                 const response = await fetch('/api/ga4/oauth/start');
                 const payload = await response.json();
@@ -660,8 +642,17 @@
 
                 this.applySetupStatus(payload);
                 const opened = window.open(payload.auth_url, '_blank');
-                if (!opened) {
-                    window.location.href = payload.auth_url;
+
+                if (!opened && !window.electronAPI) {
+                    // Regular browser with popups blocked — URL was NOT opened
+                    showNotification('Pop-up was blocked. Please allow pop-ups for this site and try again.', 'error');
+                    return;
+                }
+
+                // In Electron, setWindowOpenHandler opens in default browser (returns null).
+                // In regular browser, opened is the new window ref. Either way, URL was opened.
+                if (!silent) {
+                    showNotification('Complete sign-in in the browser window that just opened.', 'info');
                 }
 
                 this.beginOAuthPolling();

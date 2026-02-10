@@ -18,3 +18,12 @@ venv/
 
 # Local Settings
 .claude/settings.local.json
+
+# Logs
+logs/
+
+# Windows artifacts
+nul
+
+# OAuth credentials (user-generated, never commit)
+ga4_oauth.local.json

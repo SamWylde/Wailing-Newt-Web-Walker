@@ -1160,10 +1160,28 @@ function getColumnValue(urlData, columnId) {
         case 'external_links_count': return urlData.external_links || 0;
         case 'total_links_count': return (urlData.internal_links || 0) + (urlData.external_links || 0);
         case 'images_count': return Array.isArray(urlData.images) ? urlData.images.length : 0;
-        case 'performance_score': return urlData.pagespeed?.performance || '-';
-        case 'lcp': return urlData.pagespeed?.metrics?.largest_contentful_paint || '-';
-        case 'fid': return urlData.pagespeed?.metrics?.first_input_delay || '-';
-        case 'cls': return urlData.pagespeed?.metrics?.cumulative_layout_shift || '-';
+        case 'performance_score':
+            return urlData.pagespeed?.performance_score
+                ?? urlData.pagespeed?.performance
+                ?? urlData.analytics?.pagespeed?.performance_score
+                ?? urlData.analytics?.pagespeed?.performance
+                ?? '-';
+        case 'lcp':
+            return urlData.pagespeed?.metrics?.largest_contentful_paint
+                ?? urlData.analytics?.pagespeed?.metrics?.largest_contentful_paint
+                ?? '-';
+        case 'fid':
+            return urlData.pagespeed?.metrics?.first_input_delay
+                ?? urlData.analytics?.pagespeed?.metrics?.first_input_delay
+                ?? '-';
+        case 'cls':
+            return urlData.pagespeed?.metrics?.cumulative_layout_shift
+                ?? urlData.analytics?.pagespeed?.metrics?.cumulative_layout_shift
+                ?? '-';
+        case 'tbt':
+            return urlData.pagespeed?.metrics?.total_blocking_time
+                ?? urlData.analytics?.pagespeed?.metrics?.total_blocking_time
+                ?? '-';
         case 'ga_id': return urlData.analytics?.ga_id || urlData.analytics?.ga4_id || '-';
         case 'gtm_id': return urlData.analytics?.gtm_id || '-';
         case 'fb_pixel': return urlData.analytics?.facebook_pixel || '-';
@@ -1498,6 +1516,16 @@ function clearAllTables() {
     // Clear status codes table (not virtualized)
     const statusCodesBody = document.getElementById('statusCodesTableBody');
     if (statusCodesBody) statusCodesBody.innerHTML = '';
+
+    const pageSpeedContainer = document.getElementById('pagespeedResults');
+    if (pageSpeedContainer) {
+        pageSpeedContainer.innerHTML = `
+            <div class="pagespeed-placeholder">
+                <p>PageSpeed analysis will appear here after crawl completion.</p>
+                <p>Enable PageSpeed Analysis in settings to get Core Web Vitals and performance scores.</p>
+            </div>
+        `;
+    }
 
     crawlState.urls = [];
 
@@ -2422,6 +2450,23 @@ function populateUrlDetailsPanel(urlData) {
                 details.push({ property: 'User Canonical', value: inspection.user_canonical, notes: '' });
             }
         }
+
+        const pageSpeed = (urlData.pagespeed && typeof urlData.pagespeed === 'object')
+            ? urlData.pagespeed
+            : (urlData.analytics.pagespeed && typeof urlData.analytics.pagespeed === 'object' ? urlData.analytics.pagespeed : {});
+        const pageSpeedMetrics = pageSpeed.metrics || {};
+        if (Object.keys(pageSpeedMetrics).length > 0 || pageSpeed.performance_score !== undefined) {
+            const strategy = pageSpeed.strategy || '-';
+            const score = pageSpeed.performance_score ?? pageSpeed.performance ?? '-';
+            details.push({ property: 'PageSpeed Strategy', value: strategy, notes: '' });
+            details.push({ property: 'PageSpeed Score', value: score, notes: '' });
+            details.push({ property: 'PageSpeed LCP', value: pageSpeedMetrics.largest_contentful_paint ?? '-', notes: '' });
+            details.push({ property: 'PageSpeed CLS', value: pageSpeedMetrics.cumulative_layout_shift ?? '-', notes: '' });
+            details.push({ property: 'PageSpeed TBT', value: pageSpeedMetrics.total_blocking_time ?? '-', notes: '' });
+            if (pageSpeed.updated_at) {
+                details.push({ property: 'PageSpeed Updated At', value: pageSpeed.updated_at, notes: '' });
+            }
+        }
     }
 
     // Add OG tags count
@@ -2493,7 +2538,16 @@ function formatBytes(bytes) {
 
 function displayPageSpeedResults(results) {
     const container = document.getElementById('pagespeedResults');
-    if (!container || !results || results.length === 0) {
+    if (!container) {
+        return;
+    }
+    if (!results || results.length === 0) {
+        container.innerHTML = `
+            <div class="pagespeed-placeholder">
+                <p>No PageSpeed results yet.</p>
+                <p>Run a crawl with PageSpeed enabled to populate this tab.</p>
+            </div>
+        `;
         return;
     }
 
@@ -2503,85 +2557,75 @@ function displayPageSpeedResults(results) {
         const pageCard = document.createElement('div');
         pageCard.className = 'pagespeed-page-card';
 
-        const mobile = pageResult.mobile || {};
-        const desktop = pageResult.desktop || {};
+        const orderedDevices = ['mobile', 'desktop']
+            .filter((device) => pageResult[device] !== undefined)
+            .concat(
+                Object.keys(pageResult).filter((key) => key !== 'url' && key !== 'analysis_date' && !['mobile', 'desktop'].includes(key))
+            );
+        const devicesToRender = orderedDevices.length > 0 ? orderedDevices : ['mobile', 'desktop'];
+
+        const renderDeviceBlock = (device) => {
+            const result = pageResult[device] || {};
+            const label = device === 'mobile'
+                ? 'Mobile'
+                : (device === 'desktop' ? 'Desktop' : device);
+            const safeLabel = escapeHtml(label);
+
+            if (!result.success) {
+                return `
+                    <div class="pagespeed-device-result">
+                        <h5>${safeLabel}</h5>
+                        <div class="pagespeed-error">
+                            Error: ${escapeHtml(result.error || 'Analysis failed')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="pagespeed-device-result">
+                    <h5>${safeLabel}</h5>
+                    <div class="pagespeed-score ${getScoreClass(result.performance_score)}">
+                        ${result.performance_score || 'N/A'}
+                    </div>
+                    <div class="pagespeed-metrics">
+                        <div class="metric">
+                            <span class="metric-label">FCP:</span>
+                            <span class="metric-value">${result.metrics?.first_contentful_paint || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">LCP:</span>
+                            <span class="metric-value">${result.metrics?.largest_contentful_paint || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">CLS:</span>
+                            <span class="metric-value">${result.metrics?.cumulative_layout_shift || 'N/A'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">SI:</span>
+                            <span class="metric-value">${result.metrics?.speed_index || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">TTI:</span>
+                            <span class="metric-value">${result.metrics?.time_to_interactive || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">TBT:</span>
+                            <span class="metric-value">${result.metrics?.total_blocking_time || 'N/A'}ms</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
 
         pageCard.innerHTML = `
             <div class="pagespeed-page-header">
-                <h4 class="pagespeed-page-url">${pageResult.url}</h4>
-                <span class="pagespeed-analysis-date">Analyzed: ${pageResult.analysis_date}</span>
+                <h4 class="pagespeed-page-url">${escapeHtml(pageResult.url || '')}</h4>
+                <span class="pagespeed-analysis-date">Analyzed: ${escapeHtml(pageResult.analysis_date || '')}</span>
             </div>
 
             <div class="pagespeed-results-grid">
-                <div class="pagespeed-device-result">
-                    <h5>📱 Mobile</h5>
-                    ${mobile.success ? `
-                        <div class="pagespeed-score ${getScoreClass(mobile.performance_score)}">
-                            ${mobile.performance_score || 'N/A'}
-                        </div>
-                        <div class="pagespeed-metrics">
-                            <div class="metric">
-                                <span class="metric-label">FCP:</span>
-                                <span class="metric-value">${mobile.metrics?.first_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">LCP:</span>
-                                <span class="metric-value">${mobile.metrics?.largest_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">CLS:</span>
-                                <span class="metric-value">${mobile.metrics?.cumulative_layout_shift || 'N/A'}</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">SI:</span>
-                                <span class="metric-value">${mobile.metrics?.speed_index || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">TTI:</span>
-                                <span class="metric-value">${mobile.metrics?.time_to_interactive || 'N/A'}s</span>
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="pagespeed-error">
-                            Error: ${mobile.error || 'Analysis failed'}
-                        </div>
-                    `}
-                </div>
-
-                <div class="pagespeed-device-result">
-                    <h5>🖥️ Desktop</h5>
-                    ${desktop.success ? `
-                        <div class="pagespeed-score ${getScoreClass(desktop.performance_score)}">
-                            ${desktop.performance_score || 'N/A'}
-                        </div>
-                        <div class="pagespeed-metrics">
-                            <div class="metric">
-                                <span class="metric-label">FCP:</span>
-                                <span class="metric-value">${desktop.metrics?.first_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">LCP:</span>
-                                <span class="metric-value">${desktop.metrics?.largest_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">CLS:</span>
-                                <span class="metric-value">${desktop.metrics?.cumulative_layout_shift || 'N/A'}</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">SI:</span>
-                                <span class="metric-value">${desktop.metrics?.speed_index || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">TTI:</span>
-                                <span class="metric-value">${desktop.metrics?.time_to_interactive || 'N/A'}s</span>
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="pagespeed-error">
-                            Error: ${desktop.error || 'Analysis failed'}
-                        </div>
-                    `}
-                </div>
+                ${devicesToRender.map((device) => renderDeviceBlock(device)).join('')}
             </div>
         `;
 
@@ -3568,6 +3612,9 @@ function showConfigPanel(panelId) {
     if (panelId === 'search-console' && window.SearchConsoleConfig && typeof window.SearchConsoleConfig.onPanelVisible === 'function') {
         window.SearchConsoleConfig.onPanelVisible();
     }
+    if (panelId === 'pagespeed' && window.PageSpeedConfig && typeof window.PageSpeedConfig.onPanelVisible === 'function') {
+        window.PageSpeedConfig.onPanelVisible();
+    }
 }
 
 function filterConfigItems() {
@@ -3811,6 +3858,9 @@ function loadCrawlConfigValues() {
         if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.loadFromSettings === 'function') {
             window.SearchConsoleConfig.loadFromSettings(currentSettings);
         }
+        if (window.PageSpeedConfig && typeof window.PageSpeedConfig.loadFromSettings === 'function') {
+            window.PageSpeedConfig.loadFromSettings(currentSettings);
+        }
     }
 }
 
@@ -3981,6 +4031,9 @@ function saveCrawlConfig() {
     const gscSettings = (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.collectSettings === 'function')
         ? window.SearchConsoleConfig.collectSettings()
         : {};
+    const psSettings = (window.PageSpeedConfig && typeof window.PageSpeedConfig.collectSettings === 'function')
+        ? window.PageSpeedConfig.collectSettings()
+        : {};
 
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
@@ -4092,7 +4145,9 @@ function saveCrawlConfig() {
         // GA4 settings
         ...ga4Settings,
         // Search Console settings
-        ...gscSettings
+        ...gscSettings,
+        // PageSpeed settings
+        ...psSettings
     };
 
     // Save HTTP headers and content area separately
@@ -5382,4 +5437,5 @@ function testExcludeUrl() {
         `;
     }
 }
+
 
