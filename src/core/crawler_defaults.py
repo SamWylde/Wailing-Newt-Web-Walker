@@ -567,4 +567,5 @@ def get_default_crawler_config():
         'issue_exclusion_patterns': parse_issue_exclusion_patterns(
             DEFAULT_ISSUE_EXCLUSION_PATTERNS_TEXT
         ),
+        'check_external_links': False,
     }

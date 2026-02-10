@@ -773,6 +773,10 @@ class WebCrawler:
 
             self.is_running_pagespeed = False
 
+        # Check external links if enabled
+        if self.config.get('check_external_links', False) and self.is_running:
+            self._check_external_links()
+
         # Link Analysis Enhancements
         if self.link_manager:
             print("Running advanced link analysis...")
@@ -1028,6 +1032,13 @@ class WebCrawler:
                 'schema_org': [],
                 'linked_from': []
             }
+
+            # Capture redirect chain from response history
+            if response.history:
+                result['redirects'] = [
+                    {'url': r.url, 'status_code': r.status_code}
+                    for r in response.history
+                ]
 
             # Only parse HTML content
             if 'text/html' in response.headers.get('content-type', ''):
@@ -1632,6 +1643,58 @@ class WebCrawler:
                 }
             )
             print(f"Search Console enrichment failed: {exc}")
+
+    def _check_external_links(self):
+        """Verify external links with HEAD requests to detect broken links"""
+        if not self.link_manager:
+            return
+
+        # Collect unique external target URLs
+        external_targets = {}
+        for link in self.link_manager.all_links:
+            if link.get('is_internal'):
+                continue
+            target = link.get('target_url', '')
+            if target and target not in external_targets:
+                external_targets[target] = link.get('source_url', '')
+
+        if not external_targets:
+            return
+
+        print(f"Checking {len(external_targets)} external links...")
+        checked = 0
+
+        for target_url, source_url in external_targets.items():
+            if not self.is_running:
+                break
+            try:
+                resp = self.session.head(
+                    target_url, timeout=10, allow_redirects=True
+                )
+                if resp.status_code >= 400 and self.issue_detector:
+                    self.issue_detector.detected_issues.append({
+                        'url': target_url,
+                        'type': 'error',
+                        'category': 'Links',
+                        'issue': f'Broken External Link ({resp.status_code})',
+                        'details': f'Linked from: {source_url}'
+                    })
+            except Exception:
+                if self.issue_detector:
+                    self.issue_detector.detected_issues.append({
+                        'url': target_url,
+                        'type': 'error',
+                        'category': 'Links',
+                        'issue': 'Unreachable External Link',
+                        'details': f'Connection failed. Linked from: {source_url}'
+                    })
+
+            checked += 1
+            if checked % 25 == 0:
+                print(f"  Checked {checked}/{len(external_targets)} external links")
+            time.sleep(0.5)  # Rate limit
+
+        print(f"External link check complete: {checked} links verified")
 
     def _run_pagespeed_analysis(self):
         """Run PageSpeed analysis on selected pages"""

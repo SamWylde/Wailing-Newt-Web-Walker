@@ -39,7 +39,20 @@ let virtualScrollers = {
     external: null,
     internalLinks: null,
     externalLinks: null,
-    issues: null
+    issues: null,
+    pageTitles: null,
+    metaDescription: null,
+    h1: null,
+    h2: null,
+    urlAnalysis: null,
+    canonicals: null,
+    images: null,
+    directives: null,
+    contentTab: null,
+    structuredData: null,
+    hreflang: null,
+    security: null,
+    sitemaps: null
 };
 
 // Tab Configuration System
@@ -344,21 +357,14 @@ async function initializeApp() {
     // Initialize auto-update listener (Electron desktop app only)
     initializeAutoUpdate();
 
-    // DEBUG: Check sessionStorage
-    console.log('DEBUG: Checking sessionStorage force_ui_refresh:', sessionStorage.getItem('force_ui_refresh'));
-
     // Check if we just loaded a crawl from dashboard
     if (sessionStorage.getItem('force_ui_refresh') === 'true') {
-        console.log('DEBUG: Found force_ui_refresh flag, loading crawl data...');
         sessionStorage.removeItem('force_ui_refresh');
 
         try {
             // Fetch the loaded data immediately with FULL refresh (no incremental)
             const response = await fetch('/api/crawl_status');
             const data = await response.json();
-
-            // DEBUG: Log the full response
-            console.log('DEBUG: Full /api/crawl_status response:', JSON.stringify(data, null, 2));
 
             // Clear existing data first
             clearAllTables();
@@ -715,7 +721,10 @@ function pollCrawlProgress() {
                 loadVisualizationData();
             }
 
-            if (crawlState.isRunning && data.status !== 'completed') {
+            if (data.status === 'completed' && data.is_running_pagespeed) {
+                // Crawl done but PageSpeed still running — keep polling
+                setTimeout(pollCrawlProgress, 2000);
+            } else if (crawlState.isRunning && data.status !== 'completed') {
                 setTimeout(pollCrawlProgress, 1000); // Poll every second
             } else if (data.status === 'completed') {
                 stopCrawl();
@@ -1294,6 +1303,33 @@ function initializeVirtualScrollers() {
             });
             console.log('Link Health virtual scroller initialized');
         }
+
+        // SEO Analysis tabs
+        const seoTabScrollers = [
+            { key: 'pageTitles', selector: '#page-titles-tab .table-container', render: renderPageTitlesRow },
+            { key: 'metaDescription', selector: '#meta-description-tab .table-container', render: renderMetaDescriptionRow },
+            { key: 'h1', selector: '#h1-tab .table-container', render: renderH1Row },
+            { key: 'h2', selector: '#h2-tab .table-container', render: renderH2Row },
+            { key: 'urlAnalysis', selector: '#url-tab .table-container', render: renderUrlAnalysisRow },
+            { key: 'canonicals', selector: '#canonicals-tab .table-container', render: renderCanonicalsRow },
+            { key: 'images', selector: '#images-tab .table-container', render: renderImagesRow },
+            { key: 'directives', selector: '#directives-tab .table-container', render: renderDirectivesRow },
+            { key: 'contentTab', selector: '#content-tab .table-container', render: renderContentTabRow },
+            { key: 'structuredData', selector: '#structured-data-tab .table-container', render: renderStructuredDataRow },
+            { key: 'hreflang', selector: '#hreflang-tab .table-container', render: renderHreflangRow },
+            { key: 'security', selector: '#security-tab .table-container', render: renderSecurityRow },
+            { key: 'sitemaps', selector: '#sitemaps-tab .table-container', render: renderSitemapsRow }
+        ];
+        seoTabScrollers.forEach(({ key, selector, render }) => {
+            const container = document.querySelector(selector);
+            if (container && container.querySelector('tbody')) {
+                virtualScrollers[key] = new VirtualScroller(container, {
+                    rowHeight: 80,
+                    buffer: 25,
+                    renderRow: render
+                });
+            }
+        });
     } catch (error) {
         console.error('Error initializing virtual scrollers:', error);
     }
@@ -1513,6 +1549,16 @@ function clearAllTables() {
         virtualScrollers.issues.clear();
     }
 
+    // Clear SEO analysis tabs
+    const seoScrollerKeys = [
+        'pageTitles', 'metaDescription', 'h1', 'h2', 'urlAnalysis',
+        'canonicals', 'images', 'directives', 'contentTab',
+        'structuredData', 'hreflang', 'security', 'sitemaps'
+    ];
+    seoScrollerKeys.forEach(key => {
+        if (virtualScrollers[key]) virtualScrollers[key].clear();
+    });
+
     // Clear status codes table (not virtualized)
     const statusCodesBody = document.getElementById('statusCodesTableBody');
     if (statusCodesBody) statusCodesBody.innerHTML = '';
@@ -1570,6 +1616,19 @@ function addUrlToTable(urlData) {
 
     if (virtualScrollers.linkHealth) {
         virtualScrollers.linkHealth.appendData([urlData]);
+    }
+
+    // SEO analysis tabs — only internal HTML pages
+    const isHtmlPage = urlData.is_internal && (urlData.content_type || '').includes('text/html');
+    if (isHtmlPage) {
+        const seoScrollerKeys = [
+            'pageTitles', 'metaDescription', 'h1', 'h2', 'urlAnalysis',
+            'canonicals', 'images', 'directives', 'contentTab',
+            'structuredData', 'hreflang', 'security', 'sitemaps'
+        ];
+        seoScrollerKeys.forEach(key => {
+            if (virtualScrollers[key]) virtualScrollers[key].appendData([urlData]);
+        });
     }
 
     // Reapply current filter if one is active
@@ -3076,6 +3135,246 @@ function renderLinkHealthRow(row, urlData, index) {
         <td>${outboundCount}</td>
         <td>${redirectChain}</td>
     `;
+}
+
+// ========================
+// SEO Analysis Tab Renderers
+// ========================
+
+function renderPageTitlesRow(row, urlData, index) {
+    const title = urlData.title || '';
+    const length = title.length;
+    let status = '';
+    if (!title) status = '<span class="status-badge status-error">Missing</span>';
+    else if (length > 60) status = '<span class="status-badge status-warning">Too Long</span>';
+    else if (length < 30) status = '<span class="status-badge status-warning">Too Short</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+        <td>${length}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderMetaDescriptionRow(row, urlData, index) {
+    const desc = urlData.meta_description || '';
+    const length = desc.length;
+    let status = '';
+    if (!desc) status = '<span class="status-badge status-error">Missing</span>';
+    else if (length > 155) status = '<span class="status-badge status-warning">Too Long</span>';
+    else if (length < 70) status = '<span class="status-badge status-warning">Too Short</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td title="${escapeHtml(desc)}">${escapeHtml(desc.substring(0, 80))}${desc.length > 80 ? '...' : ''}</td>
+        <td>${length}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderH1Row(row, urlData, index) {
+    const h1 = urlData.h1 || '';
+    const length = h1.length;
+    let status = '';
+    if (!h1) status = '<span class="status-badge status-error">Missing</span>';
+    else if (length > 70) status = '<span class="status-badge status-warning">Too Long</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td title="${escapeHtml(h1)}">${escapeHtml(h1)}</td>
+        <td>${length}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderH2Row(row, urlData, index) {
+    const h2s = Array.isArray(urlData.h2) ? urlData.h2 : [];
+    const count = h2s.length;
+    const firstH2 = h2s[0] || '';
+    let status = count === 0
+        ? '<span class="status-badge status-warning">None</span>'
+        : '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td title="${escapeHtml(firstH2)}">${escapeHtml(firstH2)}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderUrlAnalysisRow(row, urlData, index) {
+    const url = urlData.url || '';
+    const length = url.length;
+    const hasParams = url.includes('?');
+    let status = '';
+    if (length > 115) status = '<span class="status-badge status-warning">Too Long</span>';
+    else if (hasParams) status = '<span class="status-badge status-info">Has Parameters</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(url)}">${escapeHtml(url)}</td>
+        <td>${length}</td>
+        <td>${urlData.depth || 0}</td>
+        <td>${hasParams ? 'Yes' : 'No'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderCanonicalsRow(row, urlData, index) {
+    const canonical = urlData.canonical_url || '';
+    let status = '';
+    if (!canonical) status = '<span class="status-badge status-warning">Missing</span>';
+    else if (canonical === urlData.url) status = '<span class="status-badge status-good">Self-Referencing</span>';
+    else status = '<span class="status-badge status-info">Points Elsewhere</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td class="url-cell" title="${escapeHtml(canonical)}">${escapeHtml(canonical)}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderImagesRow(row, urlData, index) {
+    const images = Array.isArray(urlData.images) ? urlData.images : [];
+    const count = images.length;
+    const missingAlt = images.filter(img => !img.alt || img.alt.trim() === '').length;
+    let status = '';
+    if (count === 0) status = '<span class="status-badge status-info">No Images</span>';
+    else if (missingAlt > 0) status = `<span class="status-badge status-warning">${missingAlt} Missing Alt</span>`;
+    else status = '<span class="status-badge status-good">All Have Alt</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td>${missingAlt}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderDirectivesRow(row, urlData, index) {
+    const robots = urlData.robots || '';
+    let status = '';
+    if (!robots) status = '<span class="status-badge status-info">None</span>';
+    else if (robots.toLowerCase().includes('noindex')) status = '<span class="status-badge status-error">Noindex</span>';
+    else if (robots.toLowerCase().includes('nofollow')) status = '<span class="status-badge status-warning">Nofollow</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${escapeHtml(robots) || '-'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderContentTabRow(row, urlData, index) {
+    const wordCount = urlData.word_count || 0;
+    const readingTime = Math.max(1, Math.round(wordCount / 200));
+    let status = '';
+    if (wordCount === 0) status = '<span class="status-badge status-error">No Content</span>';
+    else if (wordCount < 200) status = '<span class="status-badge status-warning">Thin</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${wordCount}</td>
+        <td>${readingTime} min</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderStructuredDataRow(row, urlData, index) {
+    const jsonLd = Array.isArray(urlData.json_ld) ? urlData.json_ld : [];
+    const count = jsonLd.length;
+    const types = jsonLd
+        .map(item => (typeof item === 'object' && item['@type']) ? item['@type'] : '')
+        .filter(Boolean)
+        .join(', ');
+    let status = count === 0
+        ? '<span class="status-badge status-info">None</span>'
+        : '<span class="status-badge status-good">' + count + ' Found</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td title="${escapeHtml(types)}">${escapeHtml(types) || '-'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderHreflangRow(row, urlData, index) {
+    const hreflang = Array.isArray(urlData.hreflang) ? urlData.hreflang : [];
+    const count = hreflang.length;
+    const langs = hreflang
+        .map(h => h.hreflang || h.lang || '')
+        .filter(Boolean)
+        .join(', ');
+    let status = count === 0
+        ? '<span class="status-badge status-info">None</span>'
+        : '<span class="status-badge status-good">' + count + ' Languages</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td title="${escapeHtml(langs)}">${escapeHtml(langs) || '-'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderSecurityRow(row, urlData, index) {
+    const isHttps = (urlData.url || '').startsWith('https://');
+    const status = isHttps
+        ? '<span class="status-badge status-good">Secure</span>'
+        : '<span class="status-badge status-error">Not Secure</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${isHttps ? 'HTTPS' : 'HTTP'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderSitemapsRow(row, urlData, index) {
+    const inSitemap = urlData.in_sitemap ? true : false;
+    const status = inSitemap
+        ? '<span class="status-badge status-good">In Sitemap</span>'
+        : '<span class="status-badge status-info">Not in Sitemap</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${inSitemap ? 'Yes' : 'No'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
 }
 
 // New Tab Helpers

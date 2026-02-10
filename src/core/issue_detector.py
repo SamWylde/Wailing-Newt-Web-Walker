@@ -237,16 +237,30 @@ class IssueDetector:
                 'details': 'URL redirects to another location'
             })
 
-        # Redirect chain check
+        # Redirect chain checks
         redirects = result.get('redirects', [])
-        if len(redirects) > 3:
-            issues.append({
-                'url': url,
-                'type': 'warning',
-                'category': 'Technical',
-                'issue': 'Long Redirect Chain',
-                'details': f'Redirect chain has {len(redirects)} hops (recommended: <3)'
-            })
+        if redirects:
+            # Check for redirect loops
+            chain_urls = [r.get('url', '') for r in redirects] + [url]
+            if len(chain_urls) != len(set(chain_urls)):
+                issues.append({
+                    'url': url,
+                    'type': 'error',
+                    'category': 'Technical',
+                    'issue': 'Redirect Loop Detected',
+                    'details': ' -> '.join(chain_urls[:6])
+                })
+            # Check for long redirect chains
+            if len(redirects) >= 2:
+                chain_display = ' -> '.join([r.get('url', '') for r in redirects[:5]])
+                severity = 'error' if len(redirects) > 3 else 'warning'
+                issues.append({
+                    'url': url,
+                    'type': severity,
+                    'category': 'Technical',
+                    'issue': f'Redirect Chain ({len(redirects)} hops)',
+                    'details': chain_display
+                })
 
         # Canonical URL checks
         canonical_url = result.get('canonical_url', '')

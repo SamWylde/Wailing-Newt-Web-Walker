@@ -590,39 +590,37 @@
                             <!-- New SEO Analysis Tabs -->
                             <div id="security-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔒 Security Analysis</h3>
-                                        <p>HTTPS status, mixed content issues, and security headers will appear here.
-                                        </p>
-                                    </div>
+                                    <table class="data-table" id="securityTable">
+                                        <thead><tr><th>Address</th><th>Protocol</th><th>Status</th></tr></thead>
+                                        <tbody id="securityTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="url-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔗 URL Analysis</h3>
-                                        <p>URL structure, parameters, and path analysis will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="urlTable">
+                                        <thead><tr><th>Address</th><th>Length</th><th>Depth</th><th>Parameters</th><th>Status</th></tr></thead>
+                                        <tbody id="urlTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="page-titles-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📝 Page Titles</h3>
-                                        <p>Title tag analysis including length, duplicates, and missing titles.</p>
-                                    </div>
+                                    <table class="data-table" id="pageTitlesTable">
+                                        <thead><tr><th>Address</th><th>Title</th><th>Length</th><th>Status</th></tr></thead>
+                                        <tbody id="pageTitlesTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="meta-description-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📋 Meta Descriptions</h3>
-                                        <p>Meta description analysis including length, duplicates, and missing
-                                            descriptions.</p>
-                                    </div>
+                                    <table class="data-table" id="metaDescriptionTable">
+                                        <thead><tr><th>Address</th><th>Meta Description</th><th>Length</th><th>Status</th></tr></thead>
+                                        <tbody id="metaDescriptionTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -637,47 +635,46 @@
 
                             <div id="h1-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔤 H1 Headings</h3>
-                                        <p>H1 heading analysis including missing, duplicate, and multiple H1s.</p>
-                                    </div>
+                                    <table class="data-table" id="h1Table">
+                                        <thead><tr><th>Address</th><th>H1</th><th>Length</th><th>Status</th></tr></thead>
+                                        <tbody id="h1TableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="h2-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔤 H2 Headings</h3>
-                                        <p>H2 heading structure and analysis will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="h2Table">
+                                        <thead><tr><th>Address</th><th>H2 Count</th><th>First H2</th><th>Status</th></tr></thead>
+                                        <tbody id="h2TableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="content-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📄 Content Analysis</h3>
-                                        <p>Word count, readability, and content quality metrics will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="contentTabTable">
+                                        <thead><tr><th>Address</th><th>Word Count</th><th>Reading Time</th><th>Status</th></tr></thead>
+                                        <tbody id="contentTabTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="images-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🖼️ Images</h3>
-                                        <p>Image optimization including alt text, size, and format analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="imagesTable">
+                                        <thead><tr><th>Address</th><th>Image Count</th><th>Missing Alt</th><th>Status</th></tr></thead>
+                                        <tbody id="imagesTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="canonicals-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔗 Canonicals</h3>
-                                        <p>Canonical tag analysis including missing, self-referencing, and cross-domain.
-                                        </p>
-                                    </div>
+                                    <table class="data-table" id="canonicalsTable">
+                                        <thead><tr><th>Address</th><th>Canonical URL</th><th>Status</th></tr></thead>
+                                        <tbody id="canonicalsTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -692,19 +689,19 @@
 
                             <div id="directives-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🤖 Directives</h3>
-                                        <p>Robots directives, noindex, nofollow, and crawlability analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="directivesTable">
+                                        <thead><tr><th>Address</th><th>Meta Robots</th><th>Status</th></tr></thead>
+                                        <tbody id="directivesTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="hreflang-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🌍 Hreflang</h3>
-                                        <p>International targeting and hreflang implementation analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="hreflangTable">
+                                        <thead><tr><th>Address</th><th>Hreflang Count</th><th>Languages</th><th>Status</th></tr></thead>
+                                        <tbody id="hreflangTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -728,19 +725,19 @@
 
                             <div id="structured-data-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📊 Structured Data</h3>
-                                        <p>Schema.org markup, JSON-LD, and rich snippets analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="structuredDataTable">
+                                        <thead><tr><th>Address</th><th>JSON-LD Count</th><th>Schema Types</th><th>Status</th></tr></thead>
+                                        <tbody id="structuredDataTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="sitemaps-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🗺️ Sitemaps</h3>
-                                        <p>XML sitemap analysis and URL coverage will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="sitemapsTable">
+                                        <thead><tr><th>Address</th><th>In Sitemap</th><th>Status</th></tr></thead>
+                                        <tbody id="sitemapsTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
