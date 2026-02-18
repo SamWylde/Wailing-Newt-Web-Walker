@@ -1129,7 +1129,7 @@ app.whenReady().then(async () => {
         createWindow();
 
         // Initialize auto-updater (always initialize to register IPC handlers)
-        initAutoUpdater(mainWindow, tray);
+        initAutoUpdater(mainWindow, tray, stopPythonBackend);
     } catch (error) {
         if (loadingWindow && !loadingWindow.isDestroyed()) {
             loadingWindow.close();

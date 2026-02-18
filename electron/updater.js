@@ -57,15 +57,17 @@ let downloadProgress = 0;
 let mainWindowRef = null;
 let trayRef = null;
 let userInitiatedCheck = false;
+let cleanupFn = null;
 
 /**
  * Configure and initialize the auto-updater
  * @param {BrowserWindow} mainWindow - Reference to main window for notifications
  * @param {Tray} tray - Reference to system tray for balloon notifications
  */
-function initAutoUpdater(mainWindow, tray) {
+function initAutoUpdater(mainWindow, tray, cleanupCallback) {
     mainWindowRef = mainWindow;
     trayRef = tray;
+    cleanupFn = cleanupCallback;
 
     // Always register IPC handlers (even in development)
     setupIpcHandlers();
@@ -211,10 +213,21 @@ function promptInstallUpdate() {
 /**
  * Quit app and install update
  */
-function quitAndInstall() {
+async function quitAndInstall() {
     if (updateDownloaded) {
         console.log('[AutoUpdater] Quitting and installing update...');
-        autoUpdater.quitAndInstall(false, true);
+        // Stop Python backend BEFORE launching the installer so NSIS
+        // doesn't hit locked files and show "cannot be closed" error
+        if (cleanupFn) {
+            try {
+                await cleanupFn();
+            } catch (e) {
+                console.log('[AutoUpdater] Cleanup error (continuing):', e.message);
+            }
+        }
+        // isSilent=true: run NSIS silently (no UI, no "cannot be closed" dialog)
+        // isForceRunAfter=true: relaunch the app after silent install
+        autoUpdater.quitAndInstall(true, true);
     }
 }
 
@@ -271,8 +284,8 @@ function setupIpcHandlers() {
     });
 
     // Install update from renderer
-    ipcMain.handle('install-update', () => {
-        quitAndInstall();
+    ipcMain.handle('install-update', async () => {
+        await quitAndInstall();
     });
 }
 
