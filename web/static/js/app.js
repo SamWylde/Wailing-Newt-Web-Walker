@@ -4253,7 +4253,8 @@ function saveCrawlConfig() {
 
     // Crawl4AI - Infinite Scroll
     const scanFullPage = document.getElementById('scanFullPage')?.checked || false;
-    const scrollDelay = parseFloat(document.getElementById('scrollDelay')?.value) || 0.2;
+    const scrollDelayVal = parseFloat(document.getElementById('scrollDelay')?.value);
+    const scrollDelay = isNaN(scrollDelayVal) ? 0.2 : scrollDelayVal;
     const maxScrollSteps = parseInt(document.getElementById('maxScrollSteps')?.value) || 0;
 
     // Crawl Panel - Resource Links

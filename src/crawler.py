@@ -392,6 +392,7 @@ class WebCrawler:
             self.crawl_id = crawl_id
             self.base_url = crawl_data['base_url']
             self.base_domain = crawl_data['base_domain']
+            self.start_url = crawl_data['base_url']  # Needed by find_orphan_pages()
             self.user_id = user_id
             self.session_id = session_id
             self.user_tier = user_tier or 'guest'
