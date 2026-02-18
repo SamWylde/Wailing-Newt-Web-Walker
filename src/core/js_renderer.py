@@ -13,12 +13,15 @@ class JavaScriptRenderer:
     public API so crawler.py call sites don't change.
     """
 
+    _request_counter = 0
+
     def __init__(self, config):
         self.config = config
         self.crawler = None
         self.auth_cookies = []
         self.is_authenticated = False
-        self._session_id = f"wailing-newt-{id(self)}"
+        # Auth session persists cookies across form logins
+        self._auth_session_id = f"wailing-newt-auth-{id(self)}"
         self._browser_config = self._build_browser_config()
         self._run_config_template = self._build_run_config()
 
@@ -54,17 +57,8 @@ class JavaScriptRenderer:
                     key, val = line.split(':', 1)
                     headers[key.strip()] = val.strip()
 
-        # HTTP Basic/Digest auth → Authorization header
-        if self.config.get('auth_standards_enabled', False):
-            auth_data = self.config.get('auth_standards_data', [])
-            for entry in auth_data:
-                if entry.get('username'):
-                    import base64
-                    creds = base64.b64encode(
-                        f"{entry['username']}:{entry.get('password', '')}".encode()
-                    ).decode()
-                    headers['Authorization'] = f"Basic {creds}"
-                    break  # Use first auth entry for browser headers
+        # NOTE: per-URL auth (Basic/Digest) is handled in render_page(),
+        # not here, so scoped credentials work correctly.
 
         return BrowserConfig(
             browser_type=browser_type,
@@ -103,7 +97,8 @@ class JavaScriptRenderer:
             'page_timeout': self.config.get('js_timeout', 30) * 1000,
             'wait_for': wait_for,
             'delay_before_return_html': float(delay_before_return),
-            'semaphore_count': self.config.get('concurrency', 5),
+            'semaphore_count': self.config.get('js_max_concurrent_pages',
+                                              self.config.get('concurrency', 5)),
             'mean_delay': float(self.config.get('delay', 1.0)),
             'scan_full_page': self.config.get('scan_full_page', False),
             'scroll_delay': float(self.config.get('scroll_delay', 0.2)),
@@ -114,14 +109,53 @@ class JavaScriptRenderer:
             'check_robots_txt': self.config.get('respect_robots', True),
         }
 
-    def _make_run_config(self, **overrides):
-        """Create a CrawlerRunConfig instance, optionally overriding template values."""
+    def _get_auth_header_for_url(self, url):
+        """Return an Authorization header dict if a scoped credential matches the URL.
+
+        Supports Basic auth.  Digest auth cannot be pre-computed (requires a
+        server nonce), so Digest entries are treated as Basic for now and a
+        warning is logged once.
+        """
+        if not self.config.get('auth_standards_enabled', False):
+            return None
+
+        auth_data = self.config.get('auth_standards_data', [])
+        if not auth_data:
+            return None
+
+        for entry in auth_data:
+            scope_url = entry.get('url', '')
+            if not scope_url or not entry.get('username'):
+                continue
+            # Match if the request URL starts with the scoped URL
+            if url.startswith(scope_url) or url.startswith(scope_url.rstrip('/')):
+                import base64
+                auth_type = entry.get('type', 'basic').lower()
+                if auth_type == 'digest':
+                    print(f"WARNING: Digest auth for {scope_url} is not supported in browser mode; "
+                          f"falling back to Basic auth.")
+                creds = base64.b64encode(
+                    f"{entry['username']}:{entry.get('password', '')}".encode()
+                ).decode()
+                return {'Authorization': f"Basic {creds}"}
+
+        return None
+
+    def _make_run_config(self, session_id=None, **overrides):
+        """Create a CrawlerRunConfig instance, optionally overriding template values.
+
+        Args:
+            session_id: Crawl4AI session ID. Each unique session_id gets its own
+                        browser tab/context.  Use a unique ID per concurrent request
+                        to avoid page-state races, or the shared auth session ID
+                        for login flows that need cookie persistence.
+        """
         params = {**self._run_config_template, **overrides}
-        # Filter out None values for optional params
         max_scroll = params.pop('max_scroll_steps', None)
-        return CrawlerRunConfig(
+        extra_headers = params.pop('headers', None)
+        config = CrawlerRunConfig(
             cache_mode=CacheMode.BYPASS,
-            session_id=self._session_id,
+            session_id=session_id or self._new_session_id(),
             page_timeout=params['page_timeout'],
             wait_for=params.get('wait_for'),
             delay_before_return_html=params['delay_before_return_html'],
@@ -136,6 +170,15 @@ class JavaScriptRenderer:
             check_robots_txt=params['check_robots_txt'],
             verbose=False,
         )
+        if extra_headers:
+            config.headers = extra_headers
+        return config
+
+    @classmethod
+    def _new_session_id(cls):
+        """Generate a unique session ID for each concurrent request."""
+        cls._request_counter += 1
+        return f"wn-req-{cls._request_counter}"
 
     async def initialize(self):
         """Initialize the Crawl4AI browser engine."""
@@ -194,7 +237,14 @@ class JavaScriptRenderer:
         start_time = time.time()
 
         try:
-            run_config = self._make_run_config()
+            overrides = {}
+
+            # Per-URL HTTP Basic auth: match URL scope → inject Authorization header
+            auth_header = self._get_auth_header_for_url(url)
+            if auth_header:
+                overrides['headers'] = auth_header
+
+            run_config = self._make_run_config(**overrides)
             result = await self.crawler.arun(url=url, config=run_config)
 
             response_time = round((time.time() - start_time) * 1000, 2)
@@ -387,6 +437,7 @@ class JavaScriptRenderer:
             """
 
             run_config = self._make_run_config(
+                session_id=self._auth_session_id,
                 delay_before_return_html=4.0,
             )
             # Override js_code on the config
