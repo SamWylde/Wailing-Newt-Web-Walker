@@ -56,6 +56,7 @@ let updateDownloaded = false;
 let downloadProgress = 0;
 let mainWindowRef = null;
 let trayRef = null;
+let userInitiatedCheck = false;
 
 /**
  * Configure and initialize the auto-updater
@@ -80,7 +81,7 @@ function initAutoUpdater(mainWindow, tray) {
     autoUpdater.autoInstallOnAppQuit = true;   // Install when user closes app
     autoUpdater.autoRunAppAfterInstall = true; // Restart app after update
     autoUpdater.allowDowngrade = false;        // Don't allow downgrading
-    autoUpdater.allowPrerelease = false;       // Only stable releases
+    autoUpdater.allowPrerelease = true;        // Include prereleases from CI builds
 
     // Use differential downloads for faster updates on Windows
     autoUpdater.disableDifferentialDownload = false;
@@ -100,6 +101,15 @@ function initAutoUpdater(mainWindow, tray) {
 
     autoUpdater.on('update-not-available', (info) => {
         console.log(`[AutoUpdater] App is up to date (v${info.version})`);
+        if (userInitiatedCheck) {
+            userInitiatedCheck = false;
+            dialog.showMessageBox(mainWindowRef, {
+                type: 'info',
+                title: 'No Updates Available',
+                message: 'You\'re running the latest version.',
+                detail: `Current version: v${app.getVersion()}`
+            });
+        }
     });
 
     autoUpdater.on('download-progress', (progress) => {
@@ -142,25 +152,14 @@ function initAutoUpdater(mainWindow, tray) {
     });
 
     // Initial check after short delay (don't block startup)
-    // Skip check on first run after install (Squirrel.Windows)
-    if (!isFirstRun()) {
-        setTimeout(() => {
-            checkForUpdates();
-        }, 5000); // 5 second delay for faster app startup
-    }
+    setTimeout(() => {
+        checkForUpdates();
+    }, 5000);
 
     // Periodic check every 4 hours
     setInterval(() => {
         checkForUpdates();
     }, 4 * 60 * 60 * 1000);
-}
-
-/**
- * Check if this is the first run after Squirrel.Windows installation
- * On first run, Squirrel has a file lock that interferes with updates
- */
-function isFirstRun() {
-    return process.argv.includes('--squirrel-firstrun');
 }
 
 /**
@@ -177,13 +176,11 @@ async function checkForUpdates(userInitiated = false) {
 
     try {
         console.log('[AutoUpdater] Starting update check...');
-        const result = await autoUpdater.checkForUpdates();
-
-        if (userInitiated && !result.updateInfo) {
-            showTrayNotification('No Updates', 'You are running the latest version.');
-        }
+        userInitiatedCheck = userInitiated;
+        await autoUpdater.checkForUpdates();
     } catch (error) {
         console.error('[AutoUpdater] Check failed:', error.message);
+        userInitiatedCheck = false;
         if (userInitiated) {
             showTrayNotification('Update Check Failed', 'Could not check for updates. Try again later.');
         }

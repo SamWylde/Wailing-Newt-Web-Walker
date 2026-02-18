@@ -1,0 +1,58 @@
+name: Electron Auto Publish
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: electron-auto-publish-main
+  cancel-in-progress: true
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Set auto-incremented app version
+        shell: pwsh
+        run: |
+          $version = node -e "const fs=require('fs'); const p='electron/package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); const parts=(pkg.version||'1.0.0').split('.'); const major=parts[0]||'1'; const minor=parts[1]||'0'; pkg.version=`${major}.${minor}.${process.env.GITHUB_RUN_NUMBER}`; fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n'); process.stdout.write(pkg.version);"
+          if (-not $version) { throw 'Failed to compute app version.' }
+          \"APP_VERSION=$version\" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host \"Using app version: $version\"
+
+      - name: Build and publish Windows release
+        working-directory: electron
+        env:
+          EP_PRE_RELEASE: true
+        run: npm run build:publish
+
+      - name: Release summary
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value \"Published Windows auto-update release for version $env:APP_VERSION\"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value \"Commit: $env:GITHUB_SHA\"

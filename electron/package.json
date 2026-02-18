@@ -21,7 +21,6 @@
     "build:publish:all": "electron-builder --win --mac --linux --publish always"
   },
   "dependencies": {
-    "electron-store": "^8.1.0",
     "electron-updater": "^6.1.7"
   },
   "devDependencies": {
@@ -59,7 +58,7 @@
       "provider": "github",
       "owner": "SamWylde",
       "repo": "Wailing-Newt-Web-Walker",
-      "releaseType": "release"
+      "releaseType": "prerelease"
     },
     "win": {
       "target": "nsis",

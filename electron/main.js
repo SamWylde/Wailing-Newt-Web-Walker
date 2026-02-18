@@ -32,6 +32,10 @@ const isDev = !app.isPackaged;
 const appPath = isDev
     ? path.join(__dirname, '..')
     : path.join(process.resourcesPath, 'app');
+const REQUIRED_PY_MODULES = ['crawl4ai', 'patchright', 'flask', 'waitress'];
+const PIP_LOG_FILE = path.join(appPath, 'logs', 'pip-install.log');
+const PY_STDOUT_LOG_FILE = path.join(appPath, 'logs', 'stdout.log');
+const PY_STDERR_LOG_FILE = path.join(appPath, 'logs', 'stderr.log');
 
 /**
  * Update loading window status
@@ -44,44 +48,189 @@ function updateLoadingStatus(message) {
 }
 
 /**
- * Find Python executable
+ * Ensure logs directory exists
  */
-function findPython() {
-    // On Windows, prefer pythonw.exe to avoid console window
-    // pythonw is a GUI version that doesn't create a console
-    const pythonCommands = process.platform === 'win32'
-        ? ['pythonw', 'python', 'py', 'python3']
-        : ['python3', 'python'];
+function ensureLogsDir() {
+    const logPath = path.join(appPath, 'logs');
+    if (!fs.existsSync(logPath)) {
+        fs.mkdirSync(logPath, { recursive: true });
+    }
+}
 
-    for (const cmd of pythonCommands) {
-        try {
-            // Use python (not pythonw) just for version check
-            const checkCmd = cmd === 'pythonw' ? 'python' : cmd;
-            const spawnOptions = {
-                windowsHide: true,
-                shell: false
-            };
-            const result = require('child_process').spawnSync(checkCmd, ['--version'], spawnOptions);
-            if (result.status === 0) {
-                return cmd;
-            }
-        } catch (e) {
-            continue;
+/**
+ * Parse an optional env command override (e.g. "py -3.11")
+ */
+function parseCommandSpec(spec) {
+    if (!spec || typeof spec !== 'string' || !spec.trim()) {
+        return null;
+    }
+
+    const parts = spec.match(/(?:[^\s"]+|"[^"]*")+/g);
+    if (!parts || parts.length === 0) {
+        return null;
+    }
+
+    const normalized = parts.map((part) => part.replace(/^"(.*)"$/, '$1'));
+    return {
+        command: normalized[0],
+        baseArgs: normalized.slice(1),
+        display: normalized.join(' ')
+    };
+}
+
+function createPythonCandidate(command, baseArgs = []) {
+    return {
+        command,
+        baseArgs,
+        display: [command, ...baseArgs].join(' ')
+    };
+}
+
+function isPythonCandidateAvailable(candidate) {
+    try {
+        const result = require('child_process').spawnSync(
+            candidate.command,
+            [...candidate.baseArgs, '--version'],
+            { windowsHide: true, shell: false }
+        );
+        return result.status === 0;
+    } catch (e) {
+        return false;
+    }
+}
+
+function findPythonCandidate(candidates) {
+    for (const candidate of candidates) {
+        if (isPythonCandidateAvailable(candidate)) {
+            return candidate;
         }
     }
     return null;
 }
 
 /**
+ * Find console Python executable for dependency verification/install
+ */
+function findPythonConsole() {
+    const candidates = [];
+    const override = parseCommandSpec(process.env.WNW_PYTHON_CONSOLE);
+    if (override) {
+        candidates.push(override);
+    }
+
+    if (process.platform === 'win32') {
+        candidates.push(
+            createPythonCandidate('python'),
+            createPythonCandidate('py', ['-3.11']),
+            createPythonCandidate('py', ['-3']),
+            createPythonCandidate('py'),
+            createPythonCandidate('python3')
+        );
+    } else {
+        candidates.push(createPythonCandidate('python3'), createPythonCandidate('python'));
+    }
+
+    return findPythonCandidate(candidates);
+}
+
+/**
+ * Find GUI Python executable for backend runtime (Windows)
+ */
+function findPythonGui(consoleCandidate) {
+    const candidates = [];
+    const override = parseCommandSpec(process.env.WNW_PYTHON_GUI);
+    if (override) {
+        candidates.push(override);
+    }
+
+    if (process.platform === 'win32') {
+        candidates.push(createPythonCandidate('pythonw'));
+    }
+
+    if (consoleCandidate) {
+        candidates.push(consoleCandidate);
+    }
+
+    return findPythonCandidate(candidates);
+}
+
+function runPythonSync(candidate, args, options = {}) {
+    return require('child_process').spawnSync(
+        candidate.command,
+        [...candidate.baseArgs, ...args],
+        {
+            cwd: appPath,
+            env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
+            windowsHide: true,
+            shell: false,
+            ...options
+        }
+    );
+}
+
+function verifyPythonDeps(pythonCandidate) {
+    const moduleList = REQUIRED_PY_MODULES.map((moduleName) => `'${moduleName}'`).join(', ');
+    const checkScript = [
+        'import importlib.util, sys',
+        `mods=[${moduleList}]`,
+        'missing=[m for m in mods if importlib.util.find_spec(m) is None]',
+        'print(",".join(missing)) if missing else print("ok")',
+        'raise SystemExit(1 if missing else 0)'
+    ].join('; ');
+
+    const result = runPythonSync(
+        pythonCandidate,
+        ['-c', checkScript],
+        { encoding: 'utf-8' }
+    );
+
+    const stdout = (result.stdout || '').trim();
+    const stderr = (result.stderr || '').trim();
+    const missing = stdout && stdout !== 'ok'
+        ? stdout.split(',').map((value) => value.trim()).filter(Boolean)
+        : [];
+
+    return {
+        ok: result.status === 0,
+        status: result.status,
+        missing,
+        stdout,
+        stderr,
+        error: result.error
+    };
+}
+
+function shouldSkipPipInstall() {
+    const raw = (process.env.WNW_SKIP_PIP_INSTALL || '').trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
+function buildDependencyErrorMessage(reason, pythonCandidate, checkResult = null) {
+    const details = [reason];
+    if (pythonCandidate) {
+        details.push(`Python command: ${pythonCandidate.display}`);
+    }
+    if (checkResult?.missing?.length) {
+        details.push(`Missing modules: ${checkResult.missing.join(', ')}`);
+    }
+    if (checkResult?.stderr) {
+        details.push(`Dependency check stderr: ${checkResult.stderr}`);
+    }
+    details.push(`Logs: ${PIP_LOG_FILE}`);
+    details.push(`Logs: ${PY_STDERR_LOG_FILE}`);
+    return details.join('\n');
+}
+
+/**
  * Install Python dependencies
  */
-function installPythonDependencies(pythonCmd) {
+function installPythonDependencies(pythonCandidate) {
     return new Promise((resolve, reject) => {
-        updateLoadingStatus('Installing Python dependencies...');
+        updateLoadingStatus('Installing dependencies...');
+        ensureLogsDir();
 
         const requirementsPath = path.join(appPath, 'requirements.txt');
 
-        // Configure spawn options to hide console window on Windows
         const spawnOptions = {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1' },
@@ -89,92 +238,115 @@ function installPythonDependencies(pythonCmd) {
             detached: false
         };
 
-        // On Windows, redirect to log files to prevent console window
         if (process.platform === 'win32') {
-            spawnOptions.shell = false;
-            const fs = require('fs');
-            const logPath = path.join(appPath, 'logs');
-            if (!fs.existsSync(logPath)) {
-                fs.mkdirSync(logPath, { recursive: true });
-            }
-            const pipLog = fs.openSync(path.join(logPath, 'pip-install.log'), 'a');
+            const pipLog = fs.openSync(PIP_LOG_FILE, 'a');
             spawnOptions.stdio = ['ignore', pipLog, pipLog];
         } else {
-            // On Unix, pipe normally
             spawnOptions.stdio = ['ignore', 'pipe', 'pipe'];
         }
 
-        const installProcess = spawn(pythonCmd, ['-m', 'pip', 'install', '-r', requirementsPath, '--quiet'], spawnOptions);
+        const installProcess = spawn(
+            pythonCandidate.command,
+            [...pythonCandidate.baseArgs, '-m', 'pip', 'install', '-r', requirementsPath, '--quiet'],
+            spawnOptions
+        );
 
-        let output = '';
         let errorOutput = '';
 
-        // Only set up handlers on non-Windows platforms
-        if (process.platform !== 'win32' && installProcess.stdout && installProcess.stderr) {
-            installProcess.stdout.on('data', (data) => {
-                output += data.toString();
-                const message = data.toString().trim();
-                console.log(`[pip] ${message}`);
-                // Send simplified message to loading window
-                if (message.includes('Installing')) {
-                    updateLoadingStatus('Installing dependencies...');
-                }
-            });
-
+        if (process.platform !== 'win32' && installProcess.stderr) {
             installProcess.stderr.on('data', (data) => {
-                errorOutput += data.toString();
                 const message = data.toString().trim();
-                console.error(`[pip] ${message}`);
+                errorOutput += message;
+                if (message) {
+                    console.error(`[pip] ${message}`);
+                }
             });
         }
 
         installProcess.on('error', (err) => {
-            console.error('Failed to install dependencies:', err);
-            updateLoadingStatus('Error installing dependencies');
-            reject(err);
+            reject(
+                new Error(
+                    buildDependencyErrorMessage(
+                        `Failed to run pip install: ${err.message}`,
+                        pythonCandidate
+                    )
+                )
+            );
         });
 
         installProcess.on('exit', (code) => {
             if (code === 0) {
-                updateLoadingStatus('Dependencies installed successfully');
                 resolve();
             } else {
-                console.error(`Dependency installation failed with code ${code}`);
-                console.error('Error output:', errorOutput);
-                updateLoadingStatus('Dependency installation failed');
-                reject(new Error(`Failed to install Python dependencies (exit code ${code})`));
+                const reason = errorOutput
+                    ? `Dependency installation failed (exit ${code}): ${errorOutput}`
+                    : `Dependency installation failed (exit ${code})`;
+                reject(new Error(buildDependencyErrorMessage(reason, pythonCandidate)));
             }
         });
     });
+}
+
+async function ensurePythonDependencies(pythonConsole) {
+    updateLoadingStatus('Checking dependencies...');
+    const initialCheck = verifyPythonDeps(pythonConsole);
+    if (initialCheck.ok) {
+        updateLoadingStatus('Dependencies verified');
+        return initialCheck;
+    }
+
+    if (shouldSkipPipInstall()) {
+        throw new Error(
+            buildDependencyErrorMessage(
+                'Missing required Python dependencies and WNW_SKIP_PIP_INSTALL is enabled.',
+                pythonConsole,
+                initialCheck
+            )
+        );
+    }
+
+    await installPythonDependencies(pythonConsole);
+
+    updateLoadingStatus('Verifying dependencies...');
+    const finalCheck = verifyPythonDeps(pythonConsole);
+    if (!finalCheck.ok) {
+        throw new Error(
+            buildDependencyErrorMessage(
+                'Dependencies are still missing after pip install.',
+                pythonConsole,
+                finalCheck
+            )
+        );
+    }
+
+    updateLoadingStatus('Dependencies verified');
+    return finalCheck;
 }
 
 /**
  * Start the Python backend server
  */
 async function startPythonBackend() {
-    const pythonCmd = findPython();
-
-    if (!pythonCmd) {
-        throw new Error('Python not found. Please install Python 3.11 or later.');
+    const pythonConsole = findPythonConsole();
+    if (!pythonConsole) {
+        throw new Error('Python console interpreter not found. Please install Python 3.11 or later.');
     }
 
-    updateLoadingStatus(`Found Python: ${pythonCmd}`);
-    console.log(`Starting Python backend with: ${pythonCmd}`);
-    console.log(`App path: ${appPath}`);
-
-    // Install dependencies first
-    try {
-        await installPythonDependencies(pythonCmd);
-    } catch (error) {
-        console.error('Warning: Failed to install Python dependencies:', error.message);
-        // Continue anyway - dependencies might already be installed
+    const pythonGui = findPythonGui(pythonConsole);
+    if (!pythonGui) {
+        throw new Error('Python GUI interpreter not found. Set WNW_PYTHON_GUI or install pythonw.');
     }
+
+    console.log(`[Startup] Python console: ${pythonConsole.display}`);
+    console.log(`[Startup] Python runtime: ${pythonGui.display}`);
+    console.log(`[Startup] App path: ${appPath}`);
+
+    await ensurePythonDependencies(pythonConsole);
 
     return new Promise((resolve, reject) => {
-        updateLoadingStatus('Starting Python server...');
+        updateLoadingStatus('Starting backend...');
+        ensureLogsDir();
 
-        // Start Python server (with --no-browser to prevent opening system browser)
-        // Use comprehensive options to hide console window on Windows
         const spawnOptions = {
             cwd: appPath,
             env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
@@ -182,98 +354,127 @@ async function startPythonBackend() {
             detached: process.platform !== 'win32'
         };
 
-        // On Windows, use special configuration to prevent console window
         if (process.platform === 'win32') {
-            spawnOptions.shell = false;
-            // Don't pipe stdio on Windows - this can cause console window to appear
-            // Instead, write to log files
-            const fs = require('fs');
-            const logPath = path.join(appPath, 'logs');
-            if (!fs.existsSync(logPath)) {
-                fs.mkdirSync(logPath, { recursive: true });
-            }
-            const stdoutLog = fs.openSync(path.join(logPath, 'stdout.log'), 'a');
-            const stderrLog = fs.openSync(path.join(logPath, 'stderr.log'), 'a');
+            const stdoutLog = fs.openSync(PY_STDOUT_LOG_FILE, 'a');
+            const stderrLog = fs.openSync(PY_STDERR_LOG_FILE, 'a');
             spawnOptions.stdio = ['ignore', stdoutLog, stderrLog];
         } else {
-            // On Unix, pipe normally
             spawnOptions.stdio = ['ignore', 'pipe', 'pipe'];
         }
 
-        pythonProcess = spawn(pythonCmd, ['main.py', '-l', '--no-browser'], spawnOptions);
+        pythonProcess = spawn(
+            pythonGui.command,
+            [...pythonGui.baseArgs, 'main.py', '-l', '--no-browser'],
+            spawnOptions
+        );
 
-        // Only set up stdout/stderr handlers on non-Windows platforms
-        // On Windows, output is redirected to log files to prevent console window
+        let startupSettled = false;
+        const settleResolve = () => {
+            if (!startupSettled) {
+                startupSettled = true;
+                resolve();
+            }
+        };
+        const settleReject = (err) => {
+            if (!startupSettled) {
+                startupSettled = true;
+                reject(err);
+            }
+        };
+
         if (process.platform !== 'win32' && pythonProcess.stdout && pythonProcess.stderr) {
             pythonProcess.stdout.on('data', (data) => {
                 const message = data.toString().trim();
-                console.log(`[Python] ${message}`);
-
-                // Update loading status based on key messages
-                if (message.includes('Database initialized')) {
-                    updateLoadingStatus('Initializing database...');
-                } else if (message.includes('LOCAL MODE')) {
-                    updateLoadingStatus('Starting in local mode...');
-                } else if (message.includes('Starting Wailing Newt')) {
-                    updateLoadingStatus('Server starting...');
+                if (message) {
+                    console.log(`[Python] ${message}`);
                 }
             });
 
             pythonProcess.stderr.on('data', (data) => {
-                console.error(`[Python Error] ${data.toString().trim()}`);
+                const message = data.toString().trim();
+                if (message) {
+                    console.error(`[Python Error] ${message}`);
+                }
             });
         } else if (process.platform === 'win32') {
-            // On Windows, log that output is being written to files
-            console.log('[Python] Output is being written to logs/stdout.log and logs/stderr.log');
+            console.log(`[Startup] Backend logs: ${PY_STDOUT_LOG_FILE}`);
+            console.log(`[Startup] Backend logs: ${PY_STDERR_LOG_FILE}`);
         }
 
         pythonProcess.on('error', (err) => {
-            console.error('Failed to start Python process:', err);
-            reject(err);
+            settleReject(
+                new Error(
+                    `Failed to start Python backend: ${err.message}\nLogs: ${PY_STDERR_LOG_FILE}`
+                )
+            );
         });
 
         pythonProcess.on('exit', (code) => {
             console.log(`Python process exited with code ${code}`);
+            if (!startupSettled) {
+                updateLoadingStatus('Backend exited before readiness');
+                settleReject(
+                    new Error(
+                        `Python backend exited before readiness (code ${code}).\nLogs: ${PY_STDERR_LOG_FILE}`
+                    )
+                );
+                return;
+            }
+
             if (!isQuitting) {
-                // Check if server is already running (port in use by another instance)
                 http.get(SERVER_URL, (res) => {
                     if (res.statusCode >= 200 && res.statusCode < 500) {
-                        // Server is running - another instance exists
                         console.log('[Electron] Server already running on another instance. Quitting silently...');
                         app.quit();
                     } else {
-                        // Server not running - actual crash
-                        dialog.showErrorBox('Server Stopped',
-                            'The backend server has stopped unexpectedly. The application will close.');
+                        dialog.showErrorBox(
+                            'Server Stopped',
+                            `The backend server stopped unexpectedly.\n\nLogs:\n${PY_STDERR_LOG_FILE}`
+                        );
                         app.quit();
                     }
                 }).on('error', () => {
-                    // Server not running and Python crashed
-                    dialog.showErrorBox('Server Stopped',
-                        'The backend server has stopped unexpectedly. The application will close.');
+                    dialog.showErrorBox(
+                        'Server Stopped',
+                        `The backend server stopped unexpectedly.\n\nLogs:\n${PY_STDERR_LOG_FILE}`
+                    );
                     app.quit();
                 });
             }
         });
 
-        // Wait for server to be ready
-        waitForServer(resolve, reject);
+        waitForServer(
+            settleResolve,
+            settleReject,
+            0,
+            () => pythonProcess,
+            () => startupSettled
+        );
     });
 }
 
 /**
  * Wait for the server to be ready
  */
-function waitForServer(resolve, reject, attempts = 0) {
-    const maxAttempts = 30; // 30 seconds timeout
-
-    if (attempts >= maxAttempts) {
-        updateLoadingStatus('Server failed to start');
-        reject(new Error('Server failed to start within 30 seconds'));
+function waitForServer(resolve, reject, attempts = 0, getBackendProcess = () => pythonProcess, isSettled = () => false) {
+    if (isSettled()) {
         return;
     }
 
-    // Update status every 5 attempts
+    const backendProcess = getBackendProcess();
+    if (!backendProcess || backendProcess.exitCode !== null || backendProcess.killed) {
+        updateLoadingStatus('Backend exited before readiness');
+        reject(new Error(`Python backend exited before readiness.\nLogs: ${PY_STDERR_LOG_FILE}`));
+        return;
+    }
+
+    const maxAttempts = 30; // 30 seconds timeout
+    if (attempts >= maxAttempts) {
+        updateLoadingStatus('Server failed to start');
+        reject(new Error(`Server failed to start within 30 seconds.\nLogs: ${PY_STDERR_LOG_FILE}`));
+        return;
+    }
+
     if (attempts % 5 === 0) {
         updateLoadingStatus(`Waiting for server... (${attempts}/${maxAttempts})`);
     }
@@ -282,17 +483,18 @@ function waitForServer(resolve, reject, attempts = 0) {
 
     http.get(SERVER_URL, (res) => {
         console.log(`[Electron] Server responded with status: ${res.statusCode}`);
-        // Accept any response - server is running
         if (res.statusCode >= 200 && res.statusCode < 500) {
-            console.log('[Electron] Server is ready!');
-            updateLoadingStatus('Server is ready!');
+            console.log('[Electron] Server is ready');
+            updateLoadingStatus('Server is ready');
             resolve();
-        } else {
-            setTimeout(() => waitForServer(resolve, reject, attempts + 1), 1000);
+        } else if (!isSettled()) {
+            setTimeout(() => waitForServer(resolve, reject, attempts + 1, getBackendProcess, isSettled), 1000);
         }
     }).on('error', (err) => {
         console.log(`[Electron] Server not ready yet: ${err.message}`);
-        setTimeout(() => waitForServer(resolve, reject, attempts + 1), 1000);
+        if (!isSettled()) {
+            setTimeout(() => waitForServer(resolve, reject, attempts + 1, getBackendProcess, isSettled), 1000);
+        }
     });
 }
 
@@ -683,34 +885,7 @@ app.whenReady().then(async () => {
     await new Promise(resolve => setTimeout(resolve, 200));
 
     try {
-        // Check for updates first (if available)
-        if (app.isPackaged && updater) {
-            updateLoadingStatus('Checking for updates...');
-            try {
-                await new Promise((resolve) => {
-                    // Give update check a few seconds, but don't block startup
-                    const timeout = setTimeout(() => {
-                        updateLoadingStatus('Update check complete');
-                        resolve();
-                    }, 3000);
-
-                    checkForUpdates(false).then(() => {
-                        clearTimeout(timeout);
-                        updateLoadingStatus('You have the latest version!');
-                        setTimeout(resolve, 500);
-                    }).catch(() => {
-                        clearTimeout(timeout);
-                        updateLoadingStatus('Update check complete');
-                        resolve();
-                    });
-                });
-            } catch (e) {
-                console.log('[AutoUpdater] Update check failed:', e.message);
-                updateLoadingStatus('Continuing without update check...');
-            }
-        } else {
-            updateLoadingStatus('Starting Wailing Newt...');
-        }
+        updateLoadingStatus('Starting Wailing Newt...');
 
         // Check if server is already running (another instance)
         const serverAlreadyRunning = await new Promise((resolve) => {
@@ -754,10 +929,13 @@ app.whenReady().then(async () => {
 
         // Show helpful error message
         let errorDetail = error.message;
-        if (error.message.includes('Python not found')) {
+        if (error.message.includes('Python')) {
             errorDetail += '\n\nPlease install Python 3.11 or later from https://www.python.org/';
-        } else if (error.message.includes('dependencies')) {
+        } else if (error.message.toLowerCase().includes('dependencies')) {
             errorDetail += '\n\nTry running setup.bat to install all dependencies.';
+        }
+        if (!errorDetail.includes(PIP_LOG_FILE)) {
+            errorDetail += `\n\nLogs:\n${PIP_LOG_FILE}\n${PY_STDERR_LOG_FILE}`;
         }
 
         dialog.showErrorBox('Startup Error', errorDetail);
