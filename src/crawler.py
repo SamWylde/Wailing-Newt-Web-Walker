@@ -509,8 +509,15 @@ class WebCrawler:
             stats_snapshot['urls_per_depth'] = self.stats['urls_per_depth'].copy()
             stats_snapshot['urls_per_subdomain'] = self.stats['urls_per_subdomain'].copy()
 
-        status = 'completed' if not self.is_running and stats_snapshot['crawled'] > 0 else 'running'
-        if not self.is_running and stats_snapshot['crawled'] == 0:
+        if self.is_running:
+            status = 'running'
+        elif stats_snapshot['crawled'] > 0:
+            status = 'completed'
+        elif stats_snapshot.get('start_time') is not None:
+            # Crawl was started but scraped 0 URLs — treat as completed (error)
+            # so the frontend stops polling instead of spinning forever
+            status = 'completed'
+        else:
             status = 'idle'
 
         # Get link manager stats
@@ -716,9 +723,11 @@ class WebCrawler:
                     current_url, depth = url_info
 
                     if depth <= self.config['max_depth']:
-                        # Rate limiting
+                        # Rate limiting (async-safe to avoid blocking the event loop)
                         if self.config.get('delay', 0) > 0 and self.rate_limiter:
-                            self.rate_limiter.acquire()
+                            sleep_time = self.rate_limiter.get_delay()
+                            if sleep_time > 0:
+                                await asyncio.sleep(sleep_time)
 
                         task = asyncio.create_task(self._crawl_url(current_url, depth))
                         active_tasks.add(task)

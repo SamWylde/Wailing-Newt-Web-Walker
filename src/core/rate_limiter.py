@@ -37,6 +37,24 @@ class RateLimiter:
             else:
                 self.last_request_time = now
 
+    def get_delay(self):
+        """
+        Return how long to wait before the next request (non-blocking).
+        Updates internal state so the next call accounts for this request.
+        Safe to use with asyncio.sleep() in async code.
+        """
+        with self.lock:
+            now = time.time()
+            time_since_last = now - self.last_request_time
+
+            if time_since_last < self.min_interval:
+                sleep_time = self.min_interval - time_since_last
+                self.last_request_time = now + sleep_time
+                return sleep_time
+            else:
+                self.last_request_time = now
+                return 0
+
     def update_rate(self, requests_per_second):
         """Update the rate limit dynamically"""
         with self.lock:
