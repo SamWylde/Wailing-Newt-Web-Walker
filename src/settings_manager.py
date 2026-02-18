@@ -4,6 +4,28 @@ from pathlib import Path
 
 from src.core.crawler_defaults import get_default_settings
 
+def _safe_int(val, default, minimum=None):
+    """Coerce a value to int with a fallback default and optional minimum."""
+    try:
+        result = int(val)
+    except (TypeError, ValueError):
+        result = default
+    if minimum is not None and result < minimum:
+        result = minimum
+    return result
+
+
+def _safe_float(val, default, minimum=None):
+    """Coerce a value to float with a fallback default and optional minimum."""
+    try:
+        result = float(val)
+    except (TypeError, ValueError):
+        result = default
+    if minimum is not None and result < minimum:
+        result = minimum
+    return result
+
+
 class SettingsManager:
     def __init__(self, session_id=None, user_id=None, tier='guest'):
         """
@@ -310,20 +332,20 @@ class SettingsManager:
         """Get settings formatted for the crawler"""
         settings = self.get_settings()
 
-        delay = settings['crawlDelay']
+        delay = _safe_float(settings['crawlDelay'], 0.5, minimum=0)
         if settings.get('limitUrlsPerSecond'):
-            max_urls_per_second = max(1, settings.get('maxUrlsPerSecond', 1))
+            max_urls_per_second = max(1, _safe_int(settings.get('maxUrlsPerSecond', 1), 1))
             delay = max(0.1, 1 / max_urls_per_second)
 
         return {
-            'max_depth': settings['maxDepth'],
-            'max_urls': settings['maxUrls'],
+            'max_depth': _safe_int(settings['maxDepth'], 3, minimum=0),
+            'max_urls': _safe_int(settings['maxUrls'], 10000, minimum=1),
             'delay': delay,
             'follow_redirects': settings['followRedirects'],
             'crawl_external': settings['crawlExternalLinks'],
             'user_agent': settings['userAgent'],
-            'timeout': settings['timeout'],
-            'retries': settings['retries'],
+            'timeout': _safe_int(settings['timeout'], 30, minimum=1),
+            'retries': _safe_int(settings['retries'], 2, minimum=0),
             'accept_language': settings['acceptLanguage'],
             'respect_robots': settings['respectRobotsTxt'],
             'allow_cookies': settings['allowCookies'],
@@ -331,13 +353,14 @@ class SettingsManager:
             'exclude_extensions': [ext.strip() for ext in settings['excludeExtensions'].split(',') if ext.strip()],
             'include_patterns': [p.strip() for p in settings['includePatterns'].split('\n') if p.strip() and not p.strip().startswith('#')],
             'exclude_patterns': [p.strip() for p in settings['excludePatterns'].split('\n') if p.strip() and not p.strip().startswith('#')],
-            'max_file_size': settings['maxFileSize'] * 1024 * 1024,  # Convert MB to bytes
-            'concurrency': (
+            'max_file_size': _safe_int(settings['maxFileSize'], 50, minimum=1) * 1024 * 1024,  # Convert MB to bytes
+            'concurrency': _safe_int(
                 settings.get('concurrency', settings.get('maxThreads', 5))
                 if self.tier == 'admin'
-                else settings.get('maxThreads', settings.get('concurrency', 5))
+                else settings.get('maxThreads', settings.get('concurrency', 5)),
+                5, minimum=1
             ),
-            'memory_limit': settings['memoryLimit'] * 1024 * 1024,  # Convert MB to bytes
+            'memory_limit': _safe_int(settings['memoryLimit'], 512, minimum=64) * 1024 * 1024,  # Convert MB to bytes
             'log_level': settings['logLevel'],
             'enable_proxy': settings['enableProxy'],
             'proxy_url': settings['proxyUrl'] if settings['enableProxy'] else None,
@@ -467,21 +490,21 @@ class SettingsManager:
 
             # Limits settings
             'limit_crawl_total': settings.get('limitCrawlTotal', True),
-            'limit_crawl_total_value': settings.get('limitCrawlTotalValue', 500),
+            'limit_crawl_total_value': _safe_int(settings.get('limitCrawlTotalValue', 500), 500, minimum=0),
             'limit_crawl_depth': settings.get('limitCrawlDepth', True),
-            'limit_crawl_depth_value': settings.get('limitCrawlDepthValue', 0),
+            'limit_crawl_depth_value': _safe_int(settings.get('limitCrawlDepthValue', 0), 0, minimum=0),
             'limit_urls_per_depth': settings.get('limitUrlsPerDepth', False),
-            'limit_urls_per_depth_value': settings.get('limitUrlsPerDepthValue', 1000),
+            'limit_urls_per_depth_value': _safe_int(settings.get('limitUrlsPerDepthValue', 1000), 1000, minimum=1),
             'limit_max_folder_depth': settings.get('limitMaxFolderDepth', False),
-            'limit_max_folder_depth_value': settings.get('limitMaxFolderDepthValue', 5),
+            'limit_max_folder_depth_value': _safe_int(settings.get('limitMaxFolderDepthValue', 5), 5, minimum=1),
             'limit_query_strings': settings.get('limitQueryStrings', False),
-            'limit_query_strings_value': settings.get('limitQueryStringsValue', 5),
+            'limit_query_strings_value': _safe_int(settings.get('limitQueryStringsValue', 5), 5, minimum=1),
             'limit_crawl_per_subdomain': settings.get('limitCrawlPerSubdomain', False),
-            'limit_crawl_per_subdomain_value': settings.get('limitCrawlPerSubdomainValue', 1000),
-            'limit_max_redirects': settings.get('limitMaxRedirects', 10),
-            'limit_max_url_length': settings.get('limitMaxUrlLength', 10000),
-            'limit_max_links_per_url': settings.get('limitMaxLinksPerUrl', 10000),
-            'limit_max_page_size': settings.get('limitMaxPageSize', 50000) * 1024,  # Convert KB to bytes
+            'limit_crawl_per_subdomain_value': _safe_int(settings.get('limitCrawlPerSubdomainValue', 1000), 1000, minimum=1),
+            'limit_max_redirects': _safe_int(settings.get('limitMaxRedirects', 10), 10, minimum=0),
+            'limit_max_url_length': _safe_int(settings.get('limitMaxUrlLength', 10000), 10000, minimum=1),
+            'limit_max_links_per_url': _safe_int(settings.get('limitMaxLinksPerUrl', 10000), 10000, minimum=1),
+            'limit_max_page_size': _safe_int(settings.get('limitMaxPageSize', 50000), 50000, minimum=1) * 1024,  # Convert KB to bytes
 
             # Advanced settings
             'adv_cookie_storage': settings.get('advCookieStorage', 'session'),

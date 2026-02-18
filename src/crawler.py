@@ -145,6 +145,10 @@ class WebCrawler:
             # Reset state
             self._reset_state()
 
+            # Mark running immediately after reset so get_status() never sees
+            # start_time set with is_running still False (race with frontend polling)
+            self.is_running = True
+
             # Apply session settings (UA, Proxy)
             self._apply_session_settings()
 
@@ -185,13 +189,13 @@ class WebCrawler:
                 self._start_auto_save_thread()
 
             # Start crawling in separate thread
-            self.is_running = True
             self.crawl_thread = threading.Thread(target=self._crawl_worker)
             self.crawl_thread.start()
 
             return True, "Crawl started successfully"
 
         except Exception as e:
+            self.is_running = False
             return False, f"Error starting crawl: {str(e)}"
 
     def _apply_session_settings(self):
@@ -267,6 +271,7 @@ class WebCrawler:
 
         self.crawl_results.clear()
         self.force_full_refresh = False
+        self.last_error = None
         with self.stats_lock:
             self.stats = {
                 'discovered': 0,
@@ -511,6 +516,8 @@ class WebCrawler:
 
         if self.is_running:
             status = 'running'
+        elif self.last_error:
+            status = 'failed'
         elif stats_snapshot['crawled'] > 0:
             status = 'completed'
         elif stats_snapshot.get('start_time') is not None:
@@ -540,7 +547,7 @@ class WebCrawler:
 
         print(f"get_status called - crawl_results length: {len(self.crawl_results)}, status: {status}, crawled: {stats_snapshot['crawled']}")
 
-        return {
+        result = {
             'status': status,
             'stats': {
                 **stats_snapshot,
@@ -554,6 +561,9 @@ class WebCrawler:
             'memory': self.memory_monitor.get_stats(),
             'memory_data': data_sizes
         }
+        if self.last_error:
+            result['failure_reason'] = self.last_error
+        return result
 
     def consume_force_full_refresh(self):
         """Return and reset the one-shot full refresh flag."""
@@ -702,11 +712,23 @@ class WebCrawler:
             max_workers = self.config.get('concurrency', 5)
             active_tasks = set()
 
-            # Calculate effective max URLs (lowest of configured limits)
+            # Calculate effective limits (lowest of configured limits)
             effective_max_urls = self.config['max_urls']
             if self.config.get('limit_crawl_total', False):
                 limit_total = self.config.get('limit_crawl_total_value', 500)
-                effective_max_urls = min(effective_max_urls, limit_total)
+                if limit_total > 0:  # 0 means unlimited
+                    effective_max_urls = min(effective_max_urls, limit_total)
+
+            effective_max_depth = self.config['max_depth']
+            if self.config.get('limit_crawl_depth', False):
+                limit_depth = self.config.get('limit_crawl_depth_value', 0)
+                if limit_depth > 0:  # 0 means use maxDepth (no extra cap)
+                    effective_max_depth = min(effective_max_depth, limit_depth)
+
+            # Store on instance so _crawl_url() can use it for link extraction
+            self._effective_max_depth = effective_max_depth
+
+            print(f"Crawl limits: effective_max_urls={effective_max_urls}, effective_max_depth={effective_max_depth}")
 
             while self.is_running and self.stats['crawled'] < effective_max_urls:
                 # Check if paused
@@ -722,7 +744,7 @@ class WebCrawler:
 
                     current_url, depth = url_info
 
-                    if depth <= self.config['max_depth']:
+                    if depth <= effective_max_depth:
                         # Rate limiting (async-safe to avoid blocking the event loop)
                         if self.config.get('delay', 0) > 0 and self.rate_limiter:
                             sleep_time = self.rate_limiter.get_delay()
@@ -773,6 +795,7 @@ class WebCrawler:
                 await asyncio.sleep(0.001)
 
         except Exception as e:
+            self.last_error = str(e)
             print(f"Error in crawl worker: {e}")
             import traceback
             traceback.print_exc()
@@ -824,18 +847,20 @@ class WebCrawler:
             self._run_ga4_enrichment()
             self._run_search_console_enrichment()
 
-            # Save final data and mark as complete
+            # Save final data and mark terminal status
             if self.db_save_enabled and self.crawl_id:
                 self._save_batch_to_db(force=True)
                 from src.crawl_db import set_crawl_status
-                set_crawl_status(self.crawl_id, 'completed')
+                db_status = 'failed' if self.last_error else 'completed'
+                set_crawl_status(self.crawl_id, db_status)
 
             # Clean up Crawl4AI browser
             if self.js_renderer:
                 await self.js_renderer.cleanup()
 
             self.is_running = False
-            print(f"Crawl completed. Discovered: {self.stats['discovered']}, Crawled: {self.stats['crawled']}")
+            terminal = 'failed' if self.last_error else 'completed'
+            print(f"Crawl {terminal}. Discovered: {self.stats['discovered']}, Crawled: {self.stats['crawled']}, Error: {self.last_error}")
 
     async def _crawl_url(self, url, depth):
         """Crawl a single URL using Crawl4AI and extract SEO data."""
@@ -949,9 +974,10 @@ class WebCrawler:
                     self.unsaved_links.extend(new_links)
 
                 # Extract links for further crawling
+                max_depth = getattr(self, '_effective_max_depth', self.config['max_depth'])
                 should_extract = (
-                    (is_internal and depth < self.config['max_depth']) or
-                    (self.config['crawl_external'] and depth < self.config['max_depth'])
+                    (is_internal and depth < max_depth) or
+                    (self.config['crawl_external'] and depth < max_depth)
                 )
 
                 if should_extract:

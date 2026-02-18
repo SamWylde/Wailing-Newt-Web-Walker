@@ -721,11 +721,17 @@ function pollCrawlProgress() {
                 loadVisualizationData();
             }
 
-            if (data.status === 'completed' && data.is_running_pagespeed) {
+            const isTerminal = data.status === 'completed' || data.status === 'failed';
+
+            if (isTerminal && data.is_running_pagespeed) {
                 // Crawl done but PageSpeed still running — keep polling
                 setTimeout(pollCrawlProgress, 2000);
-            } else if (crawlState.isRunning && data.status !== 'completed') {
+            } else if (crawlState.isRunning && !isTerminal) {
                 setTimeout(pollCrawlProgress, 1000); // Poll every second
+            } else if (data.status === 'failed') {
+                stopCrawl();
+                const reason = data.failure_reason || 'Unknown error';
+                updateStatus(`Crawl failed: ${reason}`);
             } else if (data.status === 'completed') {
                 stopCrawl();
                 updateStatus('Crawl completed');
