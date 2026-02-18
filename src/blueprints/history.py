@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session
 
 from src.app_state import get_or_create_crawler
 from src.auth_utils import login_required
+from src.auth_db import DB_FILE
 from src.crawl_db import (
     delete_crawl,
     get_crawl_by_id,
@@ -196,7 +197,7 @@ def crawl_stats():
         user_id = session.get('user_id')
         import sqlite3
 
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
 
         cursor.execute('''

@@ -52,6 +52,7 @@ const isDev = !app.isPackaged;
 const appPath = isDev
     ? path.join(__dirname, '..')
     : path.join(process.resourcesPath, 'app');
+const userDataPath = app.getPath('userData');
 const REQUIRED_PY_MODULES = ['crawl4ai', 'patchright', 'flask', 'waitress'];
 const PIP_LOG_FILE = path.join(appPath, 'logs', 'pip-install.log');
 const PY_STDOUT_LOG_FILE = path.join(appPath, 'logs', 'stdout.log');
@@ -90,6 +91,30 @@ function ensureLogsDir() {
     const logPath = path.join(appPath, 'logs');
     if (!fs.existsSync(logPath)) {
         fs.mkdirSync(logPath, { recursive: true });
+    }
+}
+
+/**
+ * Migrate user data from the old app directory to the persistent userData
+ * directory. This prevents data loss when NSIS replaces the app folder
+ * during auto-updates.
+ */
+function migrateUserData() {
+    if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true });
+    }
+    const filesToMigrate = ['users.db', 'ga4_oauth.local.json'];
+    for (const file of filesToMigrate) {
+        const oldPath = path.join(appPath, file);
+        const newPath = path.join(userDataPath, file);
+        if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+            try {
+                fs.copyFileSync(oldPath, newPath);
+                console.log(`[Startup] Migrated ${file} to userData`);
+            } catch (e) {
+                console.log(`[Startup] Failed to migrate ${file}: ${e.message}`);
+            }
+        }
     }
 }
 
@@ -565,10 +590,11 @@ async function startPythonBackend() {
     return new Promise((resolve, reject) => {
         updateLoadingStatus('Starting backend...');
         ensureLogsDir();
+        migrateUserData();
 
         const spawnOptions = {
             cwd: appPath,
-            env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
+            env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', WAILING_NEWT_USER_DATA: userDataPath },
             windowsHide: true,
             detached: process.platform !== 'win32'
         };
@@ -1160,7 +1186,13 @@ app.whenReady().then(async () => {
         createWindow();
 
         // Initialize auto-updater (always initialize to register IPC handlers)
-        initAutoUpdater(mainWindow, tray, stopPythonBackend);
+        // Wrap cleanup so isQuitting is set before Python stops,
+        // preventing the "Server Stopped" error dialog.
+        initAutoUpdater(mainWindow, tray, async () => {
+            isQuitting = true;
+            migrateUserData();
+            await stopPythonBackend();
+        });
     } catch (error) {
         if (loadingWindow && !loadingWindow.isDestroyed()) {
             loadingWindow.close();

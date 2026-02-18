@@ -3,6 +3,7 @@ import sqlite3
 from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session, url_for
 
 from src.auth_db import (
+    DB_FILE,
     authenticate_user,
     create_user,
     create_verification_token,
@@ -89,7 +90,7 @@ def register():
 
     if success and current_app.config.get('LOCAL_MODE'):
         try:
-            conn = sqlite3.connect('users.db')
+            conn = sqlite3.connect(DB_FILE)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('SELECT id FROM users WHERE username = ?', (username,))

@@ -18,7 +18,8 @@ GA4_ADMIN_API_BASE = "https://analyticsadmin.googleapis.com/v1beta"
 GA4_DATA_API_BASE = "https://analyticsdata.googleapis.com/v1beta"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-GA4_LOCAL_OAUTH_CONFIG = REPO_ROOT / "ga4_oauth.local.json"
+_USER_DATA_DIR = os.environ.get('WAILING_NEWT_USER_DATA')
+GA4_LOCAL_OAUTH_CONFIG = Path(_USER_DATA_DIR) / "ga4_oauth.local.json" if _USER_DATA_DIR else REPO_ROOT / "ga4_oauth.local.json"
 
 URL_MAPPABLE_DIMENSIONS = {
     "landingPagePlusQueryString",

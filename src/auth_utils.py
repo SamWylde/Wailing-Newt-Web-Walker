@@ -5,7 +5,7 @@ from functools import wraps
 
 from flask import current_app, jsonify, redirect, request, session, url_for
 
-from src.auth_db import hash_password
+from src.auth_db import DB_FILE, hash_password
 
 
 def generate_random_password(length=16):
@@ -17,7 +17,7 @@ def generate_random_password(length=16):
 def auto_login_local_mode():
     """Auto-login for local mode - creates or logs into 'local' admin account."""
     try:
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect(DB_FILE)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 

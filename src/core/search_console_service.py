@@ -19,7 +19,8 @@ GSC_SEARCH_ANALYTICS_BASE = "https://www.googleapis.com/webmasters/v3/sites"
 GSC_URL_INSPECTION_ENDPOINT = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SHARED_LOCAL_OAUTH_CONFIG = REPO_ROOT / "ga4_oauth.local.json"
+_USER_DATA_DIR = os.environ.get('WAILING_NEWT_USER_DATA')
+SHARED_LOCAL_OAUTH_CONFIG = Path(_USER_DATA_DIR) / "ga4_oauth.local.json" if _USER_DATA_DIR else REPO_ROOT / "ga4_oauth.local.json"
 
 GSC_METRIC_TO_INTERNAL_KEY = {
     "clicks": "sc_clicks",

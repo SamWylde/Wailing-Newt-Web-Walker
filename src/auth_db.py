@@ -9,8 +9,10 @@ import secrets
 from datetime import datetime, timedelta
 from contextlib import contextmanager
 
-# Database file location
-DB_FILE = 'users.db'
+# Database file location — use persistent userData directory when available
+# (set by Electron to survive NSIS updates), otherwise use working directory.
+_USER_DATA_DIR = os.environ.get('WAILING_NEWT_USER_DATA', '')
+DB_FILE = os.path.join(_USER_DATA_DIR, 'users.db') if _USER_DATA_DIR else 'users.db'
 
 @contextmanager
 def get_db():

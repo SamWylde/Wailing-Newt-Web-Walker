@@ -5,12 +5,15 @@ Enables crash recovery and historical crawl access
 """
 import sqlite3
 import json
+import os
 import time
 from datetime import datetime
 from contextlib import contextmanager
 
-# Database file location (same as auth database)
-DB_FILE = 'users.db'
+# Database file location (same as auth database) — use persistent userData
+# directory when available (set by Electron), otherwise use working directory.
+_USER_DATA_DIR = os.environ.get('WAILING_NEWT_USER_DATA', '')
+DB_FILE = os.path.join(_USER_DATA_DIR, 'users.db') if _USER_DATA_DIR else 'users.db'
 
 @contextmanager
 def get_db():
