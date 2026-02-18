@@ -1,6 +1,6 @@
 const { app, BrowserWindow, Menu, Tray, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 
@@ -26,6 +26,9 @@ let loadingWindow = null;
 // Configuration
 const SERVER_PORT = 5000;
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`; // Use IPv4 explicitly to avoid IPv6 issues
+const HEALTH_ENDPOINT = '/api/health';
+const HEALTH_URL = `${SERVER_URL}${HEALTH_ENDPOINT}`;
+const HEALTH_SERVICE_NAME = 'wailing-newt-web-walker';
 
 // Determine paths based on whether we're in development or production
 const isDev = !app.isPackaged;
@@ -36,6 +39,22 @@ const REQUIRED_PY_MODULES = ['crawl4ai', 'patchright', 'flask', 'waitress'];
 const PIP_LOG_FILE = path.join(appPath, 'logs', 'pip-install.log');
 const PY_STDOUT_LOG_FILE = path.join(appPath, 'logs', 'stdout.log');
 const PY_STDERR_LOG_FILE = path.join(appPath, 'logs', 'stderr.log');
+const PIP_INSTALL_TIMEOUT_MS = parsePositiveIntEnv('WNW_PIP_INSTALL_TIMEOUT_MS', 300000);
+const HTTP_PROBE_TIMEOUT_MS = parsePositiveIntEnv('WNW_HTTP_PROBE_TIMEOUT_MS', 2000);
+const LOADING_WINDOW_READY_TIMEOUT_MS = 5000;
+
+function parsePositiveIntEnv(name, fallback) {
+    const raw = (process.env[name] || '').trim();
+    if (!raw) {
+        return fallback;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        console.log(`[Startup] Invalid ${name} value "${raw}", using default ${fallback}`);
+        return fallback;
+    }
+    return parsed;
+}
 
 /**
  * Update loading window status
@@ -54,6 +73,71 @@ function ensureLogsDir() {
     const logPath = path.join(appPath, 'logs');
     if (!fs.existsSync(logPath)) {
         fs.mkdirSync(logPath, { recursive: true });
+    }
+}
+
+function probeServer(url, timeoutMs = HTTP_PROBE_TIMEOUT_MS) {
+    return new Promise((resolve) => {
+        let settled = false;
+        const settle = (result) => {
+            if (!settled) {
+                settled = true;
+                resolve(result);
+            }
+        };
+
+        const request = http.get(url, (res) => {
+            let body = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => {
+                if (body.length < 8192) {
+                    body += chunk;
+                }
+            });
+            res.on('end', () => {
+                settle({
+                    statusCode: res.statusCode ?? null,
+                    body,
+                    timedOut: false,
+                    error: null
+                });
+            });
+        });
+
+        request.setTimeout(timeoutMs, () => {
+            request.destroy(new Error(`Request timed out after ${timeoutMs}ms`));
+        });
+
+        request.on('error', (err) => {
+            settle({
+                statusCode: null,
+                body: '',
+                timedOut: /timed out/i.test(err.message),
+                error: err.message
+            });
+        });
+    });
+}
+
+function isLenientServerResponse(probeResult) {
+    return Boolean(
+        probeResult &&
+        probeResult.statusCode !== null &&
+        probeResult.statusCode >= 200 &&
+        probeResult.statusCode < 500
+    );
+}
+
+function isHealthyServerResponse(probeResult) {
+    if (!probeResult || probeResult.statusCode !== 200 || !probeResult.body) {
+        return false;
+    }
+
+    try {
+        const payload = JSON.parse(probeResult.body);
+        return payload?.ok === true && payload?.service === HEALTH_SERVICE_NAME;
+    } catch (e) {
+        return false;
     }
 }
 
@@ -88,7 +172,7 @@ function createPythonCandidate(command, baseArgs = []) {
 
 function isPythonCandidateAvailable(candidate) {
     try {
-        const result = require('child_process').spawnSync(
+        const result = spawnSync(
             candidate.command,
             [...candidate.baseArgs, '--version'],
             { windowsHide: true, shell: false }
@@ -133,6 +217,59 @@ function findPythonConsole() {
     return findPythonCandidate(candidates);
 }
 
+function resolveWindowsCommandPath(command) {
+    if (!command || process.platform !== 'win32') {
+        return null;
+    }
+
+    if (path.isAbsolute(command) && fs.existsSync(command)) {
+        return command;
+    }
+
+    try {
+        const result = spawnSync('where', [command], {
+            windowsHide: true,
+            shell: false,
+            encoding: 'utf8'
+        });
+        if (result.status === 0) {
+            const firstMatch = (result.stdout || '')
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .find(Boolean);
+            if (firstMatch && fs.existsSync(firstMatch)) {
+                return firstMatch;
+            }
+        }
+    } catch (e) {
+        return null;
+    }
+
+    return null;
+}
+
+function derivePythonGuiCandidate(consoleCandidate) {
+    if (!consoleCandidate || process.platform !== 'win32') {
+        return null;
+    }
+
+    if (consoleCandidate.baseArgs?.length) {
+        return null;
+    }
+
+    const resolvedConsolePath = resolveWindowsCommandPath(consoleCandidate.command);
+    if (!resolvedConsolePath) {
+        return null;
+    }
+
+    const candidatePath = path.join(path.dirname(resolvedConsolePath), 'pythonw.exe');
+    if (!fs.existsSync(candidatePath)) {
+        return null;
+    }
+
+    return createPythonCandidate(candidatePath);
+}
+
 /**
  * Find GUI Python executable for backend runtime (Windows)
  */
@@ -141,6 +278,11 @@ function findPythonGui(consoleCandidate) {
     const override = parseCommandSpec(process.env.WNW_PYTHON_GUI);
     if (override) {
         candidates.push(override);
+    }
+
+    const derived = derivePythonGuiCandidate(consoleCandidate);
+    if (derived) {
+        candidates.push(derived);
     }
 
     if (process.platform === 'win32') {
@@ -155,7 +297,7 @@ function findPythonGui(consoleCandidate) {
 }
 
 function runPythonSync(candidate, args, options = {}) {
-    return require('child_process').spawnSync(
+    return spawnSync(
         candidate.command,
         [...candidate.baseArgs, ...args],
         {
@@ -252,6 +394,66 @@ function installPythonDependencies(pythonCandidate) {
         );
 
         let errorOutput = '';
+        let settled = false;
+
+        const finalize = (error = null) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            clearTimeout(timeoutHandle);
+            if (error) {
+                reject(error);
+            } else {
+                resolve();
+            }
+        };
+
+        const killInstallProcess = () => {
+            if (!installProcess || installProcess.killed || installProcess.exitCode !== null) {
+                return;
+            }
+
+            const pid = installProcess.pid;
+            if (!pid) {
+                return;
+            }
+
+            if (process.platform === 'win32') {
+                try {
+                    spawnSync(
+                        'taskkill',
+                        ['/pid', pid.toString(), '/f', '/t'],
+                        { windowsHide: true, shell: false, stdio: 'ignore' }
+                    );
+                } catch (e) {
+                    try {
+                        installProcess.kill('SIGKILL');
+                    } catch (killError) {
+                        console.log(`[Startup] Failed to force stop pip: ${killError.message}`);
+                    }
+                }
+                return;
+            }
+
+            try {
+                installProcess.kill('SIGKILL');
+            } catch (e) {
+                console.log(`[Startup] Failed to force stop pip: ${e.message}`);
+            }
+        };
+
+        const timeoutHandle = setTimeout(() => {
+            killInstallProcess();
+            finalize(
+                new Error(
+                    buildDependencyErrorMessage(
+                        `Dependency installation timed out after ${PIP_INSTALL_TIMEOUT_MS}ms.`,
+                        pythonCandidate
+                    )
+                )
+            );
+        }, PIP_INSTALL_TIMEOUT_MS);
 
         if (process.platform !== 'win32' && installProcess.stderr) {
             installProcess.stderr.on('data', (data) => {
@@ -264,7 +466,7 @@ function installPythonDependencies(pythonCandidate) {
         }
 
         installProcess.on('error', (err) => {
-            reject(
+            finalize(
                 new Error(
                     buildDependencyErrorMessage(
                         `Failed to run pip install: ${err.message}`,
@@ -276,12 +478,12 @@ function installPythonDependencies(pythonCandidate) {
 
         installProcess.on('exit', (code) => {
             if (code === 0) {
-                resolve();
+                finalize();
             } else {
                 const reason = errorOutput
                     ? `Dependency installation failed (exit ${code}): ${errorOutput}`
                     : `Dependency installation failed (exit ${code})`;
-                reject(new Error(buildDependencyErrorMessage(reason, pythonCandidate)));
+                finalize(new Error(buildDependencyErrorMessage(reason, pythonCandidate)));
             }
         });
     });
@@ -422,22 +624,15 @@ async function startPythonBackend() {
             }
 
             if (!isQuitting) {
-                http.get(SERVER_URL, (res) => {
-                    if (res.statusCode >= 200 && res.statusCode < 500) {
+                probeServer(SERVER_URL).then((probeResult) => {
+                    if (isLenientServerResponse(probeResult)) {
                         console.log('[Electron] Server already running on another instance. Quitting silently...');
-                        app.quit();
                     } else {
                         dialog.showErrorBox(
                             'Server Stopped',
                             `The backend server stopped unexpectedly.\n\nLogs:\n${PY_STDERR_LOG_FILE}`
                         );
-                        app.quit();
                     }
-                }).on('error', () => {
-                    dialog.showErrorBox(
-                        'Server Stopped',
-                        `The backend server stopped unexpectedly.\n\nLogs:\n${PY_STDERR_LOG_FILE}`
-                    );
                     app.quit();
                 });
             }
@@ -468,10 +663,14 @@ function waitForServer(resolve, reject, attempts = 0, getBackendProcess = () => 
         return;
     }
 
-    const maxAttempts = 30; // 30 seconds timeout
+    const maxAttempts = 30; // bounded retry count with per-probe timeout
     if (attempts >= maxAttempts) {
         updateLoadingStatus('Server failed to start');
-        reject(new Error(`Server failed to start within 30 seconds.\nLogs: ${PY_STDERR_LOG_FILE}`));
+        reject(
+            new Error(
+                `Server failed to start after ${maxAttempts} health checks (probe timeout ${HTTP_PROBE_TIMEOUT_MS}ms).\nLogs: ${PY_STDERR_LOG_FILE}`
+            )
+        );
         return;
     }
 
@@ -479,19 +678,24 @@ function waitForServer(resolve, reject, attempts = 0, getBackendProcess = () => 
         updateLoadingStatus(`Waiting for server... (${attempts}/${maxAttempts})`);
     }
 
-    console.log(`[Electron] Checking server (attempt ${attempts + 1}/${maxAttempts})...`);
+    console.log(`[Electron] Checking health endpoint (attempt ${attempts + 1}/${maxAttempts})...`);
 
-    http.get(SERVER_URL, (res) => {
-        console.log(`[Electron] Server responded with status: ${res.statusCode}`);
-        if (res.statusCode >= 200 && res.statusCode < 500) {
-            console.log('[Electron] Server is ready');
+    probeServer(HEALTH_URL).then((probeResult) => {
+        if (isHealthyServerResponse(probeResult)) {
+            console.log('[Electron] Server health check passed');
             updateLoadingStatus('Server is ready');
             resolve();
-        } else if (!isSettled()) {
-            setTimeout(() => waitForServer(resolve, reject, attempts + 1, getBackendProcess, isSettled), 1000);
+            return;
         }
-    }).on('error', (err) => {
-        console.log(`[Electron] Server not ready yet: ${err.message}`);
+
+        if (probeResult.timedOut) {
+            console.log('[Electron] Health check timed out');
+        } else if (probeResult.statusCode !== null) {
+            console.log(`[Electron] Health check response status: ${probeResult.statusCode}`);
+        } else if (probeResult.error) {
+            console.log(`[Electron] Health check error: ${probeResult.error}`);
+        }
+
         if (!isSettled()) {
             setTimeout(() => waitForServer(resolve, reject, attempts + 1, getBackendProcess, isSettled), 1000);
         }
@@ -757,7 +961,6 @@ function stopPythonBackend() {
 
         try {
             if (process.platform === 'win32') {
-                const { spawnSync } = require('child_process');
                 try {
                     console.log(`Killing Python process ${processToKill.pid}...`);
                     const result = spawnSync('taskkill', ['/pid', processToKill.pid.toString(), '/f', '/t'], {
@@ -810,91 +1013,96 @@ if (!gotTheLock) {
     });
 }
 
-// App event handlers
-app.whenReady().then(async () => {
-    // Show loading dialog
-    loadingWindow = new BrowserWindow({
-        width: 500,
-        height: 420,
-        frame: false,
-        transparent: false,
-        backgroundColor: '#7cb342',
-        alwaysOnTop: true,
-        resizable: false,
-        center: true,
-        show: true,
-        skipTaskbar: true,
-        focusable: true,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
-
-    loadingWindow.show();
-    loadingWindow.focus();
-
-    // Don't start backend until loading window is shown
-    let windowShown = false;
-    let windowShowResolver;
-    const windowShownPromise = new Promise(resolve => {
-        windowShowResolver = resolve;
-    });
-
-    const markWindowShown = () => {
-        if (windowShown) {
+function loadLoadingWindowContent() {
+    return new Promise((resolve, reject) => {
+        if (!loadingWindow || loadingWindow.isDestroyed()) {
+            reject(new Error('Loading window is not available.'));
             return;
         }
-        windowShown = true;
-        windowShowResolver();
-        console.log('[Electron] Loading window displayed and ready');
-    };
 
-    loadingWindow.once('show', () => {
-        markWindowShown();
-    });
+        let settled = false;
+        let timeoutHandle = null;
 
-    // Show window once content is loaded AND force it to front
-    loadingWindow.once('ready-to-show', () => {
-        loadingWindow.focus();
-        loadingWindow.setAlwaysOnTop(true, 'screen-saver');
-        loadingWindow.moveTop();
-
-        // Extra insurance: bring to front after a short delay
-        setTimeout(() => {
-            if (loadingWindow && !loadingWindow.isDestroyed()) {
-                loadingWindow.focus();
-                loadingWindow.moveTop();
+        const finish = (error = null) => {
+            if (settled) {
+                return;
             }
-        }, 100);
+            settled = true;
+            if (timeoutHandle) {
+                clearTimeout(timeoutHandle);
+            }
+            loadingWindow.webContents.removeListener('did-finish-load', onFinishLoad);
+            loadingWindow.webContents.removeListener('did-fail-load', onFailLoad);
+            if (error) {
+                reject(error);
+            } else {
+                resolve();
+            }
+        };
+
+        const onFinishLoad = () => finish();
+        const onFailLoad = (_event, errorCode, errorDescription) => {
+            finish(new Error(`Failed to load loading screen (${errorCode}): ${errorDescription}`));
+        };
+
+        timeoutHandle = setTimeout(() => {
+            finish(new Error(`Loading screen failed to initialize within ${LOADING_WINDOW_READY_TIMEOUT_MS}ms.`));
+        }, LOADING_WINDOW_READY_TIMEOUT_MS);
+
+        loadingWindow.webContents.once('did-finish-load', onFinishLoad);
+        loadingWindow.webContents.once('did-fail-load', onFailLoad);
+
+        loadingWindow.loadFile(path.join(__dirname, 'loading.html'))
+            .catch((error) => finish(error));
     });
+}
 
-    // Load the loading screen HTML file
-    const loadingHtmlPath = path.join(__dirname, 'loading.html');
-    loadingWindow.loadFile(loadingHtmlPath);
-
-    if (!loadingWindow.isVisible()) {
-        loadingWindow.show();
-    } else {
-        markWindowShown();
-    }
-
-    // WAIT for loading window to show before starting backend
-    await windowShownPromise;
-    console.log('[Electron] Waiting 200ms for window to settle...');
-    await new Promise(resolve => setTimeout(resolve, 200));
-
+// App event handlers
+app.whenReady().then(async () => {
     try {
+        loadingWindow = new BrowserWindow({
+            width: 500,
+            height: 420,
+            frame: false,
+            transparent: false,
+            backgroundColor: '#7cb342',
+            alwaysOnTop: true,
+            resizable: false,
+            center: true,
+            show: false,
+            skipTaskbar: true,
+            focusable: true,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
+
+        await loadLoadingWindowContent();
+
+        if (loadingWindow && !loadingWindow.isDestroyed()) {
+            loadingWindow.show();
+            loadingWindow.focus();
+            loadingWindow.setAlwaysOnTop(true, 'screen-saver');
+            loadingWindow.moveTop();
+
+            setTimeout(() => {
+                if (loadingWindow && !loadingWindow.isDestroyed()) {
+                    loadingWindow.focus();
+                    loadingWindow.moveTop();
+                }
+            }, 100);
+        }
+
         updateLoadingStatus('Starting Wailing Newt...');
 
         // Check if server is already running (another instance)
-        const serverAlreadyRunning = await new Promise((resolve) => {
-            http.get(SERVER_URL, (res) => {
-                resolve(res.statusCode >= 200 && res.statusCode < 500);
-            }).on('error', () => {
-                resolve(false);
-            });
-        });
+        const healthProbe = await probeServer(HEALTH_URL);
+        let serverAlreadyRunning = isHealthyServerResponse(healthProbe);
+        if (!serverAlreadyRunning) {
+            const fallbackProbe = await probeServer(SERVER_URL);
+            serverAlreadyRunning = isLenientServerResponse(fallbackProbe);
+        }
 
         if (serverAlreadyRunning) {
             console.log('[Electron] Server already running - focusing existing instance');

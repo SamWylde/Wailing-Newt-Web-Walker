@@ -182,9 +182,13 @@
                 consoleLines.shift();
             }
 
-            consoleEl.innerHTML = consoleLines
-                .map(line => `<div class="${line.class}">${line.text}</div>`)
-                .join('');
+            consoleEl.textContent = '';
+            consoleLines.forEach((line) => {
+                const div = document.createElement('div');
+                div.className = line.class;
+                div.textContent = line.text;
+                consoleEl.appendChild(div);
+            });
 
             // Auto-scroll to bottom
             consoleEl.scrollTop = consoleEl.scrollHeight;

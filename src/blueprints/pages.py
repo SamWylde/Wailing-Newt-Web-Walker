@@ -1,8 +1,16 @@
-from flask import Blueprint, current_app, redirect, render_template, session, url_for
+from flask import Blueprint, current_app, jsonify, redirect, render_template, session, url_for
 
 from src.auth_utils import auto_login_local_mode, login_required
 
 pages_bp = Blueprint('pages', __name__)
+
+
+@pages_bp.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({
+        'ok': True,
+        'service': 'wailing-newt-web-walker'
+    })
 
 
 @pages_bp.route('/')
