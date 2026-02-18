@@ -155,8 +155,16 @@ def main():
     import io
 
     if sys.platform == 'win32':
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        for stream_name in ('stdout', 'stderr'):
+            stream = getattr(sys, stream_name)
+            if hasattr(stream, 'reconfigure'):
+                stream.reconfigure(encoding='utf-8', errors='replace',
+                                   line_buffering=True, write_through=True)
+            else:
+                setattr(sys, stream_name,
+                        io.TextIOWrapper(stream.buffer, encoding='utf-8',
+                                         errors='replace', line_buffering=True,
+                                         write_through=True))
 
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)

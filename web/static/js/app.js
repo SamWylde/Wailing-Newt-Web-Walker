@@ -730,7 +730,10 @@ function pollCrawlProgress() {
                 setTimeout(pollCrawlProgress, 1000); // Poll every second
             } else if (data.status === 'failed') {
                 stopCrawl();
-                const reason = data.failure_reason || 'Unknown error';
+                const reason = data.failure_reason || 'Unknown error. Check server logs.';
+                if (!data.failure_reason) {
+                    console.warn('Crawl failed without failure_reason in status payload:', data);
+                }
                 updateStatus(`Crawl failed: ${reason}`);
             } else if (data.status === 'completed') {
                 stopCrawl();

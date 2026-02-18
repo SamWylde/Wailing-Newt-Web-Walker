@@ -24,6 +24,7 @@ class IncrementalPoller {
         this.memory = null;
         this.memoryData = null;
         this.fullRefresh = false;
+        this.latestFailureReason = null;
     }
 
     /**
@@ -43,6 +44,7 @@ class IncrementalPoller {
         this.memory = null;
         this.memoryData = null;
         this.fullRefresh = false;
+        this.latestFailureReason = null;
     }
 
     /**
@@ -69,6 +71,11 @@ class IncrementalPoller {
             this.memory = data.memory || this.memory;
             this.memoryData = data.memory_data || this.memoryData;
             this.fullRefresh = !!data.full_refresh;
+            if (data.failure_reason) {
+                this.latestFailureReason = data.failure_reason;
+            } else if (data.status !== 'failed') {
+                this.latestFailureReason = null;
+            }
 
             if (this.fullRefresh) {
                 this.allUrls = Array.isArray(data.urls) ? data.urls.slice() : [];
@@ -106,7 +113,8 @@ class IncrementalPoller {
                 is_running_pagespeed: this.isRunningPagespeed,
                 memory: this.memory,
                 memory_data: this.memoryData,
-                full_refresh: this.fullRefresh
+                full_refresh: this.fullRefresh,
+                failure_reason: this.latestFailureReason
             };
 
         } catch (error) {
@@ -130,7 +138,8 @@ class IncrementalPoller {
             is_running_pagespeed: this.isRunningPagespeed,
             memory: this.memory,
             memory_data: this.memoryData,
-            full_refresh: this.fullRefresh
+            full_refresh: this.fullRefresh,
+            failure_reason: this.latestFailureReason
         };
     }
 }
