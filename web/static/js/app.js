@@ -3796,7 +3796,8 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
 function toggleCrawlConfigJSSettings(isEnabled) {
     const jsSettingsGroups = [
         'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning',
+        'antiDetectionGroup', 'waitStrategyGroup', 'resourceModeGroup', 'infiniteScrollGroup'
     ];
 
     jsSettingsGroups.forEach(groupId => {
@@ -3804,6 +3805,21 @@ function toggleCrawlConfigJSSettings(isEnabled) {
         if (group) {
             group.style.display = isEnabled ? 'block' : 'none';
         }
+    });
+}
+
+function toggleWaitStrategyFields(strategy) {
+    const selectorGroup = document.getElementById('waitForSelectorGroup');
+    const expressionGroup = document.getElementById('waitForExpressionGroup');
+    if (selectorGroup) selectorGroup.style.display = strategy === 'css' ? 'block' : 'none';
+    if (expressionGroup) expressionGroup.style.display = strategy === 'js' ? 'block' : 'none';
+}
+
+function toggleScrollSettings(isEnabled) {
+    const groups = ['scrollDelayGroup', 'maxScrollStepsGroup'];
+    groups.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isEnabled ? 'block' : 'none';
     });
 }
 
@@ -3978,6 +3994,29 @@ function loadCrawlConfigValues() {
         setValue('jsViewportWidth', 'jsViewportWidth', '1920');
         setValue('jsViewportHeight', 'jsViewportHeight', '1080');
         setValue('jsMaxConcurrentPages', 'jsMaxConcurrentPages', '3');
+
+        // Crawl4AI Anti-Detection
+        setCheckbox('stealthMode', 'stealthMode');
+        setCheckbox('randomUserAgent', 'randomUserAgent');
+        setCheckbox('overrideNavigator', 'overrideNavigator');
+        setCheckbox('simulateUser', 'simulateUser');
+        setCheckbox('magicMode', 'magicMode');
+
+        // Wait Strategy
+        setValue('waitStrategy', 'waitStrategy', 'fixed');
+        setValue('waitForSelector', 'waitForSelector');
+        setValue('waitForExpression', 'waitForExpression');
+        // Set initial visibility
+        toggleWaitStrategyFields(currentSettings.waitStrategy || 'fixed');
+
+        // Resource Mode
+        setValue('resourceMode', 'resourceMode', 'full');
+
+        // Infinite Scroll
+        setCheckbox('scanFullPage', 'scanFullPage');
+        setValue('scrollDelay', 'scrollDelay', '0.2');
+        setValue('maxScrollSteps', 'maxScrollSteps', '0');
+        toggleScrollSettings(currentSettings.scanFullPage || false);
 
         // Crawl Panel - Resource Links
         setCheckbox('crawlImages', 'crawlImages', true);
@@ -4197,6 +4236,26 @@ function saveCrawlConfig() {
     const jsViewportHeight = parseInt(document.getElementById('jsViewportHeight')?.value) || 1080;
     const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
 
+    // Crawl4AI - Anti-Detection
+    const stealthMode = document.getElementById('stealthMode')?.checked || false;
+    const randomUserAgent = document.getElementById('randomUserAgent')?.checked || false;
+    const overrideNavigator = document.getElementById('overrideNavigator')?.checked || false;
+    const simulateUser = document.getElementById('simulateUser')?.checked || false;
+    const magicMode = document.getElementById('magicMode')?.checked || false;
+
+    // Crawl4AI - Wait Strategy
+    const waitStrategy = document.getElementById('waitStrategy')?.value || 'fixed';
+    const waitForSelector = document.getElementById('waitForSelector')?.value || '';
+    const waitForExpression = document.getElementById('waitForExpression')?.value || '';
+
+    // Crawl4AI - Resource Mode
+    const resourceMode = document.getElementById('resourceMode')?.value || 'full';
+
+    // Crawl4AI - Infinite Scroll
+    const scanFullPage = document.getElementById('scanFullPage')?.checked || false;
+    const scrollDelay = parseFloat(document.getElementById('scrollDelay')?.value) || 0.2;
+    const maxScrollSteps = parseInt(document.getElementById('maxScrollSteps')?.value) || 0;
+
     // Crawl Panel - Resource Links
     const crawlImages = document.getElementById('crawlImages')?.checked !== false;
     const storeImages = document.getElementById('storeImages')?.checked !== false;
@@ -4373,6 +4432,18 @@ function saveCrawlConfig() {
         jsViewportWidth: jsViewportWidth,
         jsViewportHeight: jsViewportHeight,
         jsMaxConcurrentPages: jsMaxConcurrentPages,
+
+        // Crawl4AI - Anti-Detection
+        stealthMode, randomUserAgent, overrideNavigator, simulateUser, magicMode,
+
+        // Crawl4AI - Wait Strategy
+        waitStrategy, waitForSelector, waitForExpression,
+
+        // Crawl4AI - Resource Mode
+        resourceMode,
+
+        // Crawl4AI - Infinite Scroll
+        scanFullPage, scrollDelay, maxScrollSteps,
 
         // Crawl Panel - Resource Links
         crawlImages, storeImages, crawlMedia, storeMedia,

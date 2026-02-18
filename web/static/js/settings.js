@@ -292,6 +292,26 @@ let defaultSettings = {
     jsViewportHeight: 1080,
     jsMaxConcurrentPages: 3,
 
+    // Crawl4AI - Anti-Detection
+    stealthMode: false,
+    randomUserAgent: false,
+    overrideNavigator: false,
+    simulateUser: false,
+    magicMode: false,
+
+    // Crawl4AI - Wait Strategy
+    waitStrategy: 'fixed',
+    waitForSelector: '',
+    waitForExpression: '',
+
+    // Crawl4AI - Resource Mode
+    resourceMode: 'full',
+
+    // Crawl4AI - Infinite Scroll
+    scanFullPage: false,
+    scrollDelay: 0.2,
+    maxScrollSteps: 0,
+
     // Custom CSS styling
     customCSS: '',
 
@@ -548,7 +568,8 @@ function setupSettingsEventHandlers() {
         enableJavaScriptCheckbox.addEventListener('change', function () {
             const jsSettingsGroups = [
                 'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-                'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+                'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning',
+                'antiDetectionGroup', 'waitStrategyGroup', 'resourceModeGroup', 'infiniteScrollGroup'
             ];
 
             jsSettingsGroups.forEach(groupId => {
@@ -786,7 +807,8 @@ function populateSettingsForm() {
     const enableJavaScript = currentSettings.enableJavaScript;
     const jsSettingsGroups = [
         'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning',
+        'antiDetectionGroup', 'waitStrategyGroup', 'resourceModeGroup', 'infiniteScrollGroup'
     ];
 
     jsSettingsGroups.forEach(groupId => {
@@ -810,6 +832,10 @@ function collectSettingsFromForm() {
         'exportFormat', 'concurrency', 'memoryLimit', 'logLevel', 'saveSession',
         'enableProxy', 'proxyUrl', 'customHeaders',
         'enableJavaScript', 'jsWaitTime', 'jsTimeout', 'jsBrowser', 'jsHeadless', 'jsUserAgent', 'jsViewportWidth', 'jsViewportHeight', 'jsMaxConcurrentPages',
+        'stealthMode', 'randomUserAgent', 'overrideNavigator', 'simulateUser', 'magicMode',
+        'waitStrategy', 'waitForSelector', 'waitForExpression',
+        'resourceMode',
+        'scanFullPage', 'scrollDelay', 'maxScrollSteps',
         'customCSS', 'issueExclusionPatterns'
     ];
 

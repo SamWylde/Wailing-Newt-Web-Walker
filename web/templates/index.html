@@ -1849,10 +1849,122 @@
 
                         <div class="setting-group" id="jsWarning" style="display: none;">
                             <div class="settings-box settings-box-warning">
-                                <strong>⚠️ Performance Impact</strong>
-                                JavaScript rendering is significantly slower than HTTP-only crawling. Use for sites with
-                                dynamic content or when static crawling produces incomplete results.
+                                <strong>Performance Note</strong>
+                                All crawling now uses the Crawl4AI browser engine. Enable JavaScript for dynamic content sites.
+                                Use Text or Light resource modes for faster crawling when full rendering is not needed.
                             </div>
+                        </div>
+
+                        <!-- Crawl4AI Anti-Detection -->
+                        <div id="antiDetectionGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Anti-Detection</h4>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="stealthMode">
+                                Stealth Mode
+                            </label>
+                            <span class="setting-help">Bypass basic bot detection (Cloudflare, Akamai, etc.)</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="randomUserAgent">
+                                Random User Agent
+                            </label>
+                            <span class="setting-help">Randomize User-Agent per request to avoid fingerprinting</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="overrideNavigator">
+                                Override Navigator
+                            </label>
+                            <span class="setting-help">Spoof navigator.webdriver and other automation signals</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="simulateUser">
+                                Simulate User
+                            </label>
+                            <span class="setting-help">Simulate human-like mouse movements and keyboard actions</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="magicMode">
+                                Magic Mode
+                            </label>
+                            <span class="setting-help">Auto-handle overlays, popups, and cookie consent dialogs</span>
+                        </div>
+                        </div>
+
+                        <!-- Wait Strategy -->
+                        <div id="waitStrategyGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Wait Strategy</h4>
+
+                        <div class="setting-group">
+                            <label for="waitStrategy">Wait Strategy</label>
+                            <select id="waitStrategy" onchange="toggleWaitStrategyFields(this.value)">
+                                <option value="fixed">Fixed Wait Time</option>
+                                <option value="css">CSS Selector</option>
+                                <option value="js">JavaScript Expression</option>
+                            </select>
+                            <span class="setting-help">How to determine when page content has finished loading</span>
+                        </div>
+
+                        <div class="setting-group" id="waitForSelectorGroup" style="display: none;">
+                            <label for="waitForSelector">CSS Selector</label>
+                            <input type="text" id="waitForSelector" placeholder=".main-content, #app">
+                            <span class="setting-help">Wait until this CSS selector is present on the page</span>
+                        </div>
+
+                        <div class="setting-group" id="waitForExpressionGroup" style="display: none;">
+                            <label for="waitForExpression">JavaScript Expression</label>
+                            <input type="text" id="waitForExpression" placeholder="document.querySelector('.loaded') !== null">
+                            <span class="setting-help">Wait until this JS expression evaluates to true</span>
+                        </div>
+                        </div>
+
+                        <!-- Resource Mode -->
+                        <div id="resourceModeGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Resource Mode</h4>
+
+                        <div class="setting-group">
+                            <label for="resourceMode">Resource Loading</label>
+                            <select id="resourceMode">
+                                <option value="full">Full (all resources)</option>
+                                <option value="text">Text Mode (no images)</option>
+                                <option value="light">Light Mode (minimal resources)</option>
+                            </select>
+                            <span class="setting-help">Full loads everything. Text skips images for speed. Light disables background features.</span>
+                        </div>
+                        </div>
+
+                        <!-- Infinite Scroll -->
+                        <div id="infiniteScrollGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Infinite Scroll</h4>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="scanFullPage" onchange="toggleScrollSettings(this.checked)">
+                                Scan Full Page
+                            </label>
+                            <span class="setting-help">Scroll through entire page to trigger lazy-loaded content</span>
+                        </div>
+
+                        <div class="setting-group" id="scrollDelayGroup" style="display: none;">
+                            <label for="scrollDelay">Scroll Delay (seconds)</label>
+                            <input type="number" id="scrollDelay" value="0.2" min="0" max="10" step="0.1">
+                            <span class="setting-help">Pause between scroll steps</span>
+                        </div>
+
+                        <div class="setting-group" id="maxScrollStepsGroup" style="display: none;">
+                            <label for="maxScrollSteps">Max Scroll Steps</label>
+                            <input type="number" id="maxScrollSteps" value="0" min="0" max="10000">
+                            <span class="setting-help">Maximum scroll operations (0 = unlimited)</span>
+                        </div>
                         </div>
                     </div>
                     <div id="config-panel-advanced" class="config-panel">

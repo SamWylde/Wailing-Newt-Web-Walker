@@ -109,9 +109,17 @@ class SettingsManager:
             'limitQueryStrings', 'limitQueryStringsValue',
             'limitCrawlPerSubdomain', 'limitCrawlPerSubdomainValue',
             'limitMaxRedirects', 'limitMaxUrlLength', 'limitMaxLinksPerUrl', 'limitMaxPageSize',
-            # JavaScript tab
+            # JavaScript / Crawl4AI tab
             'enableJavaScript', 'jsWaitTime', 'jsTimeout', 'jsBrowser', 'jsHeadless',
             'jsUserAgent', 'jsViewportWidth', 'jsViewportHeight', 'jsMaxConcurrentPages',
+            # Crawl4AI Anti-Detection
+            'stealthMode', 'randomUserAgent', 'overrideNavigator', 'simulateUser', 'magicMode',
+            # Resource Mode
+            'resourceMode',
+            # Wait Strategies
+            'waitStrategy', 'waitForSelector', 'waitForExpression',
+            # Infinite Scroll
+            'scanFullPage', 'scrollDelay', 'maxScrollSteps',
             # Advanced Panel
             'advCookieStorage', 'advIgnoreNonIndexable', 'advIgnorePaginated',
             'advAlwaysFollowRedirects', 'advAlwaysFollowCanonicals',
@@ -259,6 +267,8 @@ class SettingsManager:
                 'jsViewportWidth': (800, 4000),
                 'jsViewportHeight': (600, 3000),
                 'jsMaxConcurrentPages': (1, 10),
+                'scrollDelay': (0.0, 10.0),
+                'maxScrollSteps': (0, 10000),
                 'duplicationThreshold': (0.0, 1.0),
                 'ga4MaxResults': (1, 1000000),
                 'gscMaxResults': (1, 1000000),
@@ -351,6 +361,27 @@ class SettingsManager:
             'js_viewport_width': settings['jsViewportWidth'],
             'js_viewport_height': settings['jsViewportHeight'],
             'js_max_concurrent_pages': settings['jsMaxConcurrentPages'],
+
+            # Crawl4AI Anti-Detection
+            'stealth_mode': settings.get('stealthMode', False),
+            'random_user_agent': settings.get('randomUserAgent', False),
+            'override_navigator': settings.get('overrideNavigator', False),
+            'simulate_user': settings.get('simulateUser', False),
+            'magic_mode': settings.get('magicMode', False),
+
+            # Resource Mode
+            'resource_mode': settings.get('resourceMode', 'full'),
+
+            # Wait Strategies
+            'wait_strategy': settings.get('waitStrategy', 'fixed'),
+            'wait_for_selector': settings.get('waitForSelector', ''),
+            'wait_for_expression': settings.get('waitForExpression', ''),
+
+            # Infinite Scroll
+            'scan_full_page': settings.get('scanFullPage', False),
+            'scroll_delay': float(settings.get('scrollDelay', 0.2)),
+            'max_scroll_steps': int(settings.get('maxScrollSteps', 0)),
+
             'issue_exclusion_patterns': [p.strip() for p in settings['issueExclusionPatterns'].split('\n') if p.strip()],
             'enable_duplication_check': settings['enableDuplicationCheck'],
             'duplication_threshold': settings['duplicationThreshold'],

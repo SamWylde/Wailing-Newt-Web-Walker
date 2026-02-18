@@ -104,11 +104,22 @@ def init_crawl_tables():
                 response_time REAL,
                 javascript_rendered BOOLEAN DEFAULT 0,
 
+                markdown_raw TEXT DEFAULT '',
+                markdown_with_citations TEXT DEFAULT '',
+                markdown_references TEXT DEFAULT '',
+                markdown_fit TEXT DEFAULT '',
+                fit_html TEXT DEFAULT '',
+                javascript_engine TEXT DEFAULT '',
+                stealth_mode TEXT DEFAULT '',
+
                 crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
                 FOREIGN KEY (crawl_id) REFERENCES crawls(id) ON DELETE CASCADE
             )
         ''')
+
+        # Migration: add markdown columns to existing databases
+        _migrate_crawled_urls_markdown(cursor)
 
         # Links table
         cursor.execute('''
@@ -181,6 +192,24 @@ def init_crawl_tables():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_crawl_queue_crawl ON crawl_queue(crawl_id)')
 
         print("Crawl persistence tables initialized successfully")
+
+def _migrate_crawled_urls_markdown(cursor):
+    """Add markdown columns to existing crawled_urls tables (idempotent)."""
+    new_columns = [
+        ('markdown_raw', "TEXT DEFAULT ''"),
+        ('markdown_with_citations', "TEXT DEFAULT ''"),
+        ('markdown_references', "TEXT DEFAULT ''"),
+        ('markdown_fit', "TEXT DEFAULT ''"),
+        ('fit_html', "TEXT DEFAULT ''"),
+        ('javascript_engine', "TEXT DEFAULT ''"),
+        ('stealth_mode', "TEXT DEFAULT ''"),
+    ]
+    for col_name, col_def in new_columns:
+        try:
+            cursor.execute(f"ALTER TABLE crawled_urls ADD COLUMN {col_name} {col_def}")
+        except Exception:
+            pass  # Column already exists
+
 
 def create_crawl(user_id, session_id, base_url, base_domain, config_snapshot):
     """
@@ -285,7 +314,14 @@ def save_url_batch(crawl_id, urls):
                     url_data.get('external_links'),
                     url_data.get('internal_links'),
                     url_data.get('response_time'),
-                    url_data.get('javascript_rendered', False)
+                    url_data.get('javascript_rendered', False),
+                    url_data.get('markdown_raw', ''),
+                    url_data.get('markdown_with_citations', ''),
+                    url_data.get('markdown_references', ''),
+                    url_data.get('markdown_fit', ''),
+                    url_data.get('fit_html', ''),
+                    url_data.get('javascript_engine', ''),
+                    url_data.get('stealth_mode', ''),
                 )
                 rows.append(row)
 
@@ -296,8 +332,10 @@ def save_url_batch(crawl_id, urls):
                     canonical_url, lang, charset, viewport, robots,
                     meta_tags, og_tags, twitter_tags, json_ld, analytics, images,
                     hreflang, schema_org, redirects, linked_from,
-                    external_links, internal_links, response_time, javascript_rendered
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    external_links, internal_links, response_time, javascript_rendered,
+                    markdown_raw, markdown_with_citations, markdown_references,
+                    markdown_fit, fit_html, javascript_engine, stealth_mode
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', rows)
 
             print(f"Saved {len(urls)} URLs to database for crawl {crawl_id}")

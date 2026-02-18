@@ -294,6 +294,26 @@ def get_default_settings():
         'jsViewportHeight': 1080,
         'jsMaxConcurrentPages': 3,
 
+        # Crawl4AI Anti-Detection
+        'stealthMode': False,
+        'randomUserAgent': False,
+        'overrideNavigator': False,
+        'simulateUser': False,
+        'magicMode': False,
+
+        # Resource Mode
+        'resourceMode': 'full',  # 'full', 'text', 'light'
+
+        # Wait Strategies
+        'waitStrategy': 'fixed',  # 'fixed', 'css', 'js'
+        'waitForSelector': '',
+        'waitForExpression': '',
+
+        # Infinite Scroll
+        'scanFullPage': False,
+        'scrollDelay': 0.2,
+        'maxScrollSteps': 0,  # 0 = unlimited
+
         # Custom CSS styling
         'customCSS': '',
 
@@ -564,6 +584,27 @@ def get_default_crawler_config():
         'js_viewport_width': 1920,
         'js_viewport_height': 1080,
         'js_max_concurrent_pages': 3,
+
+        # Crawl4AI Anti-Detection
+        'stealth_mode': False,
+        'random_user_agent': False,
+        'override_navigator': False,
+        'simulate_user': False,
+        'magic_mode': False,
+
+        # Resource Mode
+        'resource_mode': 'full',
+
+        # Wait Strategies
+        'wait_strategy': 'fixed',
+        'wait_for_selector': '',
+        'wait_for_expression': '',
+
+        # Infinite Scroll
+        'scan_full_page': False,
+        'scroll_delay': 0.2,
+        'max_scroll_steps': 0,
+
         'issue_exclusion_patterns': parse_issue_exclusion_patterns(
             DEFAULT_ISSUE_EXCLUSION_PATTERNS_TEXT
         ),
