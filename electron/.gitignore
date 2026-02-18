@@ -4,8 +4,7 @@ node_modules/
 # Build output
 dist/
 
-# Lock files (optional - some prefer to commit this)
-package-lock.json
+# Lock files - package-lock.json is committed (required by CI)
 
 # OS files
 .DS_Store
