@@ -14,6 +14,13 @@ GA4_EXPORT_METRIC_ALIASES = {
     'ga4_total_revenue': 'totalRevenue',
 }
 
+GSC_EXPORT_METRIC_ALIASES = {
+    'sc_clicks': 'clicks',
+    'sc_impressions': 'impressions',
+    'sc_ctr': 'ctr',
+    'sc_position': 'position',
+}
+
 
 def _get_nested_value(data, path_parts):
     current = data
@@ -35,6 +42,18 @@ def _get_ga4_block(url_data):
     if not isinstance(ga4, dict):
         ga4 = {}
     return ga4
+
+
+def _get_search_console_block(url_data):
+    analytics = url_data.get('analytics', {})
+    if not isinstance(analytics, dict):
+        analytics = {}
+    search_console = url_data.get('search_console')
+    if not isinstance(search_console, dict):
+        search_console = analytics.get('search_console', {})
+    if not isinstance(search_console, dict):
+        search_console = {}
+    return search_console
 
 
 def _get_export_field_value(url_data, field):
@@ -64,6 +83,40 @@ def _get_export_field_value(url_data, field):
         return _get_ga4_block(url_data).get('matched_dimension_value', '')
     if field == 'ga4':
         return _get_ga4_block(url_data)
+
+    # Support explicit Search Console metric field ids in exports.
+    if field in GSC_EXPORT_METRIC_ALIASES:
+        metric_name = GSC_EXPORT_METRIC_ALIASES[field]
+        sc_metrics = _get_search_console_block(url_data).get('metrics', {})
+        if isinstance(sc_metrics, dict) and metric_name in sc_metrics:
+            return sc_metrics.get(metric_name)
+        analytics = url_data.get('analytics', {})
+        if isinstance(analytics, dict):
+            return analytics.get(field, '')
+        return ''
+
+    if field.startswith('search_console.metrics.'):
+        metric_name = field.split('.', 2)[2]
+        sc_metrics = _get_search_console_block(url_data).get('metrics', {})
+        if isinstance(sc_metrics, dict):
+            return sc_metrics.get(metric_name, '')
+        return ''
+
+    if field.startswith('search_console.inspection.'):
+        inspection_field = field.split('.', 2)[2]
+        inspection = _get_search_console_block(url_data).get('inspection', {})
+        if isinstance(inspection, dict):
+            return inspection.get(inspection_field, '')
+        return ''
+
+    if field == 'search_console_last_sync_at':
+        return _get_search_console_block(url_data).get('last_sync_at', '')
+    if field == 'search_console_sync_status':
+        return _get_search_console_block(url_data).get('sync_status', '')
+    if field == 'search_console_matched_page':
+        return _get_search_console_block(url_data).get('matched_page', '')
+    if field == 'search_console':
+        return _get_search_console_block(url_data)
 
     # Support nested selectors (e.g. ga4.metrics.sessions)
     if '.' in field:
@@ -101,6 +154,8 @@ def generate_csv_export(urls, fields):
                     analytics_list.append('MP')
                 if isinstance(value.get('ga4'), dict) and value['ga4'].get('metrics'):
                     analytics_list.append('GA4 Data')
+                if isinstance(value.get('search_console'), dict) and value['search_console'].get('metrics'):
+                    analytics_list.append('SC Data')
                 row[field] = ', '.join(analytics_list)
             elif field == 'og_tags' and isinstance(value, dict):
                 row[field] = f"{len(value)} tags" if value else ''

@@ -4,6 +4,7 @@ from src.app_state import get_or_create_crawler, get_session_settings
 from src.auth_db import get_guest_crawls_last_24h, log_crawl_start, log_guest_crawl
 from src.auth_utils import get_client_ip, login_required
 from src.core.ga4_service import GA4Service
+from src.core.search_console_service import SearchConsoleService
 from src.utils.issue_filters import filter_issues_by_exclusion_patterns
 
 crawl_bp = Blueprint('crawl', __name__)
@@ -51,6 +52,7 @@ def start_crawl():
         print(f"Warning: Could not apply settings: {e}")
 
     ga4_discovery = None
+    gsc_discovery = None
     if (
         crawler_config.get('ga4_enabled')
         and crawler_config.get('ga4_connected')
@@ -67,6 +69,24 @@ def start_crawl():
         except Exception as exc:
             ga4_discovery = {'status': 'error', 'error': str(exc)}
 
+    if (
+        crawler_config.get('gsc_enabled')
+        and crawler_config.get('gsc_connected')
+        and crawler_config.get('gsc_crawl_new_urls')
+        and crawler_config.get('gsc_site_url')
+    ):
+        try:
+            gsc_urls, gsc_discovery = SearchConsoleService.discover_urls_for_crawl(
+                settings_manager, normalized_url, crawler_config
+            )
+            seen = set(extra_urls)
+            for gsc_url in gsc_urls:
+                if gsc_url and gsc_url not in seen:
+                    seen.add(gsc_url)
+                    extra_urls.append(gsc_url)
+        except Exception as exc:
+            gsc_discovery = {'status': 'error', 'error': str(exc)}
+
     success, message = crawler.start_crawl(
         normalized_url,
         user_id=user_id,
@@ -79,7 +99,15 @@ def start_crawl():
         session['current_crawl_id'] = crawler.crawl_id
         log_crawl_start(user_id, url)
 
-    return jsonify({'success': success, 'message': message, 'crawl_id': crawler.crawl_id, 'ga4_discovery': ga4_discovery})
+    return jsonify(
+        {
+            'success': success,
+            'message': message,
+            'crawl_id': crawler.crawl_id,
+            'ga4_discovery': ga4_discovery,
+            'gsc_discovery': gsc_discovery,
+        }
+    )
 
 
 @crawl_bp.route('/api/stop_crawl', methods=['POST'])

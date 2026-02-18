@@ -240,6 +240,24 @@ def get_default_settings():
         'discoverSitemaps': True,
         'enablePageSpeed': False,
         'googleApiKey': '',
+        'pagespeedEnabled': False,
+        'pagespeedConnected': False,
+        'pagespeedSource': 'remote',
+        'pagespeedApiKey': '',
+        'pagespeedAutoConnect': True,
+        'pagespeedSelectedDevices': ['mobile', 'desktop'],
+        'pagespeedSelectedMetricGroups': [
+            'overview',
+            'crux_metrics',
+            'lighthouse_metrics',
+            'insights',
+            'diagnostics',
+            'mobile_friendly',
+            'accessibility'
+        ],
+        'pagespeedLastSyncAt': '',
+        'pagespeedLastSyncStatus': '',
+        'pagespeedLastSyncError': '',
 
         # Filter settings
         'includeExtensions': 'html,htm,php,asp,aspx,jsp',
@@ -275,6 +293,26 @@ def get_default_settings():
         'jsViewportWidth': 1920,
         'jsViewportHeight': 1080,
         'jsMaxConcurrentPages': 3,
+
+        # Crawl4AI Anti-Detection
+        'stealthMode': False,
+        'randomUserAgent': False,
+        'overrideNavigator': False,
+        'simulateUser': False,
+        'magicMode': False,
+
+        # Resource Mode
+        'resourceMode': 'full',  # 'full', 'text', 'light'
+
+        # Wait Strategies
+        'waitStrategy': 'fixed',  # 'fixed', 'css', 'js'
+        'waitForSelector': '',
+        'waitForExpression': '',
+
+        # Infinite Scroll
+        'scanFullPage': False,
+        'scrollDelay': 0.2,
+        'maxScrollSteps': 0,  # 0 = unlimited
 
         # Custom CSS styling
         'customCSS': '',
@@ -453,6 +491,37 @@ def get_default_settings():
         'ga4LastSyncStatus': '',
         'ga4LastSyncError': '',
 
+        # Google Search Console (GSC)
+        'gscEnabled': False,
+        'gscConnected': False,
+        'gscSiteUrl': '',
+        'gscSiteName': '',
+        'gscDateRangePreset': 'last_30_days',
+        'gscDateStart': '',
+        'gscDateEnd': '',
+        'gscDeviceFilter': 'all',
+        'gscCountryFilter': '',
+        'gscTypeFilter': 'web',
+        'gscQueryFilterOperator': 'none',
+        'gscQueryFilterValue': '',
+        'gscMatchTrailingSlash': True,
+        'gscMatchCase': False,
+        'gscLimitMaxResults': True,
+        'gscMaxResults': 100000,
+        'gscCrawlNewUrls': False,
+        'gscEnableUrlInspection': False,
+        'gscIgnoreNonIndexableUrls': False,
+        'gscUseMultipleProperties': False,
+        'gscInspectionLanguageCode': 'en-US',
+        'gscInspectionMaxUrls': 200,
+        'gscOauthTokens': {},
+        'gscLastSyncAt': '',
+        'gscLastSyncStatus': '',
+        'gscLastSyncError': '',
+        'gscLastInspectionAt': '',
+        'gscLastInspectionStatus': '',
+        'gscLastInspectionError': '',
+
         # Authentication - Standards Based (HTTP Basic/Digest)
         'authStandardsEnabled': False,
         'authStandardsData': [],  # List of {url, username, password, type}
@@ -493,6 +562,19 @@ def get_default_crawler_config():
         'custom_headers': {},
         'discover_sitemaps': True,
         'enable_pagespeed': False,
+        'google_api_key': '',
+        'pagespeed_source': 'remote',
+        'pagespeed_auto_connect': True,
+        'pagespeed_selected_devices': ['mobile', 'desktop'],
+        'pagespeed_selected_metric_groups': [
+            'overview',
+            'crux_metrics',
+            'lighthouse_metrics',
+            'insights',
+            'diagnostics',
+            'mobile_friendly',
+            'accessibility'
+        ],
         'enable_javascript': False,
         'js_wait_time': 3,
         'js_timeout': 30,
@@ -502,7 +584,29 @@ def get_default_crawler_config():
         'js_viewport_width': 1920,
         'js_viewport_height': 1080,
         'js_max_concurrent_pages': 3,
+
+        # Crawl4AI Anti-Detection
+        'stealth_mode': False,
+        'random_user_agent': False,
+        'override_navigator': False,
+        'simulate_user': False,
+        'magic_mode': False,
+
+        # Resource Mode
+        'resource_mode': 'full',
+
+        # Wait Strategies
+        'wait_strategy': 'fixed',
+        'wait_for_selector': '',
+        'wait_for_expression': '',
+
+        # Infinite Scroll
+        'scan_full_page': False,
+        'scroll_delay': 0.2,
+        'max_scroll_steps': 0,
+
         'issue_exclusion_patterns': parse_issue_exclusion_patterns(
             DEFAULT_ISSUE_EXCLUSION_PATTERNS_TEXT
         ),
+        'check_external_links': False,
     }

@@ -7,9 +7,13 @@ from flask import Blueprint, jsonify, request, session
 
 from src.app_state import get_session_settings, get_settings_for_session_id
 from src.auth_utils import login_required
-from src.core.ga4_service import GA4AuthError, GA4Service, GA4ServiceError
+from src.core.search_console_service import (
+    SearchConsoleAuthError,
+    SearchConsoleService,
+    SearchConsoleServiceError,
+)
 
-ga4_bp = Blueprint("ga4", __name__)
+search_console_bp = Blueprint("search_console", __name__)
 
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 oauth_state_store = {}
@@ -50,13 +54,12 @@ def _render_callback_html(title, message, is_error=False):
 """
 
 
-@ga4_bp.route("/api/ga4/oauth/start", methods=["GET"])
+@search_console_bp.route("/api/search_console/oauth/start", methods=["GET"])
 @login_required
-def ga4_oauth_start():
+def search_console_oauth_start():
     try:
-        # Ensure a session-bound settings manager exists before creating OAuth state.
         get_session_settings()
-        setup_state = GA4Service.get_oauth_setup_state(request.host_url)
+        setup_state = SearchConsoleService.get_oauth_setup_state(request.host_url)
 
         if not setup_state.get("has_credentials"):
             return jsonify(
@@ -64,7 +67,7 @@ def ga4_oauth_start():
                     "success": False,
                     "setup_required": True,
                     "error": (
-                        "Google sign-in needs a one-time setup before it can connect to GA4. "
+                        "Google sign-in needs a one-time setup before it can connect to Search Console. "
                         "Use the setup panel in this screen to continue."
                     ),
                     "credential_source": setup_state.get("credential_source", "none"),
@@ -75,7 +78,7 @@ def ga4_oauth_start():
                 }
             ), 400
 
-        redirect_uri = GA4Service.get_suggested_redirect_uri(request.host_url)
+        redirect_uri = SearchConsoleService.get_suggested_redirect_uri(request.host_url)
         state = secrets.token_urlsafe(32)
         with oauth_state_lock:
             _cleanup_expired_oauth_states()
@@ -90,17 +93,16 @@ def ga4_oauth_start():
         return jsonify(
             {
                 "success": True,
-                "auth_url": GA4Service.build_oauth_url(state, redirect_uri=redirect_uri),
+                "auth_url": SearchConsoleService.build_oauth_url(state, redirect_uri=redirect_uri),
                 "state": state,
-                "redirect_uri": redirect_uri,
             }
         )
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
-@ga4_bp.route("/api/ga4/oauth/callback", methods=["GET"])
-def ga4_oauth_callback():
+@search_console_bp.route("/api/search_console/oauth/callback", methods=["GET"])
+def search_console_oauth_callback():
     error = request.args.get("error")
     if error:
         return _render_callback_html("Google Sign-in Failed", f"OAuth error: {error}", is_error=True)
@@ -126,43 +128,45 @@ def ga4_oauth_callback():
         user_id=state_payload.get("user_id"),
         tier=state_payload.get("tier", "guest"),
     )
-
     if not settings_manager:
         return _render_callback_html("Google Sign-in Failed", "Session not found for OAuth callback.", is_error=True)
 
     try:
-        token_record = GA4Service.exchange_code_for_tokens(code, redirect_uri=state_payload.get("redirect_uri", ""))
-        GA4Service.save_tokens_to_settings(settings_manager, token_record, connected=True)
+        token_record = SearchConsoleService.exchange_code_for_tokens(
+            code, redirect_uri=state_payload.get("redirect_uri", "")
+        )
+        SearchConsoleService.save_tokens_to_settings(settings_manager, token_record, connected=True)
         settings_manager.save_settings(
             {
-                "ga4Connected": True,
-                "ga4LastSyncStatus": "connected",
-                "ga4LastSyncError": "",
+                "gscConnected": True,
+                "gscLastSyncStatus": "connected",
+                "gscLastSyncError": "",
+                "gscLastInspectionStatus": "",
+                "gscLastInspectionError": "",
             }
         )
-        return _render_callback_html("Google Connected", "Google Analytics is now connected.")
+        return _render_callback_html("Google Connected", "Google Search Console is now connected.")
     except Exception as exc:
         settings_manager.save_settings(
             {
-                "ga4Connected": False,
-                "ga4LastSyncStatus": "oauth_error",
-                "ga4LastSyncError": str(exc),
+                "gscConnected": False,
+                "gscLastSyncStatus": "oauth_error",
+                "gscLastSyncError": str(exc),
             }
         )
         return _render_callback_html("Google Sign-in Failed", str(exc), is_error=True)
 
 
-@ga4_bp.route("/api/ga4/oauth/status", methods=["GET"])
+@search_console_bp.route("/api/search_console/oauth/status", methods=["GET"])
 @login_required
-def ga4_oauth_status():
+def search_console_oauth_status():
     settings = get_session_settings().get_settings()
-    token_blob = settings.get("ga4OauthTokens") or {}
-    has_tokens = bool(token_blob)
-    setup_state = GA4Service.get_oauth_setup_state(request.host_url)
+    token_blob = settings.get("gscOauthTokens") or {}
+    setup_state = SearchConsoleService.get_oauth_setup_state(request.host_url)
     return jsonify(
         {
             "success": True,
-            "connected": bool(settings.get("ga4Connected") and has_tokens),
+            "connected": bool(settings.get("gscConnected") and bool(token_blob)),
             "has_credentials": setup_state.get("has_credentials", False),
             "setup_required": setup_state.get("setup_required", True),
             "credential_source": setup_state.get("credential_source", "none"),
@@ -170,32 +174,31 @@ def ga4_oauth_status():
             "config_path": setup_state.get("config_path", "ga4_oauth.local.json"),
             "setup_error": setup_state.get("setup_error", ""),
             "setup_steps": setup_state.get("setup_steps", []),
-            "account_id": settings.get("ga4AccountId", ""),
-            "account_name": settings.get("ga4AccountName", ""),
-            "property_id": settings.get("ga4PropertyId", ""),
-            "property_name": settings.get("ga4PropertyName", ""),
-            "stream_id": settings.get("ga4DataStreamId", ""),
-            "stream_name": settings.get("ga4DataStreamName", ""),
-            "last_sync_at": settings.get("ga4LastSyncAt", ""),
-            "last_sync_status": settings.get("ga4LastSyncStatus", ""),
-            "last_sync_error": settings.get("ga4LastSyncError", ""),
+            "site_url": settings.get("gscSiteUrl", ""),
+            "site_name": settings.get("gscSiteName", ""),
+            "last_sync_at": settings.get("gscLastSyncAt", ""),
+            "last_sync_status": settings.get("gscLastSyncStatus", ""),
+            "last_sync_error": settings.get("gscLastSyncError", ""),
+            "last_inspection_at": settings.get("gscLastInspectionAt", ""),
+            "last_inspection_status": settings.get("gscLastInspectionStatus", ""),
+            "last_inspection_error": settings.get("gscLastInspectionError", ""),
         }
     )
 
 
-@ga4_bp.route("/api/ga4/oauth/configure", methods=["POST"])
+@search_console_bp.route("/api/search_console/oauth/configure", methods=["POST"])
 @login_required
-def ga4_oauth_configure():
+def search_console_oauth_configure():
     payload = request.get_json(silent=True) or {}
     client_id = str(payload.get("client_id", "")).strip()
     client_secret = str(payload.get("client_secret", "")).strip()
-    redirect_uri = str(payload.get("redirect_uri", "")).strip() or GA4Service.get_suggested_redirect_uri(
+    redirect_uri = str(payload.get("redirect_uri", "")).strip() or SearchConsoleService.get_suggested_redirect_uri(
         request.host_url
     )
 
     try:
-        result = GA4Service.save_local_oauth_credentials(client_id, client_secret, redirect_uri)
-        setup_state = GA4Service.get_oauth_setup_state(request.host_url)
+        result = SearchConsoleService.save_local_oauth_credentials(client_id, client_secret, redirect_uri)
+        setup_state = SearchConsoleService.get_oauth_setup_state(request.host_url)
         return jsonify(
             {
                 "success": True,
@@ -207,8 +210,8 @@ def ga4_oauth_configure():
                 "config_path": setup_state.get("config_path", result.get("config_path", "ga4_oauth.local.json")),
             }
         )
-    except GA4ServiceError as exc:
-        setup_state = GA4Service.get_oauth_setup_state(request.host_url)
+    except SearchConsoleServiceError as exc:
+        setup_state = SearchConsoleService.get_oauth_setup_state(request.host_url)
         return (
             jsonify(
                 {
@@ -227,54 +230,39 @@ def ga4_oauth_configure():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
-@ga4_bp.route("/api/ga4/oauth/disconnect", methods=["POST"])
+@search_console_bp.route("/api/search_console/oauth/disconnect", methods=["POST"])
 @login_required
-def ga4_oauth_disconnect():
+def search_console_oauth_disconnect():
     settings_manager = get_session_settings()
     success, message = settings_manager.save_settings(
         {
-            "ga4Connected": False,
-            "ga4OauthTokens": {},
-            "ga4AccountId": "",
-            "ga4AccountName": "",
-            "ga4PropertyId": "",
-            "ga4PropertyName": "",
-            "ga4DataStreamId": "",
-            "ga4DataStreamName": "",
-            "ga4LastSyncStatus": "disconnected",
-            "ga4LastSyncError": "",
+            "gscConnected": False,
+            "gscOauthTokens": {},
+            "gscSiteUrl": "",
+            "gscSiteName": "",
+            "gscLastSyncStatus": "disconnected",
+            "gscLastSyncError": "",
+            "gscLastInspectionStatus": "disconnected",
+            "gscLastInspectionError": "",
         }
     )
     return jsonify({"success": bool(success), "message": message})
 
 
-@ga4_bp.route("/api/ga4/accounts", methods=["GET"])
+@search_console_bp.route("/api/search_console/sites", methods=["GET"])
 @login_required
-def ga4_accounts():
+def search_console_sites():
     settings_manager = get_session_settings()
     try:
-        accounts = GA4Service.list_account_summaries(settings_manager)
-        return jsonify({"success": True, "accounts": accounts})
-    except (GA4AuthError, GA4ServiceError) as exc:
+        sites = SearchConsoleService.list_sites(settings_manager)
+        return jsonify({"success": True, "sites": sites})
+    except (SearchConsoleAuthError, SearchConsoleServiceError) as exc:
         return jsonify({"success": False, "error": str(exc)}), 400
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
-@ga4_bp.route("/api/ga4/properties/<property_id>/streams", methods=["GET"])
+@search_console_bp.route("/api/search_console/catalog", methods=["GET"])
 @login_required
-def ga4_property_streams(property_id):
-    settings_manager = get_session_settings()
-    try:
-        streams = GA4Service.list_property_streams(settings_manager, property_id)
-        return jsonify({"success": True, "streams": streams})
-    except (GA4AuthError, GA4ServiceError) as exc:
-        return jsonify({"success": False, "error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"success": False, "error": str(exc)}), 500
-
-
-@ga4_bp.route("/api/ga4/catalog", methods=["GET"])
-@login_required
-def ga4_catalog():
-    return jsonify({"success": True, "catalog": GA4Service.get_catalog()})
+def search_console_catalog():
+    return jsonify({"success": True, "catalog": SearchConsoleService.get_catalog()})

@@ -58,7 +58,27 @@ class SettingsManager:
             'ga4MatchTrailingSlash', 'ga4MatchCase',
             'ga4LimitMaxResults', 'ga4MaxResults',
             'ga4CrawlNewUrls', 'ga4OauthTokens',
-            'ga4LastSyncAt', 'ga4LastSyncStatus', 'ga4LastSyncError'
+            'ga4LastSyncAt', 'ga4LastSyncStatus', 'ga4LastSyncError',
+            # Search Console settings (available for all logged-in users)
+            'gscEnabled', 'gscConnected',
+            'gscSiteUrl', 'gscSiteName',
+            'gscDateRangePreset', 'gscDateStart', 'gscDateEnd',
+            'gscDeviceFilter', 'gscCountryFilter', 'gscTypeFilter',
+            'gscQueryFilterOperator', 'gscQueryFilterValue',
+            'gscMatchTrailingSlash', 'gscMatchCase',
+            'gscLimitMaxResults', 'gscMaxResults',
+            'gscCrawlNewUrls',
+            'gscEnableUrlInspection', 'gscIgnoreNonIndexableUrls', 'gscUseMultipleProperties',
+            'gscInspectionLanguageCode', 'gscInspectionMaxUrls',
+            'gscOauthTokens',
+            'gscLastSyncAt', 'gscLastSyncStatus', 'gscLastSyncError',
+            'gscLastInspectionAt', 'gscLastInspectionStatus', 'gscLastInspectionError',
+            # PageSpeed settings (available for all logged-in users)
+            'enablePageSpeed', 'googleApiKey',
+            'pagespeedEnabled', 'pagespeedConnected',
+            'pagespeedSource', 'pagespeedApiKey', 'pagespeedAutoConnect',
+            'pagespeedSelectedDevices', 'pagespeedSelectedMetricGroups',
+            'pagespeedLastSyncAt', 'pagespeedLastSyncStatus', 'pagespeedLastSyncError'
         ]
 
         # extra: all in user + Filters, Requests, Custom CSS, JavaScript tabs
@@ -89,9 +109,17 @@ class SettingsManager:
             'limitQueryStrings', 'limitQueryStringsValue',
             'limitCrawlPerSubdomain', 'limitCrawlPerSubdomainValue',
             'limitMaxRedirects', 'limitMaxUrlLength', 'limitMaxLinksPerUrl', 'limitMaxPageSize',
-            # JavaScript tab
+            # JavaScript / Crawl4AI tab
             'enableJavaScript', 'jsWaitTime', 'jsTimeout', 'jsBrowser', 'jsHeadless',
             'jsUserAgent', 'jsViewportWidth', 'jsViewportHeight', 'jsMaxConcurrentPages',
+            # Crawl4AI Anti-Detection
+            'stealthMode', 'randomUserAgent', 'overrideNavigator', 'simulateUser', 'magicMode',
+            # Resource Mode
+            'resourceMode',
+            # Wait Strategies
+            'waitStrategy', 'waitForSelector', 'waitForExpression',
+            # Infinite Scroll
+            'scanFullPage', 'scrollDelay', 'maxScrollSteps',
             # Advanced Panel
             'advCookieStorage', 'advIgnoreNonIndexable', 'advIgnorePaginated',
             'advAlwaysFollowRedirects', 'advAlwaysFollowCanonicals',
@@ -239,8 +267,12 @@ class SettingsManager:
                 'jsViewportWidth': (800, 4000),
                 'jsViewportHeight': (600, 3000),
                 'jsMaxConcurrentPages': (1, 10),
+                'scrollDelay': (0.0, 10.0),
+                'maxScrollSteps': (0, 10000),
                 'duplicationThreshold': (0.0, 1.0),
-                'ga4MaxResults': (1, 1000000)
+                'ga4MaxResults': (1, 1000000),
+                'gscMaxResults': (1, 1000000),
+                'gscInspectionMaxUrls': (1, 2000),
             }
 
             for key, (min_val, max_val) in numeric_validations.items():
@@ -311,8 +343,15 @@ class SettingsManager:
             'proxy_url': settings['proxyUrl'] if settings['enableProxy'] else None,
             'custom_headers': self._get_all_headers(settings),
             'discover_sitemaps': settings['discoverSitemaps'],
-            'enable_pagespeed': settings['enablePageSpeed'],
-            'google_api_key': settings['googleApiKey'],
+            'enable_pagespeed': settings.get('pagespeedEnabled', settings.get('enablePageSpeed', False)),
+            'google_api_key': settings.get('pagespeedApiKey', settings.get('googleApiKey', '')),
+            'pagespeed_source': settings.get('pagespeedSource', 'remote'),
+            'pagespeed_auto_connect': settings.get('pagespeedAutoConnect', True),
+            'pagespeed_selected_devices': settings.get('pagespeedSelectedDevices', ['mobile', 'desktop']),
+            'pagespeed_selected_metric_groups': settings.get(
+                'pagespeedSelectedMetricGroups',
+                ['overview', 'crux_metrics', 'lighthouse_metrics', 'insights', 'diagnostics', 'mobile_friendly', 'accessibility']
+            ),
             'enable_javascript': settings['enableJavaScript'],
             'js_wait_time': settings['jsWaitTime'],
             'js_timeout': settings['jsTimeout'],
@@ -322,6 +361,27 @@ class SettingsManager:
             'js_viewport_width': settings['jsViewportWidth'],
             'js_viewport_height': settings['jsViewportHeight'],
             'js_max_concurrent_pages': settings['jsMaxConcurrentPages'],
+
+            # Crawl4AI Anti-Detection
+            'stealth_mode': settings.get('stealthMode', False),
+            'random_user_agent': settings.get('randomUserAgent', False),
+            'override_navigator': settings.get('overrideNavigator', False),
+            'simulate_user': settings.get('simulateUser', False),
+            'magic_mode': settings.get('magicMode', False),
+
+            # Resource Mode
+            'resource_mode': settings.get('resourceMode', 'full'),
+
+            # Wait Strategies
+            'wait_strategy': settings.get('waitStrategy', 'fixed'),
+            'wait_for_selector': settings.get('waitForSelector', ''),
+            'wait_for_expression': settings.get('waitForExpression', ''),
+
+            # Infinite Scroll
+            'scan_full_page': settings.get('scanFullPage', False),
+            'scroll_delay': float(settings.get('scrollDelay', 0.2)),
+            'max_scroll_steps': int(settings.get('maxScrollSteps', 0)),
+
             'issue_exclusion_patterns': [p.strip() for p in settings['issueExclusionPatterns'].split('\n') if p.strip()],
             'enable_duplication_check': settings['enableDuplicationCheck'],
             'duplication_threshold': settings['duplicationThreshold'],
@@ -501,6 +561,37 @@ class SettingsManager:
             'ga4_last_sync_at': settings.get('ga4LastSyncAt', ''),
             'ga4_last_sync_status': settings.get('ga4LastSyncStatus', ''),
             'ga4_last_sync_error': settings.get('ga4LastSyncError', ''),
+
+            # Google Search Console settings
+            'gsc_enabled': settings.get('gscEnabled', False),
+            'gsc_connected': settings.get('gscConnected', False),
+            'gsc_site_url': settings.get('gscSiteUrl', ''),
+            'gsc_site_name': settings.get('gscSiteName', ''),
+            'gsc_date_range_preset': settings.get('gscDateRangePreset', 'last_30_days'),
+            'gsc_date_start': settings.get('gscDateStart', ''),
+            'gsc_date_end': settings.get('gscDateEnd', ''),
+            'gsc_device_filter': settings.get('gscDeviceFilter', 'all'),
+            'gsc_country_filter': settings.get('gscCountryFilter', ''),
+            'gsc_type_filter': settings.get('gscTypeFilter', 'web'),
+            'gsc_query_filter_operator': settings.get('gscQueryFilterOperator', 'none'),
+            'gsc_query_filter_value': settings.get('gscQueryFilterValue', ''),
+            'gsc_match_trailing_slash': settings.get('gscMatchTrailingSlash', True),
+            'gsc_match_case': settings.get('gscMatchCase', False),
+            'gsc_limit_max_results': settings.get('gscLimitMaxResults', True),
+            'gsc_max_results': settings.get('gscMaxResults', 100000),
+            'gsc_crawl_new_urls': settings.get('gscCrawlNewUrls', False),
+            'gsc_enable_url_inspection': settings.get('gscEnableUrlInspection', False),
+            'gsc_ignore_non_indexable_urls': settings.get('gscIgnoreNonIndexableUrls', False),
+            'gsc_use_multiple_properties': settings.get('gscUseMultipleProperties', False),
+            'gsc_inspection_language_code': settings.get('gscInspectionLanguageCode', 'en-US'),
+            'gsc_inspection_max_urls': settings.get('gscInspectionMaxUrls', 200),
+            'gsc_oauth_tokens': settings.get('gscOauthTokens', {}),
+            'gsc_last_sync_at': settings.get('gscLastSyncAt', ''),
+            'gsc_last_sync_status': settings.get('gscLastSyncStatus', ''),
+            'gsc_last_sync_error': settings.get('gscLastSyncError', ''),
+            'gsc_last_inspection_at': settings.get('gscLastInspectionAt', ''),
+            'gsc_last_inspection_status': settings.get('gscLastInspectionStatus', ''),
+            'gsc_last_inspection_error': settings.get('gscLastInspectionError', ''),
         }
 
     def _parse_custom_headers(self, headers_text):

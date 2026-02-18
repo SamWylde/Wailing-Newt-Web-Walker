@@ -39,7 +39,20 @@ let virtualScrollers = {
     external: null,
     internalLinks: null,
     externalLinks: null,
-    issues: null
+    issues: null,
+    pageTitles: null,
+    metaDescription: null,
+    h1: null,
+    h2: null,
+    urlAnalysis: null,
+    canonicals: null,
+    images: null,
+    directives: null,
+    contentTab: null,
+    structuredData: null,
+    hreflang: null,
+    security: null,
+    sitemaps: null
 };
 
 // Tab Configuration System
@@ -344,21 +357,14 @@ async function initializeApp() {
     // Initialize auto-update listener (Electron desktop app only)
     initializeAutoUpdate();
 
-    // DEBUG: Check sessionStorage
-    console.log('DEBUG: Checking sessionStorage force_ui_refresh:', sessionStorage.getItem('force_ui_refresh'));
-
     // Check if we just loaded a crawl from dashboard
     if (sessionStorage.getItem('force_ui_refresh') === 'true') {
-        console.log('DEBUG: Found force_ui_refresh flag, loading crawl data...');
         sessionStorage.removeItem('force_ui_refresh');
 
         try {
             // Fetch the loaded data immediately with FULL refresh (no incremental)
             const response = await fetch('/api/crawl_status');
             const data = await response.json();
-
-            // DEBUG: Log the full response
-            console.log('DEBUG: Full /api/crawl_status response:', JSON.stringify(data, null, 2));
 
             // Clear existing data first
             clearAllTables();
@@ -417,6 +423,9 @@ async function initializeApp() {
             updateCrawlButtons();
             if (window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
                 window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
+            }
+            if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.renderSearchConsoleTab === 'function') {
+                window.SearchConsoleConfig.renderSearchConsoleTab(crawlState.urls, crawlState.stats);
             }
 
             // Check if the crawl is currently running (resumed from dashboard)
@@ -607,6 +616,9 @@ function clearCrawlData() {
     if (window.GA4Config && typeof window.GA4Config.clearAnalyticsTab === 'function') {
         window.GA4Config.clearAnalyticsTab();
     }
+    if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.clearSearchConsoleTab === 'function') {
+        window.SearchConsoleConfig.clearSearchConsoleTab();
+    }
 
     // Notify plugins of data clear (send empty data)
     if (window.WailingNewtPlugin && window.WailingNewtPlugin.loader) {
@@ -648,9 +660,12 @@ function startPythonCrawl(url) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                updateStatus('Crawling in progress...');
+                updateStatus(getCrawlProgressStatusText(crawlState.stats));
                 if (data.ga4_discovery && data.ga4_discovery.urls_added > 0) {
                     showNotification(`GA4 added ${data.ga4_discovery.urls_added} URLs before crawl start`, 'info');
+                }
+                if (data.gsc_discovery && data.gsc_discovery.urls_added > 0) {
+                    showNotification(`Search Console added ${data.gsc_discovery.urls_added} URLs before crawl start`, 'info');
                 }
                 // Refresh user info to update crawl count
                 loadUserInfo();
@@ -697,7 +712,7 @@ function pollCrawlProgress() {
             if (data.is_running_pagespeed) {
                 updateStatus('Running PageSpeed analysis...');
             } else if (data.status === 'running') {
-                updateStatus('Crawling in progress...');
+                updateStatus(getCrawlProgressStatusText(data.stats || crawlState.stats));
             }
 
             // Update visualization if visualization tab is active
@@ -706,7 +721,10 @@ function pollCrawlProgress() {
                 loadVisualizationData();
             }
 
-            if (crawlState.isRunning && data.status !== 'completed') {
+            if (data.status === 'completed' && data.is_running_pagespeed) {
+                // Crawl done but PageSpeed still running — keep polling
+                setTimeout(pollCrawlProgress, 2000);
+            } else if (crawlState.isRunning && data.status !== 'completed') {
                 setTimeout(pollCrawlProgress, 1000); // Poll every second
             } else if (data.status === 'completed') {
                 stopCrawl();
@@ -830,6 +848,9 @@ function updateCrawlData(data) {
     if (window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
         window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
     }
+    if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.renderSearchConsoleTab === 'function') {
+        window.SearchConsoleConfig.renderSearchConsoleTab(crawlState.urls, crawlState.stats);
+    }
 }
 
 function updateProgressText(data) {
@@ -841,16 +862,17 @@ function updateProgressText(data) {
     } else if (data.status === 'completed') {
         statusText.textContent = 'Crawl completed';
     } else if (data.status === 'running') {
-        const stats = data.stats || crawlState.stats;
-        if (stats.crawled === 0) {
-            statusText.textContent = 'Starting crawl...';
-        } else if (stats.discovered > stats.crawled) {
-            statusText.textContent = `Crawling in progress... (${stats.crawled}/${stats.discovered} URLs)`;
-        } else {
-            statusText.textContent = `Finishing up... (${stats.crawled} URLs crawled)`;
-        }
+        statusText.textContent = getCrawlProgressStatusText(data.stats || crawlState.stats);
     }
     // Don't update statusText when not running - let updateStatus handle that
+}
+
+function getCrawlProgressStatusText(stats) {
+    const crawled = Number(stats?.crawled || 0);
+    const discovered = Number(stats?.discovered || 0);
+    const crawledText = Number.isFinite(crawled) ? crawled.toLocaleString() : '0';
+    const discoveredText = Number.isFinite(discovered) ? discovered.toLocaleString() : '0';
+    return `Crawling in progress... Scraped: ${crawledText} URLs | Found: ${discoveredText} URLs`;
 }
 
 function updateStatsDisplay() {
@@ -1147,10 +1169,28 @@ function getColumnValue(urlData, columnId) {
         case 'external_links_count': return urlData.external_links || 0;
         case 'total_links_count': return (urlData.internal_links || 0) + (urlData.external_links || 0);
         case 'images_count': return Array.isArray(urlData.images) ? urlData.images.length : 0;
-        case 'performance_score': return urlData.pagespeed?.performance || '-';
-        case 'lcp': return urlData.pagespeed?.metrics?.largest_contentful_paint || '-';
-        case 'fid': return urlData.pagespeed?.metrics?.first_input_delay || '-';
-        case 'cls': return urlData.pagespeed?.metrics?.cumulative_layout_shift || '-';
+        case 'performance_score':
+            return urlData.pagespeed?.performance_score
+                ?? urlData.pagespeed?.performance
+                ?? urlData.analytics?.pagespeed?.performance_score
+                ?? urlData.analytics?.pagespeed?.performance
+                ?? '-';
+        case 'lcp':
+            return urlData.pagespeed?.metrics?.largest_contentful_paint
+                ?? urlData.analytics?.pagespeed?.metrics?.largest_contentful_paint
+                ?? '-';
+        case 'fid':
+            return urlData.pagespeed?.metrics?.first_input_delay
+                ?? urlData.analytics?.pagespeed?.metrics?.first_input_delay
+                ?? '-';
+        case 'cls':
+            return urlData.pagespeed?.metrics?.cumulative_layout_shift
+                ?? urlData.analytics?.pagespeed?.metrics?.cumulative_layout_shift
+                ?? '-';
+        case 'tbt':
+            return urlData.pagespeed?.metrics?.total_blocking_time
+                ?? urlData.analytics?.pagespeed?.metrics?.total_blocking_time
+                ?? '-';
         case 'ga_id': return urlData.analytics?.ga_id || urlData.analytics?.ga4_id || '-';
         case 'gtm_id': return urlData.analytics?.gtm_id || '-';
         case 'fb_pixel': return urlData.analytics?.facebook_pixel || '-';
@@ -1161,6 +1201,10 @@ function getColumnValue(urlData, columnId) {
         case 'ga4_key_events': return urlData.analytics?.ga4_key_events ?? urlData.analytics?.ga4?.metrics?.keyEvents ?? '-';
         case 'ga4_event_count': return urlData.analytics?.ga4_event_count ?? urlData.analytics?.ga4?.metrics?.eventCount ?? '-';
         case 'ga4_total_revenue': return urlData.analytics?.ga4_total_revenue ?? urlData.analytics?.ga4?.metrics?.totalRevenue ?? '-';
+        case 'sc_clicks': return urlData.analytics?.sc_clicks ?? urlData.analytics?.search_console?.metrics?.clicks ?? '-';
+        case 'sc_impressions': return urlData.analytics?.sc_impressions ?? urlData.analytics?.search_console?.metrics?.impressions ?? '-';
+        case 'sc_ctr': return urlData.analytics?.sc_ctr ?? urlData.analytics?.search_console?.metrics?.ctr ?? '-';
+        case 'sc_position': return urlData.analytics?.sc_position ?? urlData.analytics?.search_console?.metrics?.position ?? '-';
         case 'json_ld_count': return Array.isArray(urlData.json_ld) ? urlData.json_ld.length : 0;
         case 'in_sitemap': return urlData.in_sitemap ? 'Yes' : 'No';
         default:
@@ -1259,6 +1303,33 @@ function initializeVirtualScrollers() {
             });
             console.log('Link Health virtual scroller initialized');
         }
+
+        // SEO Analysis tabs
+        const seoTabScrollers = [
+            { key: 'pageTitles', selector: '#page-titles-tab .table-container', render: renderPageTitlesRow },
+            { key: 'metaDescription', selector: '#meta-description-tab .table-container', render: renderMetaDescriptionRow },
+            { key: 'h1', selector: '#h1-tab .table-container', render: renderH1Row },
+            { key: 'h2', selector: '#h2-tab .table-container', render: renderH2Row },
+            { key: 'urlAnalysis', selector: '#url-tab .table-container', render: renderUrlAnalysisRow },
+            { key: 'canonicals', selector: '#canonicals-tab .table-container', render: renderCanonicalsRow },
+            { key: 'images', selector: '#images-tab .table-container', render: renderImagesRow },
+            { key: 'directives', selector: '#directives-tab .table-container', render: renderDirectivesRow },
+            { key: 'contentTab', selector: '#content-tab .table-container', render: renderContentTabRow },
+            { key: 'structuredData', selector: '#structured-data-tab .table-container', render: renderStructuredDataRow },
+            { key: 'hreflang', selector: '#hreflang-tab .table-container', render: renderHreflangRow },
+            { key: 'security', selector: '#security-tab .table-container', render: renderSecurityRow },
+            { key: 'sitemaps', selector: '#sitemaps-tab .table-container', render: renderSitemapsRow }
+        ];
+        seoTabScrollers.forEach(({ key, selector, render }) => {
+            const container = document.querySelector(selector);
+            if (container && container.querySelector('tbody')) {
+                virtualScrollers[key] = new VirtualScroller(container, {
+                    rowHeight: 80,
+                    buffer: 25,
+                    renderRow: render
+                });
+            }
+        });
     } catch (error) {
         console.error('Error initializing virtual scrollers:', error);
     }
@@ -1478,9 +1549,29 @@ function clearAllTables() {
         virtualScrollers.issues.clear();
     }
 
+    // Clear SEO analysis tabs
+    const seoScrollerKeys = [
+        'pageTitles', 'metaDescription', 'h1', 'h2', 'urlAnalysis',
+        'canonicals', 'images', 'directives', 'contentTab',
+        'structuredData', 'hreflang', 'security', 'sitemaps'
+    ];
+    seoScrollerKeys.forEach(key => {
+        if (virtualScrollers[key]) virtualScrollers[key].clear();
+    });
+
     // Clear status codes table (not virtualized)
     const statusCodesBody = document.getElementById('statusCodesTableBody');
     if (statusCodesBody) statusCodesBody.innerHTML = '';
+
+    const pageSpeedContainer = document.getElementById('pagespeedResults');
+    if (pageSpeedContainer) {
+        pageSpeedContainer.innerHTML = `
+            <div class="pagespeed-placeholder">
+                <p>PageSpeed analysis will appear here after crawl completion.</p>
+                <p>Enable PageSpeed Analysis in settings to get Core Web Vitals and performance scores.</p>
+            </div>
+        `;
+    }
 
     crawlState.urls = [];
 
@@ -1525,6 +1616,19 @@ function addUrlToTable(urlData) {
 
     if (virtualScrollers.linkHealth) {
         virtualScrollers.linkHealth.appendData([urlData]);
+    }
+
+    // SEO analysis tabs — only internal HTML pages
+    const isHtmlPage = urlData.is_internal && (urlData.content_type || '').includes('text/html');
+    if (isHtmlPage) {
+        const seoScrollerKeys = [
+            'pageTitles', 'metaDescription', 'h1', 'h2', 'urlAnalysis',
+            'canonicals', 'images', 'directives', 'contentTab',
+            'structuredData', 'hreflang', 'security', 'sitemaps'
+        ];
+        seoScrollerKeys.forEach(key => {
+            if (virtualScrollers[key]) virtualScrollers[key].appendData([urlData]);
+        });
     }
 
     // Reapply current filter if one is active
@@ -1575,6 +1679,9 @@ function switchTab(tabName) {
 
     if (tabName === 'analytics' && window.GA4Config && typeof window.GA4Config.renderAnalyticsTab === 'function') {
         window.GA4Config.renderAnalyticsTab(crawlState.urls, crawlState.stats);
+    }
+    if (tabName === 'search-console' && window.SearchConsoleConfig && typeof window.SearchConsoleConfig.renderSearchConsoleTab === 'function') {
+        window.SearchConsoleConfig.renderSearchConsoleTab(crawlState.urls, crawlState.stats);
     }
 
     // Initialize visualization if switching to Visualization tab
@@ -2369,6 +2476,56 @@ function populateUrlDetailsPanel(urlData) {
         if (analyticsItems.length > 0) {
             details.push({ property: 'Analytics', value: analyticsItems.join(', '), notes: '' });
         }
+
+        const scMetrics = urlData.analytics.search_console?.metrics || {};
+        if (Object.keys(scMetrics).length > 0 || urlData.analytics.sc_clicks !== undefined) {
+            const clicks = urlData.analytics.sc_clicks ?? scMetrics.clicks ?? '-';
+            const impressions = urlData.analytics.sc_impressions ?? scMetrics.impressions ?? '-';
+            const ctr = urlData.analytics.sc_ctr ?? scMetrics.ctr ?? '-';
+            const position = urlData.analytics.sc_position ?? scMetrics.position ?? '-';
+            details.push({ property: 'Search Console Clicks', value: clicks, notes: '' });
+            details.push({ property: 'Search Console Impressions', value: impressions, notes: '' });
+            details.push({ property: 'Search Console CTR', value: ctr, notes: '' });
+            details.push({ property: 'Search Console Position', value: position, notes: '' });
+        }
+
+        const inspection = urlData.analytics.search_console?.inspection;
+        if (inspection && typeof inspection === 'object') {
+            details.push({
+                property: 'Search Console Inspection',
+                value: inspection.status || '-',
+                notes: inspection.verdict || inspection.error || ''
+            });
+            if (inspection.coverage_state) {
+                details.push({ property: 'Inspection Coverage', value: inspection.coverage_state, notes: '' });
+            }
+            if (inspection.indexing_state) {
+                details.push({ property: 'Inspection Indexing', value: inspection.indexing_state, notes: '' });
+            }
+            if (inspection.google_canonical) {
+                details.push({ property: 'Google Canonical', value: inspection.google_canonical, notes: '' });
+            }
+            if (inspection.user_canonical) {
+                details.push({ property: 'User Canonical', value: inspection.user_canonical, notes: '' });
+            }
+        }
+
+        const pageSpeed = (urlData.pagespeed && typeof urlData.pagespeed === 'object')
+            ? urlData.pagespeed
+            : (urlData.analytics.pagespeed && typeof urlData.analytics.pagespeed === 'object' ? urlData.analytics.pagespeed : {});
+        const pageSpeedMetrics = pageSpeed.metrics || {};
+        if (Object.keys(pageSpeedMetrics).length > 0 || pageSpeed.performance_score !== undefined) {
+            const strategy = pageSpeed.strategy || '-';
+            const score = pageSpeed.performance_score ?? pageSpeed.performance ?? '-';
+            details.push({ property: 'PageSpeed Strategy', value: strategy, notes: '' });
+            details.push({ property: 'PageSpeed Score', value: score, notes: '' });
+            details.push({ property: 'PageSpeed LCP', value: pageSpeedMetrics.largest_contentful_paint ?? '-', notes: '' });
+            details.push({ property: 'PageSpeed CLS', value: pageSpeedMetrics.cumulative_layout_shift ?? '-', notes: '' });
+            details.push({ property: 'PageSpeed TBT', value: pageSpeedMetrics.total_blocking_time ?? '-', notes: '' });
+            if (pageSpeed.updated_at) {
+                details.push({ property: 'PageSpeed Updated At', value: pageSpeed.updated_at, notes: '' });
+            }
+        }
     }
 
     // Add OG tags count
@@ -2440,7 +2597,16 @@ function formatBytes(bytes) {
 
 function displayPageSpeedResults(results) {
     const container = document.getElementById('pagespeedResults');
-    if (!container || !results || results.length === 0) {
+    if (!container) {
+        return;
+    }
+    if (!results || results.length === 0) {
+        container.innerHTML = `
+            <div class="pagespeed-placeholder">
+                <p>No PageSpeed results yet.</p>
+                <p>Run a crawl with PageSpeed enabled to populate this tab.</p>
+            </div>
+        `;
         return;
     }
 
@@ -2450,85 +2616,75 @@ function displayPageSpeedResults(results) {
         const pageCard = document.createElement('div');
         pageCard.className = 'pagespeed-page-card';
 
-        const mobile = pageResult.mobile || {};
-        const desktop = pageResult.desktop || {};
+        const orderedDevices = ['mobile', 'desktop']
+            .filter((device) => pageResult[device] !== undefined)
+            .concat(
+                Object.keys(pageResult).filter((key) => key !== 'url' && key !== 'analysis_date' && !['mobile', 'desktop'].includes(key))
+            );
+        const devicesToRender = orderedDevices.length > 0 ? orderedDevices : ['mobile', 'desktop'];
+
+        const renderDeviceBlock = (device) => {
+            const result = pageResult[device] || {};
+            const label = device === 'mobile'
+                ? 'Mobile'
+                : (device === 'desktop' ? 'Desktop' : device);
+            const safeLabel = escapeHtml(label);
+
+            if (!result.success) {
+                return `
+                    <div class="pagespeed-device-result">
+                        <h5>${safeLabel}</h5>
+                        <div class="pagespeed-error">
+                            Error: ${escapeHtml(result.error || 'Analysis failed')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="pagespeed-device-result">
+                    <h5>${safeLabel}</h5>
+                    <div class="pagespeed-score ${getScoreClass(result.performance_score)}">
+                        ${result.performance_score || 'N/A'}
+                    </div>
+                    <div class="pagespeed-metrics">
+                        <div class="metric">
+                            <span class="metric-label">FCP:</span>
+                            <span class="metric-value">${result.metrics?.first_contentful_paint || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">LCP:</span>
+                            <span class="metric-value">${result.metrics?.largest_contentful_paint || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">CLS:</span>
+                            <span class="metric-value">${result.metrics?.cumulative_layout_shift || 'N/A'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">SI:</span>
+                            <span class="metric-value">${result.metrics?.speed_index || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">TTI:</span>
+                            <span class="metric-value">${result.metrics?.time_to_interactive || 'N/A'}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">TBT:</span>
+                            <span class="metric-value">${result.metrics?.total_blocking_time || 'N/A'}ms</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
 
         pageCard.innerHTML = `
             <div class="pagespeed-page-header">
-                <h4 class="pagespeed-page-url">${pageResult.url}</h4>
-                <span class="pagespeed-analysis-date">Analyzed: ${pageResult.analysis_date}</span>
+                <h4 class="pagespeed-page-url">${escapeHtml(pageResult.url || '')}</h4>
+                <span class="pagespeed-analysis-date">Analyzed: ${escapeHtml(pageResult.analysis_date || '')}</span>
             </div>
 
             <div class="pagespeed-results-grid">
-                <div class="pagespeed-device-result">
-                    <h5>📱 Mobile</h5>
-                    ${mobile.success ? `
-                        <div class="pagespeed-score ${getScoreClass(mobile.performance_score)}">
-                            ${mobile.performance_score || 'N/A'}
-                        </div>
-                        <div class="pagespeed-metrics">
-                            <div class="metric">
-                                <span class="metric-label">FCP:</span>
-                                <span class="metric-value">${mobile.metrics?.first_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">LCP:</span>
-                                <span class="metric-value">${mobile.metrics?.largest_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">CLS:</span>
-                                <span class="metric-value">${mobile.metrics?.cumulative_layout_shift || 'N/A'}</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">SI:</span>
-                                <span class="metric-value">${mobile.metrics?.speed_index || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">TTI:</span>
-                                <span class="metric-value">${mobile.metrics?.time_to_interactive || 'N/A'}s</span>
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="pagespeed-error">
-                            Error: ${mobile.error || 'Analysis failed'}
-                        </div>
-                    `}
-                </div>
-
-                <div class="pagespeed-device-result">
-                    <h5>🖥️ Desktop</h5>
-                    ${desktop.success ? `
-                        <div class="pagespeed-score ${getScoreClass(desktop.performance_score)}">
-                            ${desktop.performance_score || 'N/A'}
-                        </div>
-                        <div class="pagespeed-metrics">
-                            <div class="metric">
-                                <span class="metric-label">FCP:</span>
-                                <span class="metric-value">${desktop.metrics?.first_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">LCP:</span>
-                                <span class="metric-value">${desktop.metrics?.largest_contentful_paint || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">CLS:</span>
-                                <span class="metric-value">${desktop.metrics?.cumulative_layout_shift || 'N/A'}</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">SI:</span>
-                                <span class="metric-value">${desktop.metrics?.speed_index || 'N/A'}s</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">TTI:</span>
-                                <span class="metric-value">${desktop.metrics?.time_to_interactive || 'N/A'}s</span>
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="pagespeed-error">
-                            Error: ${desktop.error || 'Analysis failed'}
-                        </div>
-                    `}
-                </div>
+                ${devicesToRender.map((device) => renderDeviceBlock(device)).join('')}
             </div>
         `;
 
@@ -2981,6 +3137,246 @@ function renderLinkHealthRow(row, urlData, index) {
     `;
 }
 
+// ========================
+// SEO Analysis Tab Renderers
+// ========================
+
+function renderPageTitlesRow(row, urlData, index) {
+    const title = urlData.title || '';
+    const length = title.length;
+    let status = '';
+    if (!title) status = '<span class="status-badge status-error">Missing</span>';
+    else if (length > 60) status = '<span class="status-badge status-warning">Too Long</span>';
+    else if (length < 30) status = '<span class="status-badge status-warning">Too Short</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+        <td>${length}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderMetaDescriptionRow(row, urlData, index) {
+    const desc = urlData.meta_description || '';
+    const length = desc.length;
+    let status = '';
+    if (!desc) status = '<span class="status-badge status-error">Missing</span>';
+    else if (length > 155) status = '<span class="status-badge status-warning">Too Long</span>';
+    else if (length < 70) status = '<span class="status-badge status-warning">Too Short</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td title="${escapeHtml(desc)}">${escapeHtml(desc.substring(0, 80))}${desc.length > 80 ? '...' : ''}</td>
+        <td>${length}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderH1Row(row, urlData, index) {
+    const h1 = urlData.h1 || '';
+    const length = h1.length;
+    let status = '';
+    if (!h1) status = '<span class="status-badge status-error">Missing</span>';
+    else if (length > 70) status = '<span class="status-badge status-warning">Too Long</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td title="${escapeHtml(h1)}">${escapeHtml(h1)}</td>
+        <td>${length}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderH2Row(row, urlData, index) {
+    const h2s = Array.isArray(urlData.h2) ? urlData.h2 : [];
+    const count = h2s.length;
+    const firstH2 = h2s[0] || '';
+    let status = count === 0
+        ? '<span class="status-badge status-warning">None</span>'
+        : '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td title="${escapeHtml(firstH2)}">${escapeHtml(firstH2)}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderUrlAnalysisRow(row, urlData, index) {
+    const url = urlData.url || '';
+    const length = url.length;
+    const hasParams = url.includes('?');
+    let status = '';
+    if (length > 115) status = '<span class="status-badge status-warning">Too Long</span>';
+    else if (hasParams) status = '<span class="status-badge status-info">Has Parameters</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(url)}">${escapeHtml(url)}</td>
+        <td>${length}</td>
+        <td>${urlData.depth || 0}</td>
+        <td>${hasParams ? 'Yes' : 'No'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderCanonicalsRow(row, urlData, index) {
+    const canonical = urlData.canonical_url || '';
+    let status = '';
+    if (!canonical) status = '<span class="status-badge status-warning">Missing</span>';
+    else if (canonical === urlData.url) status = '<span class="status-badge status-good">Self-Referencing</span>';
+    else status = '<span class="status-badge status-info">Points Elsewhere</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td class="url-cell" title="${escapeHtml(canonical)}">${escapeHtml(canonical)}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderImagesRow(row, urlData, index) {
+    const images = Array.isArray(urlData.images) ? urlData.images : [];
+    const count = images.length;
+    const missingAlt = images.filter(img => !img.alt || img.alt.trim() === '').length;
+    let status = '';
+    if (count === 0) status = '<span class="status-badge status-info">No Images</span>';
+    else if (missingAlt > 0) status = `<span class="status-badge status-warning">${missingAlt} Missing Alt</span>`;
+    else status = '<span class="status-badge status-good">All Have Alt</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td>${missingAlt}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderDirectivesRow(row, urlData, index) {
+    const robots = urlData.robots || '';
+    let status = '';
+    if (!robots) status = '<span class="status-badge status-info">None</span>';
+    else if (robots.toLowerCase().includes('noindex')) status = '<span class="status-badge status-error">Noindex</span>';
+    else if (robots.toLowerCase().includes('nofollow')) status = '<span class="status-badge status-warning">Nofollow</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${escapeHtml(robots) || '-'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderContentTabRow(row, urlData, index) {
+    const wordCount = urlData.word_count || 0;
+    const readingTime = Math.max(1, Math.round(wordCount / 200));
+    let status = '';
+    if (wordCount === 0) status = '<span class="status-badge status-error">No Content</span>';
+    else if (wordCount < 200) status = '<span class="status-badge status-warning">Thin</span>';
+    else status = '<span class="status-badge status-good">OK</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${wordCount}</td>
+        <td>${readingTime} min</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderStructuredDataRow(row, urlData, index) {
+    const jsonLd = Array.isArray(urlData.json_ld) ? urlData.json_ld : [];
+    const count = jsonLd.length;
+    const types = jsonLd
+        .map(item => (typeof item === 'object' && item['@type']) ? item['@type'] : '')
+        .filter(Boolean)
+        .join(', ');
+    let status = count === 0
+        ? '<span class="status-badge status-info">None</span>'
+        : '<span class="status-badge status-good">' + count + ' Found</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td title="${escapeHtml(types)}">${escapeHtml(types) || '-'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderHreflangRow(row, urlData, index) {
+    const hreflang = Array.isArray(urlData.hreflang) ? urlData.hreflang : [];
+    const count = hreflang.length;
+    const langs = hreflang
+        .map(h => h.hreflang || h.lang || '')
+        .filter(Boolean)
+        .join(', ');
+    let status = count === 0
+        ? '<span class="status-badge status-info">None</span>'
+        : '<span class="status-badge status-good">' + count + ' Languages</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${count}</td>
+        <td title="${escapeHtml(langs)}">${escapeHtml(langs) || '-'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderSecurityRow(row, urlData, index) {
+    const isHttps = (urlData.url || '').startsWith('https://');
+    const status = isHttps
+        ? '<span class="status-badge status-good">Secure</span>'
+        : '<span class="status-badge status-error">Not Secure</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${isHttps ? 'HTTPS' : 'HTTP'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
+function renderSitemapsRow(row, urlData, index) {
+    const inSitemap = urlData.in_sitemap ? true : false;
+    const status = inSitemap
+        ? '<span class="status-badge status-good">In Sitemap</span>'
+        : '<span class="status-badge status-info">Not in Sitemap</span>';
+
+    row.innerHTML = `
+        <td class="url-cell" title="${escapeHtml(urlData.url)}">${escapeHtml(urlData.url)}</td>
+        <td>${inSitemap ? 'Yes' : 'No'}</td>
+        <td>${status}</td>
+    `;
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => selectUrlRow(row, urlData));
+}
+
 // New Tab Helpers
 function isContentAnalysisTabActive() {
     const tab = document.getElementById('content-analysis-tab');
@@ -3376,9 +3772,12 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                updateStatus('Crawling in progress...');
+                updateStatus(getCrawlProgressStatusText(crawlState.stats));
                 if (data.ga4_discovery && data.ga4_discovery.urls_added > 0) {
                     showNotification(`GA4 added ${data.ga4_discovery.urls_added} URLs before crawl start`, 'info');
+                }
+                if (data.gsc_discovery && data.gsc_discovery.urls_added > 0) {
+                    showNotification(`Search Console added ${data.gsc_discovery.urls_added} URLs before crawl start`, 'info');
                 }
                 loadUserInfo();
                 pollCrawlProgress();
@@ -3397,7 +3796,8 @@ function startCrawlWithExtraUrls(baseUrl, extraUrls) {
 function toggleCrawlConfigJSSettings(isEnabled) {
     const jsSettingsGroups = [
         'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning',
+        'antiDetectionGroup', 'waitStrategyGroup', 'resourceModeGroup', 'infiniteScrollGroup'
     ];
 
     jsSettingsGroups.forEach(groupId => {
@@ -3405,6 +3805,21 @@ function toggleCrawlConfigJSSettings(isEnabled) {
         if (group) {
             group.style.display = isEnabled ? 'block' : 'none';
         }
+    });
+}
+
+function toggleWaitStrategyFields(strategy) {
+    const selectorGroup = document.getElementById('waitForSelectorGroup');
+    const expressionGroup = document.getElementById('waitForExpressionGroup');
+    if (selectorGroup) selectorGroup.style.display = strategy === 'css' ? 'block' : 'none';
+    if (expressionGroup) expressionGroup.style.display = strategy === 'js' ? 'block' : 'none';
+}
+
+function toggleScrollSettings(isEnabled) {
+    const groups = ['scrollDelayGroup', 'maxScrollStepsGroup'];
+    groups.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isEnabled ? 'block' : 'none';
     });
 }
 
@@ -3509,6 +3924,12 @@ function showConfigPanel(panelId) {
     if (panelId === 'google-analytics' && window.GA4Config && typeof window.GA4Config.onPanelVisible === 'function') {
         window.GA4Config.onPanelVisible();
     }
+    if (panelId === 'search-console' && window.SearchConsoleConfig && typeof window.SearchConsoleConfig.onPanelVisible === 'function') {
+        window.SearchConsoleConfig.onPanelVisible();
+    }
+    if (panelId === 'pagespeed' && window.PageSpeedConfig && typeof window.PageSpeedConfig.onPanelVisible === 'function') {
+        window.PageSpeedConfig.onPanelVisible();
+    }
 }
 
 function filterConfigItems() {
@@ -3573,6 +3994,29 @@ function loadCrawlConfigValues() {
         setValue('jsViewportWidth', 'jsViewportWidth', '1920');
         setValue('jsViewportHeight', 'jsViewportHeight', '1080');
         setValue('jsMaxConcurrentPages', 'jsMaxConcurrentPages', '3');
+
+        // Crawl4AI Anti-Detection
+        setCheckbox('stealthMode', 'stealthMode');
+        setCheckbox('randomUserAgent', 'randomUserAgent');
+        setCheckbox('overrideNavigator', 'overrideNavigator');
+        setCheckbox('simulateUser', 'simulateUser');
+        setCheckbox('magicMode', 'magicMode');
+
+        // Wait Strategy
+        setValue('waitStrategy', 'waitStrategy', 'fixed');
+        setValue('waitForSelector', 'waitForSelector');
+        setValue('waitForExpression', 'waitForExpression');
+        // Set initial visibility
+        toggleWaitStrategyFields(currentSettings.waitStrategy || 'fixed');
+
+        // Resource Mode
+        setValue('resourceMode', 'resourceMode', 'full');
+
+        // Infinite Scroll
+        setCheckbox('scanFullPage', 'scanFullPage');
+        setValue('scrollDelay', 'scrollDelay', '0.2');
+        setValue('maxScrollSteps', 'maxScrollSteps', '0');
+        toggleScrollSettings(currentSettings.scanFullPage || false);
 
         // Crawl Panel - Resource Links
         setCheckbox('crawlImages', 'crawlImages', true);
@@ -3749,6 +4193,12 @@ function loadCrawlConfigValues() {
         if (window.GA4Config && typeof window.GA4Config.loadFromSettings === 'function') {
             window.GA4Config.loadFromSettings(currentSettings);
         }
+        if (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.loadFromSettings === 'function') {
+            window.SearchConsoleConfig.loadFromSettings(currentSettings);
+        }
+        if (window.PageSpeedConfig && typeof window.PageSpeedConfig.loadFromSettings === 'function') {
+            window.PageSpeedConfig.loadFromSettings(currentSettings);
+        }
     }
 }
 
@@ -3785,6 +4235,26 @@ function saveCrawlConfig() {
     const jsViewportWidth = parseInt(document.getElementById('jsViewportWidth')?.value) || 1920;
     const jsViewportHeight = parseInt(document.getElementById('jsViewportHeight')?.value) || 1080;
     const jsMaxConcurrentPages = parseInt(document.getElementById('jsMaxConcurrentPages')?.value) || 3;
+
+    // Crawl4AI - Anti-Detection
+    const stealthMode = document.getElementById('stealthMode')?.checked || false;
+    const randomUserAgent = document.getElementById('randomUserAgent')?.checked || false;
+    const overrideNavigator = document.getElementById('overrideNavigator')?.checked || false;
+    const simulateUser = document.getElementById('simulateUser')?.checked || false;
+    const magicMode = document.getElementById('magicMode')?.checked || false;
+
+    // Crawl4AI - Wait Strategy
+    const waitStrategy = document.getElementById('waitStrategy')?.value || 'fixed';
+    const waitForSelector = document.getElementById('waitForSelector')?.value || '';
+    const waitForExpression = document.getElementById('waitForExpression')?.value || '';
+
+    // Crawl4AI - Resource Mode
+    const resourceMode = document.getElementById('resourceMode')?.value || 'full';
+
+    // Crawl4AI - Infinite Scroll
+    const scanFullPage = document.getElementById('scanFullPage')?.checked || false;
+    const scrollDelay = parseFloat(document.getElementById('scrollDelay')?.value) || 0.2;
+    const maxScrollSteps = parseInt(document.getElementById('maxScrollSteps')?.value) || 0;
 
     // Crawl Panel - Resource Links
     const crawlImages = document.getElementById('crawlImages')?.checked !== false;
@@ -3916,6 +4386,12 @@ function saveCrawlConfig() {
     const ga4Settings = (window.GA4Config && typeof window.GA4Config.collectSettings === 'function')
         ? window.GA4Config.collectSettings()
         : {};
+    const gscSettings = (window.SearchConsoleConfig && typeof window.SearchConsoleConfig.collectSettings === 'function')
+        ? window.SearchConsoleConfig.collectSettings()
+        : {};
+    const psSettings = (window.PageSpeedConfig && typeof window.PageSpeedConfig.collectSettings === 'function')
+        ? window.PageSpeedConfig.collectSettings()
+        : {};
 
     const backendSettings = {
         // Speed settings - map maxThreads to concurrency
@@ -3956,6 +4432,18 @@ function saveCrawlConfig() {
         jsViewportWidth: jsViewportWidth,
         jsViewportHeight: jsViewportHeight,
         jsMaxConcurrentPages: jsMaxConcurrentPages,
+
+        // Crawl4AI - Anti-Detection
+        stealthMode, randomUserAgent, overrideNavigator, simulateUser, magicMode,
+
+        // Crawl4AI - Wait Strategy
+        waitStrategy, waitForSelector, waitForExpression,
+
+        // Crawl4AI - Resource Mode
+        resourceMode,
+
+        // Crawl4AI - Infinite Scroll
+        scanFullPage, scrollDelay, maxScrollSteps,
 
         // Crawl Panel - Resource Links
         crawlImages, storeImages, crawlMedia, storeMedia,
@@ -4025,7 +4513,11 @@ function saveCrawlConfig() {
         excludePatterns: document.getElementById('excludePatterns')?.value || '',
 
         // GA4 settings
-        ...ga4Settings
+        ...ga4Settings,
+        // Search Console settings
+        ...gscSettings,
+        // PageSpeed settings
+        ...psSettings
     };
 
     // Save HTTP headers and content area separately
@@ -5315,4 +5807,5 @@ function testExcludeUrl() {
         `;
     }
 }
+
 

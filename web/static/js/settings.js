@@ -10,6 +10,7 @@ function publishCurrentSettings() {
 function sanitizeSettingsForClient(settings) {
     const sanitized = { ...settings };
     delete sanitized.ga4OauthTokens;
+    delete sanitized.gscOauthTokens;
     return sanitized;
 }
 
@@ -47,6 +48,24 @@ let defaultSettings = {
     discoverSitemaps: true,
     enablePageSpeed: false,
     googleApiKey: '',
+    pagespeedEnabled: false,
+    pagespeedConnected: false,
+    pagespeedSource: 'remote',
+    pagespeedApiKey: '',
+    pagespeedAutoConnect: true,
+    pagespeedSelectedDevices: ['mobile', 'desktop'],
+    pagespeedSelectedMetricGroups: [
+        'overview',
+        'crux_metrics',
+        'lighthouse_metrics',
+        'insights',
+        'diagnostics',
+        'mobile_friendly',
+        'accessibility'
+    ],
+    pagespeedLastSyncAt: '',
+    pagespeedLastSyncStatus: '',
+    pagespeedLastSyncError: '',
 
     // Filter settings
     includeExtensions: 'html,htm,php,asp,aspx,jsp',
@@ -166,6 +185,36 @@ let defaultSettings = {
     ga4LastSyncStatus: '',
     ga4LastSyncError: '',
 
+    // Google Search Console (GSC)
+    gscEnabled: false,
+    gscConnected: false,
+    gscSiteUrl: '',
+    gscSiteName: '',
+    gscDateRangePreset: 'last_30_days',
+    gscDateStart: '',
+    gscDateEnd: '',
+    gscDeviceFilter: 'all',
+    gscCountryFilter: '',
+    gscTypeFilter: 'web',
+    gscQueryFilterOperator: 'none',
+    gscQueryFilterValue: '',
+    gscMatchTrailingSlash: true,
+    gscMatchCase: false,
+    gscLimitMaxResults: true,
+    gscMaxResults: 100000,
+    gscCrawlNewUrls: false,
+    gscEnableUrlInspection: false,
+    gscIgnoreNonIndexableUrls: false,
+    gscUseMultipleProperties: false,
+    gscInspectionLanguageCode: 'en-US',
+    gscInspectionMaxUrls: 200,
+    gscLastSyncAt: '',
+    gscLastSyncStatus: '',
+    gscLastSyncError: '',
+    gscLastInspectionAt: '',
+    gscLastInspectionStatus: '',
+    gscLastInspectionError: '',
+
     // Limits Panel
     limitCrawlTotal: true,
     limitCrawlTotalValue: 500,
@@ -242,6 +291,26 @@ let defaultSettings = {
     jsViewportWidth: 1920,
     jsViewportHeight: 1080,
     jsMaxConcurrentPages: 3,
+
+    // Crawl4AI - Anti-Detection
+    stealthMode: false,
+    randomUserAgent: false,
+    overrideNavigator: false,
+    simulateUser: false,
+    magicMode: false,
+
+    // Crawl4AI - Wait Strategy
+    waitStrategy: 'fixed',
+    waitForSelector: '',
+    waitForExpression: '',
+
+    // Crawl4AI - Resource Mode
+    resourceMode: 'full',
+
+    // Crawl4AI - Infinite Scroll
+    scanFullPage: false,
+    scrollDelay: 0.2,
+    maxScrollSteps: 0,
 
     // Custom CSS styling
     customCSS: '',
@@ -499,7 +568,8 @@ function setupSettingsEventHandlers() {
         enableJavaScriptCheckbox.addEventListener('change', function () {
             const jsSettingsGroups = [
                 'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-                'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+                'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning',
+                'antiDetectionGroup', 'waitStrategyGroup', 'resourceModeGroup', 'infiniteScrollGroup'
             ];
 
             jsSettingsGroups.forEach(groupId => {
@@ -737,7 +807,8 @@ function populateSettingsForm() {
     const enableJavaScript = currentSettings.enableJavaScript;
     const jsSettingsGroups = [
         'jsSettings', 'jsTimeoutGroup', 'jsBrowserGroup', 'jsHeadlessGroup',
-        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning'
+        'jsUserAgentGroup', 'jsViewportGroup', 'jsConcurrencyGroup', 'jsWarning',
+        'antiDetectionGroup', 'waitStrategyGroup', 'resourceModeGroup', 'infiniteScrollGroup'
     ];
 
     jsSettingsGroups.forEach(groupId => {
@@ -761,6 +832,10 @@ function collectSettingsFromForm() {
         'exportFormat', 'concurrency', 'memoryLimit', 'logLevel', 'saveSession',
         'enableProxy', 'proxyUrl', 'customHeaders',
         'enableJavaScript', 'jsWaitTime', 'jsTimeout', 'jsBrowser', 'jsHeadless', 'jsUserAgent', 'jsViewportWidth', 'jsViewportHeight', 'jsMaxConcurrentPages',
+        'stealthMode', 'randomUserAgent', 'overrideNavigator', 'simulateUser', 'magicMode',
+        'waitStrategy', 'waitForSelector', 'waitForExpression',
+        'resourceMode',
+        'scanFullPage', 'scrollDelay', 'maxScrollSteps',
         'customCSS', 'issueExclusionPatterns'
     ];
 

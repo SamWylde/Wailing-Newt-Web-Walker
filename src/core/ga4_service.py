@@ -192,39 +192,172 @@ class GA4Service:
         return f"properties/{property_id}"
 
     @staticmethod
-    def _resolve_oauth_credentials():
+    def _get_env_oauth_credentials():
         client_id = os.getenv("GA4_OAUTH_CLIENT_ID", "").strip()
         client_secret = os.getenv("GA4_OAUTH_CLIENT_SECRET", "").strip()
         redirect_uri = os.getenv("GA4_OAUTH_REDIRECT_URI", "").strip()
-
-        if client_id and client_secret and redirect_uri:
-            return {
+        has_any = bool(client_id or client_secret or redirect_uri)
+        has_all = bool(client_id and client_secret and redirect_uri)
+        credentials = None
+        if has_all:
+            credentials = {
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "redirect_uri": redirect_uri,
             }
+        return {
+            "credentials": credentials,
+            "has_any": has_any,
+            "has_all": has_all,
+        }
 
-        if GA4_LOCAL_OAUTH_CONFIG.exists():
-            try:
-                with open(GA4_LOCAL_OAUTH_CONFIG, "r", encoding="utf-8") as fh:
-                    data = json.load(fh)
-                local_client_id = str(data.get("client_id", "")).strip()
-                local_client_secret = str(data.get("client_secret", "")).strip()
-                local_redirect_uri = str(data.get("redirect_uri", "")).strip()
-                if local_client_id and local_client_secret and local_redirect_uri:
-                    return {
-                        "client_id": local_client_id,
-                        "client_secret": local_client_secret,
-                        "redirect_uri": local_redirect_uri,
-                    }
-            except Exception as exc:
-                raise GA4ServiceError(f"Invalid ga4_oauth.local.json: {exc}") from exc
+    @staticmethod
+    def _read_local_oauth_credentials():
+        if not GA4_LOCAL_OAUTH_CONFIG.exists():
+            return {"credentials": None, "error": "", "exists": False}
+
+        try:
+            with open(GA4_LOCAL_OAUTH_CONFIG, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except Exception as exc:
+            return {"credentials": None, "error": f"Invalid ga4_oauth.local.json: {exc}", "exists": True}
+
+        local_client_id = str(data.get("client_id", "")).strip()
+        local_client_secret = str(data.get("client_secret", "")).strip()
+        local_redirect_uri = str(data.get("redirect_uri", "")).strip()
+        if local_client_id and local_client_secret and local_redirect_uri:
+            return {
+                "credentials": {
+                    "client_id": local_client_id,
+                    "client_secret": local_client_secret,
+                    "redirect_uri": local_redirect_uri,
+                },
+                "error": "",
+                "exists": True,
+            }
+
+        return {
+            "credentials": None,
+            "error": (
+                "ga4_oauth.local.json exists but is missing one or more required values: "
+                "client_id, client_secret, redirect_uri."
+            ),
+            "exists": True,
+        }
+
+    @classmethod
+    def _resolve_oauth_credentials(cls):
+        env_info = cls._get_env_oauth_credentials()
+        if env_info["credentials"]:
+            return env_info["credentials"]
+
+        local_info = cls._read_local_oauth_credentials()
+        if local_info["credentials"]:
+            return local_info["credentials"]
+
+        if local_info["error"]:
+            raise GA4ServiceError(local_info["error"])
 
         raise GA4ServiceError(
-            "Google Analytics OAuth credentials are missing. Set GA4_OAUTH_CLIENT_ID, "
-            "GA4_OAUTH_CLIENT_SECRET, and GA4_OAUTH_REDIRECT_URI in .env, or create "
-            "ga4_oauth.local.json in the project root."
+            "Google Analytics is not set up yet. Use Crawl Config > API Access > Google Analytics "
+            "to enter your Client ID and Client Secret."
         )
+
+    @classmethod
+    def get_credential_source(cls):
+        env_info = cls._get_env_oauth_credentials()
+        if env_info["credentials"]:
+            return "env"
+        local_info = cls._read_local_oauth_credentials()
+        if local_info["credentials"]:
+            return "local_file"
+        return "none"
+
+    @staticmethod
+    def get_suggested_redirect_uri(fallback_origin=""):
+        default_uri = "http://localhost:5000/api/ga4/oauth/callback"
+        origin = str(fallback_origin or "").strip()
+        if not origin:
+            return default_uri
+
+        parsed = urlparse(origin)
+        if not parsed.scheme or not parsed.netloc:
+            return default_uri
+
+        return f"{parsed.scheme}://{parsed.netloc}/api/ga4/oauth/callback"
+
+    @classmethod
+    def get_oauth_setup_state(cls, fallback_origin=""):
+        env_info = cls._get_env_oauth_credentials()
+        local_info = cls._read_local_oauth_credentials()
+        source = "none"
+        if env_info["credentials"]:
+            source = "env"
+        elif local_info["credentials"]:
+            source = "local_file"
+
+        setup_error = ""
+        if source == "none":
+            if local_info["error"]:
+                setup_error = local_info["error"]
+            elif env_info["has_any"] and not env_info["has_all"]:
+                setup_error = (
+                    "Only some GA4 OAuth environment variables are set. Provide all three values "
+                    "(GA4_OAUTH_CLIENT_ID, GA4_OAUTH_CLIENT_SECRET, GA4_OAUTH_REDIRECT_URI), "
+                    "or use the in-app setup below."
+                )
+
+        return {
+            "has_credentials": source != "none",
+            "setup_required": source == "none",
+            "credential_source": source,
+            "suggested_redirect_uri": cls.get_suggested_redirect_uri(fallback_origin),
+            "config_path": GA4_LOCAL_OAUTH_CONFIG.name,
+            "setup_error": setup_error,
+            "setup_steps": [
+                "Open Google Cloud Console and create an OAuth 2.0 Client ID.",
+                "Add the Redirect URI shown below in Google Cloud Console.",
+                "Paste your Client ID and Client Secret below, then click Save Setup.",
+                "Click Sign in with Google to connect your GA4 account.",
+            ],
+        }
+
+    @classmethod
+    def save_local_oauth_credentials(cls, client_id, client_secret, redirect_uri):
+        client_id = str(client_id or "").strip()
+        client_secret = str(client_secret or "").strip()
+        redirect_uri = str(redirect_uri or "").strip()
+
+        if not client_id:
+            raise GA4ServiceError("Client ID is required.")
+        if not client_secret:
+            raise GA4ServiceError("Client Secret is required.")
+        if not redirect_uri:
+            raise GA4ServiceError("Redirect URI is required.")
+
+        parsed = urlparse(redirect_uri)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise GA4ServiceError(
+                "Redirect URI must be a full URL, for example: "
+                "http://localhost:5000/api/ga4/oauth/callback"
+            )
+
+        payload = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+        }
+        try:
+            with open(GA4_LOCAL_OAUTH_CONFIG, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2)
+                fh.write("\n")
+        except Exception as exc:
+            raise GA4ServiceError(f"Could not save {GA4_LOCAL_OAUTH_CONFIG.name}: {exc}") from exc
+
+        return {
+            "config_path": GA4_LOCAL_OAUTH_CONFIG.name,
+            "credential_source": cls.get_credential_source(),
+        }
 
     @classmethod
     def has_oauth_credentials(cls):
@@ -235,11 +368,14 @@ class GA4Service:
             return False
 
     @classmethod
-    def build_oauth_url(cls, state):
+    def build_oauth_url(cls, state, redirect_uri=""):
         creds = cls._resolve_oauth_credentials()
+        final_redirect_uri = str(redirect_uri or "").strip() or creds.get("redirect_uri", "")
+        if not final_redirect_uri:
+            raise GA4ServiceError("Redirect URI is not configured.")
         params = {
             "client_id": creds["client_id"],
-            "redirect_uri": creds["redirect_uri"],
+            "redirect_uri": final_redirect_uri,
             "response_type": "code",
             "scope": GA4_OAUTH_SCOPE,
             "access_type": "offline",
@@ -299,13 +435,16 @@ class GA4Service:
         }
 
     @classmethod
-    def exchange_code_for_tokens(cls, code):
+    def exchange_code_for_tokens(cls, code, redirect_uri=""):
         creds = cls._resolve_oauth_credentials()
+        final_redirect_uri = str(redirect_uri or "").strip() or creds.get("redirect_uri", "")
+        if not final_redirect_uri:
+            raise GA4AuthError("Redirect URI is missing for token exchange.")
         payload = {
             "code": code,
             "client_id": creds["client_id"],
             "client_secret": creds["client_secret"],
-            "redirect_uri": creds["redirect_uri"],
+            "redirect_uri": final_redirect_uri,
             "grant_type": "authorization_code",
         }
         response = requests.post(GA4_OAUTH_TOKEN_URL, data=payload, timeout=30)

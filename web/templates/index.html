@@ -241,41 +241,22 @@
 
                             <div id="internal-tab" class="tab-pane">
                                 <div class="sub-nav" id="internalSubNav">
-                                    <!-- Sub-nav buttons will be populated here -->
+                                    <div class="sub-nav-tabs">
+                                        <!-- Sub-nav buttons will be populated here -->
+                                    </div>
                                     <div class="sub-nav-configure">
-                                        <button class="configure-tabs-btn" onclick="toggleConfigureTabsDropdown()">
+                                        <button class="configure-tabs-btn" id="configureTabsBtn">
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="3"></circle>
                                                 <path
-                                                    d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17">
+                                                    d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z">
                                                 </path>
                                             </svg>
                                             Configure Tabs
                                         </button>
                                         <div id="configureTabsDropdown" class="configure-tabs-dropdown">
-                                            <div class="configure-header">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2">
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                    <path
-                                                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z">
-                                                    </path>
-                                                </svg>
-                                                Configure Tabs
-                                            </div>
-                                            <div class="reset-tabs-item" onclick="resetTableTabs()">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2">
-                                                    <path d="M23 4v6h-6M1 20v-6h6"></path>
-                                                    <path
-                                                        d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15">
-                                                    </path>
-                                                </svg>
-                                                Reset Tabs
-                                            </div>
-                                            <div id="configureTabsList">
-                                                <!-- Config items will be populated here -->
-                                            </div>
+                                            <!-- Config items will be populated by JS -->
                                         </div>
                                     </div>
                                 </div>
@@ -609,39 +590,37 @@
                             <!-- New SEO Analysis Tabs -->
                             <div id="security-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔒 Security Analysis</h3>
-                                        <p>HTTPS status, mixed content issues, and security headers will appear here.
-                                        </p>
-                                    </div>
+                                    <table class="data-table" id="securityTable">
+                                        <thead><tr><th>Address</th><th>Protocol</th><th>Status</th></tr></thead>
+                                        <tbody id="securityTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="url-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔗 URL Analysis</h3>
-                                        <p>URL structure, parameters, and path analysis will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="urlTable">
+                                        <thead><tr><th>Address</th><th>Length</th><th>Depth</th><th>Parameters</th><th>Status</th></tr></thead>
+                                        <tbody id="urlTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="page-titles-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📝 Page Titles</h3>
-                                        <p>Title tag analysis including length, duplicates, and missing titles.</p>
-                                    </div>
+                                    <table class="data-table" id="pageTitlesTable">
+                                        <thead><tr><th>Address</th><th>Title</th><th>Length</th><th>Status</th></tr></thead>
+                                        <tbody id="pageTitlesTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="meta-description-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📋 Meta Descriptions</h3>
-                                        <p>Meta description analysis including length, duplicates, and missing
-                                            descriptions.</p>
-                                    </div>
+                                    <table class="data-table" id="metaDescriptionTable">
+                                        <thead><tr><th>Address</th><th>Meta Description</th><th>Length</th><th>Status</th></tr></thead>
+                                        <tbody id="metaDescriptionTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -656,47 +635,46 @@
 
                             <div id="h1-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔤 H1 Headings</h3>
-                                        <p>H1 heading analysis including missing, duplicate, and multiple H1s.</p>
-                                    </div>
+                                    <table class="data-table" id="h1Table">
+                                        <thead><tr><th>Address</th><th>H1</th><th>Length</th><th>Status</th></tr></thead>
+                                        <tbody id="h1TableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="h2-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔤 H2 Headings</h3>
-                                        <p>H2 heading structure and analysis will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="h2Table">
+                                        <thead><tr><th>Address</th><th>H2 Count</th><th>First H2</th><th>Status</th></tr></thead>
+                                        <tbody id="h2TableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="content-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📄 Content Analysis</h3>
-                                        <p>Word count, readability, and content quality metrics will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="contentTabTable">
+                                        <thead><tr><th>Address</th><th>Word Count</th><th>Reading Time</th><th>Status</th></tr></thead>
+                                        <tbody id="contentTabTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="images-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🖼️ Images</h3>
-                                        <p>Image optimization including alt text, size, and format analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="imagesTable">
+                                        <thead><tr><th>Address</th><th>Image Count</th><th>Missing Alt</th><th>Status</th></tr></thead>
+                                        <tbody id="imagesTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="canonicals-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🔗 Canonicals</h3>
-                                        <p>Canonical tag analysis including missing, self-referencing, and cross-domain.
-                                        </p>
-                                    </div>
+                                    <table class="data-table" id="canonicalsTable">
+                                        <thead><tr><th>Address</th><th>Canonical URL</th><th>Status</th></tr></thead>
+                                        <tbody id="canonicalsTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -711,19 +689,19 @@
 
                             <div id="directives-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🤖 Directives</h3>
-                                        <p>Robots directives, noindex, nofollow, and crawlability analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="directivesTable">
+                                        <thead><tr><th>Address</th><th>Meta Robots</th><th>Status</th></tr></thead>
+                                        <tbody id="directivesTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="hreflang-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🌍 Hreflang</h3>
-                                        <p>International targeting and hreflang implementation analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="hreflangTable">
+                                        <thead><tr><th>Address</th><th>Hreflang Count</th><th>Languages</th><th>Status</th></tr></thead>
+                                        <tbody id="hreflangTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -747,19 +725,19 @@
 
                             <div id="structured-data-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📊 Structured Data</h3>
-                                        <p>Schema.org markup, JSON-LD, and rich snippets analysis.</p>
-                                    </div>
+                                    <table class="data-table" id="structuredDataTable">
+                                        <thead><tr><th>Address</th><th>JSON-LD Count</th><th>Schema Types</th><th>Status</th></tr></thead>
+                                        <tbody id="structuredDataTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             <div id="sitemaps-tab" class="tab-pane">
                                 <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>🗺️ Sitemaps</h3>
-                                        <p>XML sitemap analysis and URL coverage will appear here.</p>
-                                    </div>
+                                    <table class="data-table" id="sitemapsTable">
+                                        <thead><tr><th>Address</th><th>In Sitemap</th><th>Status</th></tr></thead>
+                                        <tbody id="sitemapsTableBody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -843,10 +821,40 @@
                             </div>
 
                             <div id="search-console-tab" class="tab-pane">
-                                <div class="table-container">
-                                    <div class="tab-placeholder">
-                                        <h3>📊 Search Console</h3>
-                                        <p>Google Search Console data integration and insights.</p>
+                                <div class="ga4-analytics-container">
+                                    <div class="ga4-analytics-summary">
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Sync Status</div>
+                                            <div id="searchConsoleSyncStatus" class="ga4-summary-value">idle</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Matched URLs</div>
+                                            <div id="searchConsoleMatchedCount" class="ga4-summary-value">0</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Unmatched URLs</div>
+                                            <div id="searchConsoleUnmatchedCount" class="ga4-summary-value">0</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Inspected URLs</div>
+                                            <div id="searchConsoleInspectedCount" class="ga4-summary-value">0</div>
+                                        </div>
+                                        <div class="ga4-summary-card">
+                                            <div class="ga4-summary-label">Last Sync</div>
+                                            <div id="searchConsoleLastSync" class="ga4-summary-value">Never</div>
+                                        </div>
+                                    </div>
+                                    <div id="searchConsoleAnalyticsError" class="ga4-analytics-error" style="display:none;">
+                                    </div>
+                                    <div class="table-container">
+                                        <table class="data-table" id="searchConsoleAnalyticsTable" style="display:none;">
+                                            <thead id="searchConsoleAnalyticsHead"></thead>
+                                            <tbody id="searchConsoleAnalyticsBody"></tbody>
+                                        </table>
+                                        <div id="searchConsoleAnalyticsEmpty" class="tab-placeholder">
+                                            <h3>Search Console</h3>
+                                            <p>Search Console metrics will appear here after a crawl with Search Console enabled.</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1841,10 +1849,122 @@
 
                         <div class="setting-group" id="jsWarning" style="display: none;">
                             <div class="settings-box settings-box-warning">
-                                <strong>⚠️ Performance Impact</strong>
-                                JavaScript rendering is significantly slower than HTTP-only crawling. Use for sites with
-                                dynamic content or when static crawling produces incomplete results.
+                                <strong>Performance Note</strong>
+                                All crawling now uses the Crawl4AI browser engine. Enable JavaScript for dynamic content sites.
+                                Use Text or Light resource modes for faster crawling when full rendering is not needed.
                             </div>
+                        </div>
+
+                        <!-- Crawl4AI Anti-Detection -->
+                        <div id="antiDetectionGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Anti-Detection</h4>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="stealthMode">
+                                Stealth Mode
+                            </label>
+                            <span class="setting-help">Bypass basic bot detection (Cloudflare, Akamai, etc.)</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="randomUserAgent">
+                                Random User Agent
+                            </label>
+                            <span class="setting-help">Randomize User-Agent per request to avoid fingerprinting</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="overrideNavigator">
+                                Override Navigator
+                            </label>
+                            <span class="setting-help">Spoof navigator.webdriver and other automation signals</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="simulateUser">
+                                Simulate User
+                            </label>
+                            <span class="setting-help">Simulate human-like mouse movements and keyboard actions</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="magicMode">
+                                Magic Mode
+                            </label>
+                            <span class="setting-help">Auto-handle overlays, popups, and cookie consent dialogs</span>
+                        </div>
+                        </div>
+
+                        <!-- Wait Strategy -->
+                        <div id="waitStrategyGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Wait Strategy</h4>
+
+                        <div class="setting-group">
+                            <label for="waitStrategy">Wait Strategy</label>
+                            <select id="waitStrategy" onchange="toggleWaitStrategyFields(this.value)">
+                                <option value="fixed">Fixed Wait Time</option>
+                                <option value="css">CSS Selector</option>
+                                <option value="js">JavaScript Expression</option>
+                            </select>
+                            <span class="setting-help">How to determine when page content has finished loading</span>
+                        </div>
+
+                        <div class="setting-group" id="waitForSelectorGroup" style="display: none;">
+                            <label for="waitForSelector">CSS Selector</label>
+                            <input type="text" id="waitForSelector" placeholder=".main-content, #app">
+                            <span class="setting-help">Wait until this CSS selector is present on the page</span>
+                        </div>
+
+                        <div class="setting-group" id="waitForExpressionGroup" style="display: none;">
+                            <label for="waitForExpression">JavaScript Expression</label>
+                            <input type="text" id="waitForExpression" placeholder="document.querySelector('.loaded') !== null">
+                            <span class="setting-help">Wait until this JS expression evaluates to true</span>
+                        </div>
+                        </div>
+
+                        <!-- Resource Mode -->
+                        <div id="resourceModeGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Resource Mode</h4>
+
+                        <div class="setting-group">
+                            <label for="resourceMode">Resource Loading</label>
+                            <select id="resourceMode">
+                                <option value="full">Full (all resources)</option>
+                                <option value="text">Text Mode (no images)</option>
+                                <option value="light">Light Mode (minimal resources)</option>
+                            </select>
+                            <span class="setting-help">Full loads everything. Text skips images for speed. Light disables background features.</span>
+                        </div>
+                        </div>
+
+                        <!-- Infinite Scroll -->
+                        <div id="infiniteScrollGroup" style="display: none;">
+                        <h4 style="margin-top: 20px;">Infinite Scroll</h4>
+
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="scanFullPage" onchange="toggleScrollSettings(this.checked)">
+                                Scan Full Page
+                            </label>
+                            <span class="setting-help">Scroll through entire page to trigger lazy-loaded content</span>
+                        </div>
+
+                        <div class="setting-group" id="scrollDelayGroup" style="display: none;">
+                            <label for="scrollDelay">Scroll Delay (seconds)</label>
+                            <input type="number" id="scrollDelay" value="0.2" min="0" max="10" step="0.1">
+                            <span class="setting-help">Pause between scroll steps</span>
+                        </div>
+
+                        <div class="setting-group" id="maxScrollStepsGroup" style="display: none;">
+                            <label for="maxScrollSteps">Max Scroll Steps</label>
+                            <input type="number" id="maxScrollSteps" value="0" min="0" max="10000">
+                            <span class="setting-help">Maximum scroll operations (0 = unlimited)</span>
+                        </div>
                         </div>
                     </div>
                     <div id="config-panel-advanced" class="config-panel">
@@ -2311,6 +2431,107 @@ footer</textarea>
 
                             <div class="ga4-subtab-content active" data-tab-content="account">
                                 <p class="config-help">Connect an account, select property, and choose the web stream for this crawl.</p>
+                                <div id="ga4SetupCard" class="ga4-setup-card" style="display:none;">
+                                    <h4>Connect Google Analytics</h4>
+                                    <p>This is a one-time setup. Once complete, just click <strong>Sign in with Google</strong> to connect.</p>
+
+                                    <div class="setup-wizard">
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">1</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Create a Google Cloud Project</div>
+                                                <p>Click the link below, give your project any name (e.g. "My SEO Tool"), and click <strong>Create</strong>.</p>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener noreferrer">
+                                                    Open Google Cloud &rarr;
+                                                </a>
+                                                <p class="setup-step-note">If you already have a project, skip this step.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">2</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Turn on the required APIs</div>
+                                                <p>Click each link below and press the <strong>Enable</strong> button on the page that opens.</p>
+                                                <div class="setup-step-links">
+                                                    <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com" target="_blank" rel="noopener noreferrer">
+                                                        Enable Analytics Data API &rarr;
+                                                    </a>
+                                                    <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/library/analyticsadmin.googleapis.com" target="_blank" rel="noopener noreferrer">
+                                                        Enable Analytics Admin API &rarr;
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">3</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Set up the consent screen</div>
+                                                <p>Click the link below, choose <strong>External</strong>, then fill in:</p>
+                                                <ul class="setup-step-checklist">
+                                                    <li><strong>App name</strong> &mdash; anything you like (e.g. "SEO Crawler")</li>
+                                                    <li><strong>User support email</strong> &mdash; your email address</li>
+                                                    <li><strong>Developer contact</strong> &mdash; your email address again</li>
+                                                </ul>
+                                                <p>Click <strong>Save and Continue</strong> through the remaining screens (no changes needed).</p>
+                                                <div class="setup-step-warning">
+                                                    <strong>Important:</strong> On the <strong>Test users</strong> screen, you must click <strong>+ Add users</strong> and enter the Google email address you will sign in with. Without this, Google will block sign-in with an "Access blocked" error.
+                                                </div>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer">
+                                                    Open Consent Screen &rarr;
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">4</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Create OAuth credentials</div>
+                                                <p>Click the link below, then:</p>
+                                                <ol class="setup-step-substeps">
+                                                    <li>Click <strong>+ Create Credentials</strong> at the top</li>
+                                                    <li>Choose <strong>OAuth client ID</strong></li>
+                                                    <li>Set Application type to <strong>Web application</strong></li>
+                                                    <li>Under <strong>Authorized redirect URIs</strong>, click <strong>Add URI</strong> and paste:
+                                                        <div class="setup-redirect-uri-box">
+                                                            <code id="ga4SetupRedirectUriDisplay"></code>
+                                                            <button type="button" class="btn btn-secondary btn-xs" id="ga4CopyRedirectUriBtn">Copy</button>
+                                                        </div>
+                                                        <input type="hidden" id="ga4SetupRedirectUri">
+                                                    </li>
+                                                    <li>Click <strong>Create</strong></li>
+                                                </ol>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">
+                                                    Open Credentials Page &rarr;
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">5</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Paste your credentials here</div>
+                                                <p>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> from the popup that appeared after creating the credential, and paste them below.</p>
+                                                <div class="ga4-form-grid ga4-setup-grid">
+                                                    <label class="ga4-field">
+                                                        <span>Client ID</span>
+                                                        <input type="text" id="ga4SetupClientId" placeholder="Paste your Client ID here">
+                                                    </label>
+                                                    <label class="ga4-field">
+                                                        <span>Client Secret</span>
+                                                        <input type="password" id="ga4SetupClientSecret" placeholder="Paste your Client Secret here" autocomplete="off">
+                                                    </label>
+                                                </div>
+                                                <div class="ga4-setup-actions">
+                                                    <button type="button" class="btn btn-primary btn-sm" id="ga4SaveSetupBtn">Save and Connect</button>
+                                                    <span id="ga4SetupStatusText" class="ga4-setup-status"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p id="ga4SetupPathHint" class="ga4-setup-hint"></p>
+                                </div>
                                 <div class="ga4-form-grid">
                                     <label class="ga4-field">
                                         <span>Account</span>
@@ -2402,10 +2623,334 @@ footer</textarea>
                         </div>
                     </div>
                     <div id="config-panel-search-console" class="config-panel">
-                        <p class="config-placeholder">Search Console integration coming soon...</p>
+                        <div class="ga4-config-layout">
+                            <div class="ga4-panel-header">
+                                <div class="ga4-connection-line">
+                                    <span id="gscConnectionBadge" class="ga4-connection-badge disconnected"
+                                        data-connected="false">Not Connected</span>
+                                    <button type="button" class="btn btn-primary btn-sm" id="gscConnectBtn">Sign in
+                                        with Google</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="gscDisconnectBtn"
+                                        disabled>Disconnect</button>
+                                </div>
+                                <div class="ga4-sync-meta">
+                                    <span id="gscLastSyncLabel">Last Sync: Never</span>
+                                    <span id="gscLastSyncStatusLabel">Status: idle</span>
+                                    <span id="gscLastSyncErrorLabel"></span>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtabs">
+                                <button type="button" class="ga4-subtab-btn active" data-tab="account">Account
+                                    Information</button>
+                                <button type="button" class="ga4-subtab-btn" data-tab="search-analytics">Search
+                                    Analytics</button>
+                                <button type="button" class="ga4-subtab-btn" data-tab="url-inspection">URL
+                                    Inspection</button>
+                            </div>
+
+                            <div class="ga4-subtab-content active" data-tab-content="account">
+                                <p class="config-help">Connect a Google account and select the Search Console property
+                                    for this crawl.</p>
+
+                                <div id="gscSetupCard" class="ga4-setup-card" style="display:none;">
+                                    <h4>Connect Search Console</h4>
+
+                                    <div id="gscSharedCredsNotice" class="setup-shared-notice" style="display:none;">
+                                        <p>Your Google Cloud credentials are already saved from the Google Analytics setup. You just need to enable the Search Console API:</p>
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">1</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Enable the Search Console API</div>
+                                                <p>Click the link below and press <strong>Enable</strong>.</p>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" rel="noopener noreferrer">
+                                                    Enable Search Console API &rarr;
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">2</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Add the Search Console redirect URI</div>
+                                                <p>Go to your OAuth credentials and add this second redirect URI:</p>
+                                                <div class="setup-redirect-uri-box">
+                                                    <code id="gscSetupRedirectUriDisplay"></code>
+                                                    <button type="button" class="btn btn-secondary btn-xs" id="gscCopyRedirectUriBtn">Copy</button>
+                                                </div>
+                                                <input type="hidden" id="gscSetupRedirectUri">
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" style="margin-top:6px;">
+                                                    Open Credentials Page &rarr;
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <p>Once the API is enabled, click <strong>Sign in with Google</strong> above.</p>
+                                    </div>
+
+                                    <div id="gscFullSetupWizard" class="setup-wizard">
+                                        <p>This is a one-time setup. Once complete, just click <strong>Sign in with Google</strong> to connect.</p>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">1</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Create a Google Cloud Project</div>
+                                                <p>Click the link below, give your project any name (e.g. "My SEO Tool"), and click <strong>Create</strong>.</p>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener noreferrer">
+                                                    Open Google Cloud &rarr;
+                                                </a>
+                                                <p class="setup-step-note">If you already have a project, skip this step.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">2</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Turn on the Search Console API</div>
+                                                <p>Click the link below and press the <strong>Enable</strong> button.</p>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" rel="noopener noreferrer">
+                                                    Enable Search Console API &rarr;
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">3</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Set up the consent screen</div>
+                                                <p>Click the link below, choose <strong>External</strong>, then fill in:</p>
+                                                <ul class="setup-step-checklist">
+                                                    <li><strong>App name</strong> &mdash; anything you like</li>
+                                                    <li><strong>User support email</strong> &mdash; your email</li>
+                                                    <li><strong>Developer contact</strong> &mdash; your email again</li>
+                                                </ul>
+                                                <p>Click <strong>Save and Continue</strong> through the remaining screens.</p>
+                                                <div class="setup-step-warning">
+                                                    <strong>Important:</strong> On the <strong>Test users</strong> screen, click <strong>+ Add users</strong> and enter the Google email you will sign in with. Without this, Google will block sign-in.
+                                                </div>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer">
+                                                    Open Consent Screen &rarr;
+                                                </a>
+                                                <p class="setup-step-note">If you already set this up for Google Analytics, skip this step.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">4</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Create OAuth credentials</div>
+                                                <p>Click the link below, then:</p>
+                                                <ol class="setup-step-substeps">
+                                                    <li>Click <strong>+ Create Credentials</strong> at the top</li>
+                                                    <li>Choose <strong>OAuth client ID</strong></li>
+                                                    <li>Set Application type to <strong>Web application</strong></li>
+                                                    <li>Under <strong>Authorized redirect URIs</strong>, click <strong>Add URI</strong> and paste:
+                                                        <div class="setup-redirect-uri-box">
+                                                            <code id="gscSetupRedirectUriDisplay2"></code>
+                                                            <button type="button" class="btn btn-secondary btn-xs" id="gscCopyRedirectUriBtn2">Copy</button>
+                                                        </div>
+                                                    </li>
+                                                    <li>Click <strong>Create</strong></li>
+                                                </ol>
+                                                <a class="btn btn-secondary btn-sm" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">
+                                                    Open Credentials Page &rarr;
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        <div class="setup-wizard-step">
+                                            <div class="setup-step-number">5</div>
+                                            <div class="setup-step-content">
+                                                <div class="setup-step-title">Paste your credentials here</div>
+                                                <p>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> from the popup that appeared, and paste them below.</p>
+                                                <div class="ga4-form-grid ga4-setup-grid">
+                                                    <label class="ga4-field">
+                                                        <span>Client ID</span>
+                                                        <input type="text" id="gscSetupClientId" placeholder="Paste your Client ID here">
+                                                    </label>
+                                                    <label class="ga4-field">
+                                                        <span>Client Secret</span>
+                                                        <input type="password" id="gscSetupClientSecret" placeholder="Paste your Client Secret here" autocomplete="off">
+                                                    </label>
+                                                </div>
+                                                <div class="ga4-setup-actions">
+                                                    <button type="button" class="btn btn-primary btn-sm" id="gscSaveSetupBtn">Save and Connect</button>
+                                                    <span id="gscSetupStatusText" class="ga4-setup-status"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p id="gscSetupPathHint" class="ga4-setup-hint"></p>
+                                </div>
+
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Search Console Property</span>
+                                        <select id="gscSiteSelect">
+                                            <option value="">Select property...</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtab-content" data-tab-content="search-analytics">
+                                <p class="config-help">Select date range, filters, and matching behavior for Search
+                                    Analytics data.</p>
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Date Range</span>
+                                        <select id="gscDateRangePreset"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Start Date</span>
+                                        <input type="date" id="gscDateStart">
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>End Date</span>
+                                        <input type="date" id="gscDateEnd">
+                                    </label>
+                                </div>
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Device Filter</span>
+                                        <select id="gscDeviceFilter"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Country Filter</span>
+                                        <select id="gscCountryFilter"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Type Filter</span>
+                                        <select id="gscTypeFilter"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Query Filter</span>
+                                        <select id="gscQueryFilterOperator"></select>
+                                    </label>
+                                    <label class="ga4-field ga4-field-wide">
+                                        <span>Query Value</span>
+                                        <input type="text" id="gscQueryFilterValue" placeholder="e.g. brand name">
+                                    </label>
+                                </div>
+                                <div class="ga4-general-grid">
+                                    <label class="config-checkbox"><input type="checkbox" id="gscEnabled"> Enable Search
+                                        Console for crawls</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscMatchTrailingSlash"
+                                            checked> Match trailing and non-trailing slash URLs</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscMatchCase"> Match
+                                        uppercase and lowercase URLs</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscCrawlNewUrls"> Crawl
+                                        new URLs discovered in Search Console</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscLimitMaxResults"
+                                            checked> Limit max Search Console rows</label>
+                                    <label class="ga4-field ga4-inline-field">
+                                        <span>Max Rows</span>
+                                        <input type="number" id="gscMaxResults" min="1" max="1000000" step="1"
+                                            value="100000">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtab-content" data-tab-content="url-inspection">
+                                <p class="config-help">Optionally run URL Inspection on top URLs by clicks. Google
+                                    limits this endpoint to 2,000 URLs per property/day.</p>
+                                <div class="ga4-general-grid">
+                                    <label class="config-checkbox"><input type="checkbox" id="gscEnableUrlInspection">
+                                        Enable URL Inspection</label>
+                                    <label class="config-checkbox"><input type="checkbox"
+                                            id="gscIgnoreNonIndexableUrls"> Ignore non-indexable URLs for inspection</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="gscUseMultipleProperties">
+                                        Use multiple verified properties when needed</label>
+                                    <label class="ga4-field">
+                                        <span>Language</span>
+                                        <select id="gscInspectionLanguageCode"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Max URLs to Inspect</span>
+                                        <input type="number" id="gscInspectionMaxUrls" min="1" max="2000" step="1"
+                                            value="200">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="config-panel-pagespeed" class="config-panel">
-                        <p class="config-placeholder">PageSpeed Insights integration coming soon...</p>
+                        <div class="ga4-config-layout">
+                            <div class="ga4-panel-header">
+                                <div class="ga4-connection-line">
+                                    <span id="psConnectionBadge" class="ga4-connection-badge disconnected"
+                                        data-connected="false">Not Connected</span>
+                                    <button type="button" class="btn btn-primary btn-sm" id="psConnectBtn">Connect
+                                        API Key</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="psDisconnectBtn"
+                                        disabled>Disconnect</button>
+                                </div>
+                                <div class="ga4-sync-meta">
+                                    <span id="psLastSyncLabel">Last Sync: Never</span>
+                                    <span id="psLastSyncStatusLabel">Status: idle</span>
+                                    <span id="psLastSyncErrorLabel"></span>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtabs">
+                                <button type="button" class="ga4-subtab-btn active" data-tab="account">Account
+                                    Information</button>
+                                <button type="button" class="ga4-subtab-btn" data-tab="metrics">Metrics</button>
+                            </div>
+
+                            <div class="ga4-subtab-content active" data-tab-content="account">
+                                <p class="config-help">Connect the PageSpeed Insights API key once, then enable
+                                    PageSpeed for crawls.</p>
+
+                                <div class="ga4-setup-card">
+                                    <h4>One-time API setup</h4>
+                                    <p>Use a Google API key so PageSpeed can run reliably without anonymous rate
+                                        limits.</p>
+                                    <ol class="ga4-setup-steps" id="psSetupSteps"></ol>
+                                    <div class="ga4-setup-actions">
+                                        <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer"
+                                            href="https://console.cloud.google.com/apis/credentials">
+                                            Open Google Cloud Console
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="ga4-form-grid">
+                                    <label class="ga4-field">
+                                        <span>Source</span>
+                                        <select id="psSourceSelect"></select>
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>API Key</span>
+                                        <input type="password" id="psApiKey"
+                                            placeholder="Paste PageSpeed Insights API key" autocomplete="off">
+                                    </label>
+                                    <label class="ga4-field">
+                                        <span>Test URL</span>
+                                        <input type="url" id="psVerifyUrl" value="https://www.example.com">
+                                    </label>
+                                </div>
+                                <div class="ga4-general-grid">
+                                    <label class="config-checkbox"><input type="checkbox" id="pagespeedEnabled"> Enable
+                                        PageSpeed for crawls</label>
+                                    <label class="config-checkbox"><input type="checkbox" id="psAutoConnect" checked>
+                                        Auto-connect on start</label>
+                                </div>
+                            </div>
+
+                            <div class="ga4-subtab-content" data-tab-content="metrics">
+                                <p class="config-help">Choose which devices and metric groups to include in
+                                    PageSpeed analysis output.</p>
+                                <div class="psi-metrics-grid">
+                                    <div class="ga4-metric-group">
+                                        <h5>Devices</h5>
+                                        <div class="ga4-metric-list" id="psDevicesList"></div>
+                                    </div>
+                                    <div class="ga4-metric-group">
+                                        <h5>Metric Groups</h5>
+                                        <div class="ga4-metric-list" id="psMetricGroupsList"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <!-- Authentication - Main Landing Page -->
                     <div id="config-panel-authentication" class="config-panel">
@@ -2578,6 +3123,8 @@ footer</textarea>
     <script src="/static/js/dashboard.js?v=4"></script>
     <script src="/static/js/settings.js?v=4"></script>
     <script src="/static/js/ga4-config.js?v=1"></script>
+    <script src="/static/js/search-console-config.js?v=1"></script>
+    <script src="/static/js/pagespeed-config.js?v=1"></script>
 </body>
 
 </html>
