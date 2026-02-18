@@ -190,6 +190,19 @@ class JavaScriptRenderer:
                   f"headless={self._browser_config.headless}, "
                   f"stealth={self._browser_config.enable_stealth})")
         except Exception as e:
+            # If stealth mode caused the failure due to a playwright_stealth
+            # version mismatch, disable stealth and retry once.
+            if (self._browser_config.enable_stealth
+                    and "cannot import name" in str(e)
+                    and "playwright_stealth" in str(e)):
+                print(f"Stealth import incompatibility detected, retrying with stealth disabled: {e}")
+                await self.cleanup()
+                self.config['stealth_mode'] = False
+                self._browser_config = self._build_browser_config()
+                self.crawler = AsyncWebCrawler(config=self._browser_config)
+                await self.crawler.start()
+                print(f"Crawl4AI browser engine initialized (stealth disabled as fallback)")
+                return
             print(f"Failed to initialize Crawl4AI browser engine: {e}")
             await self.cleanup()
             raise
