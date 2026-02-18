@@ -9,7 +9,8 @@ pages_bp = Blueprint('pages', __name__)
 def health():
     return jsonify({
         'ok': True,
-        'service': 'wailing-newt-web-walker'
+        'service': 'wailing-newt-web-walker',
+        'port': current_app.config.get('SERVER_PORT', 5000)
     })
 
 

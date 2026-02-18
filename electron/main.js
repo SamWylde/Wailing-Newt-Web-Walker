@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, Tray, dialog, shell, ipcMain } = require('elec
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 
 // Auto-updater (optional - gracefully handle if electron-updater not installed)
@@ -24,11 +25,27 @@ let isQuitting = false;
 let loadingWindow = null;
 
 // Configuration
-const SERVER_PORT = 5000;
-const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`; // Use IPv4 explicitly to avoid IPv6 issues
+const PREFERRED_PORT = 5000;
+const PORT_SCAN_COUNT = 20;
 const HEALTH_ENDPOINT = '/api/health';
-const HEALTH_URL = `${SERVER_URL}${HEALTH_ENDPOINT}`;
 const HEALTH_SERVICE_NAME = 'wailing-newt-web-walker';
+
+// Runtime state — updated by port scanning before Python is spawned
+let serverPort = PREFERRED_PORT;
+let serverUrl = `http://127.0.0.1:${serverPort}`;
+let healthUrl = `${serverUrl}${HEALTH_ENDPOINT}`;
+
+/**
+ * Check if a TCP port is free on 127.0.0.1
+ */
+function isPortFree(port) {
+    return new Promise((resolve) => {
+        const server = net.createServer();
+        server.once('error', () => resolve(false));
+        server.once('listening', () => { server.close(); resolve(true); });
+        server.listen(port, '127.0.0.1');
+    });
+}
 
 // Determine paths based on whether we're in development or production
 const isDev = !app.isPackaged;
@@ -566,7 +583,7 @@ async function startPythonBackend() {
 
         pythonProcess = spawn(
             pythonGui.command,
-            [...pythonGui.baseArgs, 'main.py', '-l', '--no-browser'],
+            [...pythonGui.baseArgs, 'main.py', '-l', '--no-browser', '--port', String(serverPort)],
             spawnOptions
         );
 
@@ -624,7 +641,7 @@ async function startPythonBackend() {
             }
 
             if (!isQuitting) {
-                probeServer(SERVER_URL).then((probeResult) => {
+                probeServer(serverUrl).then((probeResult) => {
                     if (isLenientServerResponse(probeResult)) {
                         console.log('[Electron] Server already running on another instance. Quitting silently...');
                     } else {
@@ -680,7 +697,7 @@ function waitForServer(resolve, reject, attempts = 0, getBackendProcess = () => 
 
     console.log(`[Electron] Checking health endpoint (attempt ${attempts + 1}/${maxAttempts})...`);
 
-    probeServer(HEALTH_URL).then((probeResult) => {
+    probeServer(healthUrl).then((probeResult) => {
         if (isHealthyServerResponse(probeResult)) {
             console.log('[Electron] Server health check passed');
             updateLoadingStatus('Server is ready');
@@ -734,8 +751,8 @@ function createWindow() {
     mainWindow = new BrowserWindow(windowOptions);
 
     // Load the web UI
-    console.log(`[Electron] Loading URL: ${SERVER_URL}`);
-    mainWindow.loadURL(SERVER_URL);
+    console.log(`[Electron] Loading URL: ${serverUrl}`);
+    mainWindow.loadURL(serverUrl);
 
     // Show window when ready
     mainWindow.once('ready-to-show', () => {
@@ -1096,22 +1113,36 @@ app.whenReady().then(async () => {
 
         updateLoadingStatus('Starting Wailing Newt...');
 
-        // Check if server is already running (another instance)
-        const healthProbe = await probeServer(HEALTH_URL);
-        let serverAlreadyRunning = isHealthyServerResponse(healthProbe);
-        if (!serverAlreadyRunning) {
-            const fallbackProbe = await probeServer(SERVER_URL);
-            serverAlreadyRunning = isLenientServerResponse(fallbackProbe);
+        // Scan ports to find our running server or an available port
+        let serverAlreadyRunning = false;
+        for (let port = PREFERRED_PORT; port < PREFERRED_PORT + PORT_SCAN_COUNT; port++) {
+            const probeUrl = `http://127.0.0.1:${port}${HEALTH_ENDPOINT}`;
+            const probe = await probeServer(probeUrl);
+            if (isHealthyServerResponse(probe)) {
+                // Our server is already running on this port — reuse it
+                serverPort = port;
+                serverUrl = `http://127.0.0.1:${port}`;
+                healthUrl = `${serverUrl}${HEALTH_ENDPOINT}`;
+                serverAlreadyRunning = true;
+                break;
+            }
+            if (await isPortFree(port)) {
+                serverPort = port;
+                serverUrl = `http://127.0.0.1:${port}`;
+                healthUrl = `${serverUrl}${HEALTH_ENDPOINT}`;
+                console.log(`[Startup] Selected free port: ${port}`);
+                break;
+            }
+            console.log(`[Startup] Port ${port} is in use, trying next...`);
         }
 
         if (serverAlreadyRunning) {
-            console.log('[Electron] Server already running - focusing existing instance');
+            console.log(`[Electron] Server already running on port ${serverPort} - focusing existing instance`);
             updateLoadingStatus('App already running...');
             if (loadingWindow && !loadingWindow.isDestroyed()) {
                 loadingWindow.close();
             }
-            // Open browser to existing instance instead of showing error
-            require('electron').shell.openExternal(SERVER_URL);
+            require('electron').shell.openExternal(serverUrl);
             app.quit();
             return;
         }
@@ -1137,10 +1168,12 @@ app.whenReady().then(async () => {
 
         // Show helpful error message
         let errorDetail = error.message;
-        if (error.message.includes('Python')) {
+        if (error.message.includes('not found') && error.message.includes('Python')) {
             errorDetail += '\n\nPlease install Python 3.11 or later from https://www.python.org/';
         } else if (error.message.toLowerCase().includes('dependencies')) {
             errorDetail += '\n\nTry running setup.bat to install all dependencies.';
+        } else if (error.message.includes('exited before readiness')) {
+            errorDetail += '\n\nThe backend server failed to start. Check the stderr log for details.';
         }
         if (!errorDetail.includes(PIP_LOG_FILE)) {
             errorDetail += `\n\nLogs:\n${PIP_LOG_FILE}\n${PY_STDERR_LOG_FILE}`;

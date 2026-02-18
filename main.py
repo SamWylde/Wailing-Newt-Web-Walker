@@ -59,11 +59,14 @@ parser.add_argument('--disable-register', '-dr', action='store_true',
                     help='Disable new user registrations')
 parser.add_argument('--no-browser', '-nb', action='store_true',
                     help='Do not open browser on startup (used when running inside Electron)')
+parser.add_argument('--port', '-p', type=int, default=5000,
+                    help='Port to run the server on (default: 5000)')
 args = parser.parse_args()
 
 LOCAL_MODE = args.local
 DISABLE_REGISTER = args.disable_register
 NO_BROWSER = args.no_browser
+SERVER_PORT = args.port
 
 
 def create_app():
@@ -159,15 +162,16 @@ def main():
     signal.signal(signal.SIGTERM, graceful_shutdown)
 
     app = create_app()
+    app.config['SERVER_PORT'] = SERVER_PORT
     recover_crashed_crawls()
     start_cleanup_thread()
 
     print("=" * 60)
     print("Wailing Newt Web Walker")
     print("=" * 60)
-    print(f"\n🚀 Server starting on http://0.0.0.0:5000")
-    print("🌐 Access from browser: http://localhost:5000")
-    print("📱 Access from network: http://<your-ip>:5000")
+    print(f"\n🚀 Server starting on http://0.0.0.0:{SERVER_PORT}")
+    print(f"🌐 Access from browser: http://localhost:{SERVER_PORT}")
+    print(f"📱 Access from network: http://<your-ip>:{SERVER_PORT}")
     print("\n✨ Multi-tenancy enabled - each browser session is isolated")
     print("💾 Settings stored in browser localStorage")
     print("\nPress Ctrl+C to stop the server\n")
@@ -176,15 +180,15 @@ def main():
     if not NO_BROWSER:
         def open_browser():
             time.sleep(1.5)
-            webbrowser.open('http://localhost:5000')
+            webbrowser.open(f'http://localhost:{SERVER_PORT}')
 
         browser_thread = threading.Thread(target=open_browser, daemon=True)
         browser_thread.start()
 
     from waitress import serve
-    print("Starting Wailing Newt Web Walker on http://localhost:5000")
+    print(f"Starting Wailing Newt Web Walker on http://localhost:{SERVER_PORT}")
     print("Using Waitress WSGI server with multi-threading support")
-    serve(app, host='0.0.0.0', port=5000, threads=8)
+    serve(app, host='0.0.0.0', port=SERVER_PORT, threads=8)
 
 
 if __name__ == '__main__':
