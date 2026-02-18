@@ -40,10 +40,10 @@ jobs:
       - name: Set auto-incremented app version
         shell: pwsh
         run: |
-          $version = node -e "const fs=require('fs'); const p='electron/package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); const parts=(pkg.version||'1.0.0').split('.'); const major=parts[0]||'1'; const minor=parts[1]||'0'; pkg.version=`${major}.${minor}.${process.env.GITHUB_RUN_NUMBER}`; fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n'); process.stdout.write(pkg.version);"
+          $version = node -e 'var fs=require("fs"),p="electron/package.json",pkg=JSON.parse(fs.readFileSync(p,"utf8")),v=(pkg.version||"1.0.0").split(".");pkg.version=v[0]+"."+v[1]+"."+process.env.GITHUB_RUN_NUMBER;fs.writeFileSync(p,JSON.stringify(pkg,null,2)+"\n");process.stdout.write(pkg.version);'
           if (-not $version) { throw 'Failed to compute app version.' }
-          \"APP_VERSION=$version\" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host \"Using app version: $version\"
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Using app version: $version"
 
       - name: Build and publish Windows release
         working-directory: electron
@@ -54,5 +54,5 @@ jobs:
       - name: Release summary
         shell: pwsh
         run: |
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value \"Published Windows auto-update release for version $env:APP_VERSION\"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value \"Commit: $env:GITHUB_SHA\"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Published Windows auto-update release for version $env:APP_VERSION"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Commit: $env:GITHUB_SHA"
