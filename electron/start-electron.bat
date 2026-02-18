@@ -36,6 +36,19 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: Find a console Python command for setup tasks
+set "PYTHON_CONSOLE="
+python --version >nul 2>&1
+if not errorlevel 1 set "PYTHON_CONSOLE=python"
+if not defined PYTHON_CONSOLE (
+    py -3.11 --version >nul 2>&1
+    if not errorlevel 1 set "PYTHON_CONSOLE=py -3.11"
+)
+if not defined PYTHON_CONSOLE (
+    py --version >nul 2>&1
+    if not errorlevel 1 set "PYTHON_CONSOLE=py"
+)
+
 :: Pull latest updates from git (if git is available)
 if /i "%RUN_SETUP%"=="1" (
     if /i not "%LAUNCH_MODE%"=="--silent" echo Checking for updates...
@@ -70,21 +83,39 @@ if /i "%RUN_SETUP%"=="1" (
 
 :: Check if Python dependencies are installed
 if /i "%RUN_SETUP%"=="1" (
-    if /i not "%LAUNCH_MODE%"=="--silent" echo Checking Python dependencies...
+    if not defined PYTHON_CONSOLE (
+        echo ERROR: Python console command not found for setup tasks.
+        echo Please install Python 3.11 or set WNW_PYTHON_CONSOLE.
+        pause
+        exit /b 1
+    )
+    if /i not "%LAUNCH_MODE%"=="--silent" echo Checking Python dependencies with %PYTHON_CONSOLE%...
     cd ..
-    python -m pip install -r requirements.txt --quiet 2>nul
+    %PYTHON_CONSOLE% -m pip install -r requirements.txt --quiet
     if errorlevel 1 (
-        py -m pip install -r requirements.txt --quiet 2>nul
+        echo ERROR: Failed to install Python dependencies.
+        pause
+        exit /b 1
+    )
+    %PYTHON_CONSOLE% -c "import importlib.util,sys;mods=['crawl4ai','patchright','flask','waitress'];missing=[m for m in mods if importlib.util.find_spec(m) is None];print('Missing modules: ' + ', '.join(missing)) if missing else None;sys.exit(1 if missing else 0)"
+    if errorlevel 1 (
+        echo ERROR: Required Python modules are missing after install.
+        echo Run: %PYTHON_CONSOLE% -m pip install -r requirements.txt
+        pause
+        exit /b 1
     )
     cd electron
 )
 
 if /i "%RUN_SETUP%"=="1" (
-    :: Install Playwright browsers if needed
+    :: Install browser runtime for Crawl4AI/Patchright if needed
     cd ..
-    python -m playwright install chromium --quiet 2>nul
+    %PYTHON_CONSOLE% -m patchright install chromium --quiet 2>nul
     if errorlevel 1 (
-        py -m playwright install chromium --quiet 2>nul
+        %PYTHON_CONSOLE% -m patchright install chromium 2>nul
+        if errorlevel 1 (
+            %PYTHON_CONSOLE% -m playwright install chromium --quiet 2>nul
+        )
     )
     cd electron
 )

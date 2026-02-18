@@ -55,11 +55,27 @@ if errorlevel 1 (
     goto :eof
 )
 
-if not defined SILENT echo Installing Playwright browsers (first run only)...
-%PYTHON% -m playwright install chromium --quiet 2>nul
+if not defined SILENT echo Verifying required modules (Crawl4AI/Patchright)...
+%PYTHON% -c "import importlib.util,sys;mods=['crawl4ai','patchright','flask','waitress'];missing=[m for m in mods if importlib.util.find_spec(m) is None];print('Missing modules: ' + ', '.join(missing)) if missing else None;sys.exit(1 if missing else 0)"
 if errorlevel 1 (
-    if not defined SILENT echo Playwright browser installation required...
-    %PYTHON% -m playwright install chromium
+    if not defined SILENT echo.
+    if not defined SILENT echo ERROR: Required Python modules are missing after install.
+    if not defined SILENT echo Run: %PYTHON% -m pip install -r requirements.txt
+    goto :eof
+)
+
+if not defined SILENT echo Installing browser runtime for Crawl4AI/Patchright (first run only)...
+%PYTHON% -m patchright install chromium --quiet 2>nul
+if errorlevel 1 (
+    if not defined SILENT echo Patchright browser installation required...
+    %PYTHON% -m patchright install chromium 2>nul
+    if errorlevel 1 (
+        if not defined SILENT echo Falling back to Playwright browser install...
+        %PYTHON% -m playwright install chromium --quiet 2>nul
+        if errorlevel 1 (
+            %PYTHON% -m playwright install chromium
+        )
+    )
 )
 
 if not defined SILENT echo.

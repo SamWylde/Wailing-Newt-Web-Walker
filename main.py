@@ -1,4 +1,5 @@
 import argparse
+import importlib.util
 import os
 import threading
 import time
@@ -7,6 +8,32 @@ import webbrowser
 from dotenv import load_dotenv
 from flask import Flask
 from flask_compress import Compress
+
+REQUIRED_RUNTIME_MODULES = ['crawl4ai', 'patchright']
+
+
+def preflight_dependency_check():
+    """Fail fast with actionable output when required runtime deps are missing."""
+    missing = [
+        module_name
+        for module_name in REQUIRED_RUNTIME_MODULES
+        if importlib.util.find_spec(module_name) is None
+    ]
+
+    if not missing:
+        return
+
+    print("=" * 60)
+    print("FATAL STARTUP ERROR: Missing required Python dependencies")
+    print("=" * 60)
+    print(f"Missing modules: {', '.join(missing)}")
+    print("Run this command and restart:")
+    print("  python -m pip install -r requirements.txt")
+    print("=" * 60)
+    raise SystemExit(1)
+
+
+preflight_dependency_check()
 
 from src.app_state import crawler_instances, instances_lock, start_cleanup_thread
 from src.auth_db import init_db
